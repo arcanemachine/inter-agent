@@ -1,14 +1,13 @@
-from __future__ import annotations
-
 """Minimal Pi adapter wrappers.
 
 Core supports `list`; adapter surfaces may choose whether to expose it.
 """
 
+from __future__ import annotations
+
 import subprocess
 import sys
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[2]
 

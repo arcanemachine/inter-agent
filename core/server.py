@@ -4,10 +4,9 @@ import argparse
 import asyncio
 import json
 from dataclasses import dataclass
-from typing import Any
 
 import websockets
-from websockets.server import WebSocketServerProtocol
+from websockets.asyncio.server import ServerConnection
 
 from core.router import RouterMiddleware
 from core.shared import (
@@ -24,11 +23,11 @@ from core.shared import (
 
 @dataclass
 class Conn:
-    ws: WebSocketServerProtocol
+    ws: ServerConnection
     session_id: str
     name: str
     role: str
-    capabilities: dict[str, Any]
+    capabilities: dict[str, object]
 
 
 class BusServer:
@@ -40,10 +39,10 @@ class BusServer:
         self.registry: dict[str, Conn] = {}
         self.middlewares: list[RouterMiddleware] = []
 
-    async def send_error(self, ws: WebSocketServerProtocol, code: str, message: str) -> None:
+    async def send_error(self, ws: ServerConnection, code: str, message: str) -> None:
         await ws.send(json.dumps({"op": "error", "code": code, "message": message}))
 
-    async def handle(self, ws: WebSocketServerProtocol) -> None:
+    async def handle(self, ws: ServerConnection) -> None:
         session_id = None
         try:
             raw = await ws.recv()
@@ -125,11 +124,11 @@ class BusServer:
             if session_id and session_id in self.registry:
                 self.registry.pop(session_id, None)
 
-    async def _apply_middlewares(self, sender: Conn, msg: dict[str, Any]) -> None:
+    async def _apply_middlewares(self, sender: Conn, msg: dict[str, object]) -> None:
         for middleware in self.middlewares:
             await middleware.before_route(sender.session_id, msg)
 
-    async def _route_send(self, sender: Conn, msg: dict[str, Any]) -> None:
+    async def _route_send(self, sender: Conn, msg: dict[str, object]) -> None:
         await self._apply_middlewares(sender, msg)
         to = msg.get("to")
         text = msg.get("text")
@@ -157,7 +156,7 @@ class BusServer:
             )
         )
 
-    async def _route_broadcast(self, sender: Conn, msg: dict[str, Any]) -> None:
+    async def _route_broadcast(self, sender: Conn, msg: dict[str, object]) -> None:
         await self._apply_middlewares(sender, msg)
         text = msg.get("text")
         if not isinstance(text, str):
@@ -181,7 +180,7 @@ class BusServer:
                 continue
             await conn.ws.send(payload)
 
-    async def _route_custom(self, sender: Conn, msg: dict[str, Any]) -> None:
+    async def _route_custom(self, sender: Conn, msg: dict[str, object]) -> None:
         await self._apply_middlewares(sender, msg)
         custom_type = msg.get("custom_type")
         payload = {
@@ -196,7 +195,9 @@ class BusServer:
         if msg.get("to"):
             target = next((c for c in self.registry.values() if c.name == msg.get("to")), None)
             if not target:
-                await self.send_error(sender.ws, "UNKNOWN_TARGET", f"unknown target: {msg.get('to')}")
+                await self.send_error(
+                    sender.ws, "UNKNOWN_TARGET", f"unknown target: {msg.get('to')}"
+                )
                 return
             payload["to"] = target.name
             await target.ws.send(json.dumps(payload))
@@ -210,7 +211,9 @@ class BusServer:
 async def run_server(host: str, port: int) -> None:
     server = BusServer(host=host, port=port)
     write_server_identity(host, port)
-    async with websockets.serve(server.handle, host=host, port=port, max_size=server.limits.frame_max):
+    async with websockets.serve(
+        server.handle, host=host, port=port, max_size=server.limits.frame_max
+    ):
         await asyncio.Future()
 
 

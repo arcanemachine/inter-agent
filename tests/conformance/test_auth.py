@@ -8,7 +8,7 @@ from core.server import run_server
 
 
 @pytest.mark.asyncio
-async def test_auth_failure(monkeypatch, tmp_path):
+async def test_auth_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: object) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     host, port = "127.0.0.1", 9783
 
@@ -17,14 +17,18 @@ async def test_auth_failure(monkeypatch, tmp_path):
 
     try:
         async with websockets.connect(f"ws://{host}:{port}") as ws:
-            await ws.send(json.dumps({
-                "op": "hello",
-                "token": "wrong",
-                "role": "agent",
-                "session_id": "a",
-                "name": "agent-a",
-                "capabilities": {},
-            }))
+            await ws.send(
+                json.dumps(
+                    {
+                        "op": "hello",
+                        "token": "wrong",
+                        "role": "agent",
+                        "session_id": "a",
+                        "name": "agent-a",
+                        "capabilities": {},
+                    }
+                )
+            )
             err = json.loads(await ws.recv())
             assert err["op"] == "error"
             assert err["code"] == "AUTH_FAILED"

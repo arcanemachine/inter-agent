@@ -7,7 +7,13 @@ import uuid
 
 import websockets
 
-from core.shared import DEFAULT_HOST, DEFAULT_PORT, load_or_create_token, verify_server_identity
+from core.shared import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    control_hello,
+    load_or_create_token,
+    verify_server_identity,
+)
 
 
 async def list_sessions(host: str, port: int) -> None:
@@ -15,18 +21,7 @@ async def list_sessions(host: str, port: int) -> None:
         raise SystemExit("server identity check failed")
     token = load_or_create_token()
     async with websockets.connect(f"ws://{host}:{port}") as ws:
-        await ws.send(
-            json.dumps(
-                {
-                    "op": "hello",
-                    "token": token,
-                    "role": "control",
-                    "session_id": f"ctl-{uuid.uuid4()}",
-                    "name": "control",
-                    "capabilities": {},
-                }
-            )
-        )
+        await ws.send(json.dumps(control_hello(token, f"ctl-{uuid.uuid4()}")))
         _ = await ws.recv()
         await ws.send(json.dumps({"op": "list"}))
         print(await ws.recv())

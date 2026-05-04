@@ -86,13 +86,24 @@ def verify_server_identity(host: str, port: int) -> bool:
 
 
 def utc_now() -> str:
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def next_msg_id() -> str:
     return secrets.token_hex(8)
+
+
+def control_hello(token: str, session_id: str) -> dict[str, object]:
+    return {
+        "op": "hello",
+        "token": token,
+        "role": "control",
+        "session_id": session_id,
+        "name": "control",
+        "capabilities": {},
+    }
 
 
 def validate_name(name: str) -> bool:

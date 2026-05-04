@@ -22,5 +22,18 @@ Permissive, universal-friendly agent-to-agent messaging bus with a Python core a
 - `core/` universal protocol server/client bits
 - `adapters/pi/` Pi-specific UX adapter
 - `spec/` AsyncAPI + schemas + examples
-- `tests/conformance/` black-box protocol checks
-- `docs/` threat model + baseline security notes
+- `tests/` conformance and validation tests
+- `docs/` supporting notes
+
+## Development checks
+
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run black --check .`
+- `uv run mypy core adapters tests`
+
+## Additional docs
+
+- `ARCHITECTURE.md`
+- `SECURITY.md`
+- `AGENTS.md` (agent workflow)
