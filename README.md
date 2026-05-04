@@ -1,6 +1,7 @@
 # inter-agent
 
-Permissive, universal-friendly agent-to-agent messaging bus with a Python core and Pi adapter.
+`inter-agent` is a lightweight localhost messaging bus for AI coding sessions.
+It lets one session send direct or broadcast messages to other running sessions, with a universal Python core protocol and a Pi adapter for day-to-day use.
 
 ## MVP goals
 
