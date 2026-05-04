@@ -1,0 +1,9 @@
+{
+  "op": "custom",
+  "custom_type": "acme.sync.v1",
+  "to": "agent-b",
+  "payload": {
+    "action": "sync",
+    "id": 42
+  }
+}

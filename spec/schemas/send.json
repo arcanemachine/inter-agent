@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Send",
+  "type": "object",
+  "required": ["op", "to", "text"],
+  "properties": {
+    "op": { "const": "send" },
+    "to": { "type": "string" },
+    "text": { "type": "string" }
+  },
+  "additionalProperties": true
+}

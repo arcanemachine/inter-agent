@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Hello",
+  "type": "object",
+  "required": ["op", "token", "role", "session_id", "name", "capabilities"],
+  "properties": {
+    "op": { "const": "hello" },
+    "token": { "type": "string" },
+    "role": { "enum": ["agent", "control"] },
+    "session_id": { "type": "string" },
+    "name": { "type": "string" },
+    "label": { "type": ["string", "null"] },
+    "capabilities": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": true
+}

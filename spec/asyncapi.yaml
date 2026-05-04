@@ -1,0 +1,112 @@
+asyncapi: 2.6.0
+info:
+  title: inter-agent protocol
+  version: 0.1.0
+  description: Minimal universal-friendly protocol for inter-agent bus.
+channels:
+  /:
+    publish:
+      message:
+        oneOf:
+          - $ref: '#/components/messages/Hello'
+          - $ref: '#/components/messages/Send'
+          - $ref: '#/components/messages/Broadcast'
+          - $ref: '#/components/messages/Ping'
+          - $ref: '#/components/messages/Bye'
+          - $ref: '#/components/messages/List'
+          - $ref: '#/components/messages/Custom'
+    subscribe:
+      message:
+        oneOf:
+          - $ref: '#/components/messages/Welcome'
+          - $ref: '#/components/messages/Msg'
+          - $ref: '#/components/messages/Pong'
+          - $ref: '#/components/messages/Error'
+          - $ref: '#/components/messages/ListOk'
+components:
+  schemas:
+    Envelope:
+      $ref: './schemas/envelope.json'
+    Hello:
+      $ref: './schemas/hello.json'
+    Send:
+      $ref: './schemas/send.json'
+    Msg:
+      $ref: './schemas/msg.json'
+    Error:
+      $ref: './schemas/error.json'
+    Custom:
+      $ref: './schemas/custom.json'
+  messages:
+    Hello:
+      payload:
+        $ref: '#/components/schemas/Hello'
+    Welcome:
+      payload:
+        type: object
+        required: [op, session_id, assigned_name, capabilities]
+        properties:
+          op: { const: welcome }
+          session_id: { type: string }
+          assigned_name: { type: string }
+          capabilities:
+            type: object
+            additionalProperties: true
+    Send:
+      payload:
+        $ref: '#/components/schemas/Send'
+    Broadcast:
+      payload:
+        type: object
+        required: [op, text]
+        properties:
+          op: { const: broadcast }
+          text: { type: string }
+    Ping:
+      payload:
+        type: object
+        required: [op]
+        properties:
+          op: { const: ping }
+    Pong:
+      payload:
+        type: object
+        required: [op]
+        properties:
+          op: { const: pong }
+    Bye:
+      payload:
+        type: object
+        required: [op]
+        properties:
+          op: { const: bye }
+    Msg:
+      payload:
+        $ref: '#/components/schemas/Msg'
+    Error:
+      payload:
+        $ref: '#/components/schemas/Error'
+    List:
+      payload:
+        type: object
+        required: [op]
+        properties:
+          op: { const: list }
+    ListOk:
+      payload:
+        type: object
+        required: [op, sessions]
+        properties:
+          op: { const: list_ok }
+          sessions:
+            type: array
+            items:
+              type: object
+              required: [session_id, name]
+              properties:
+                session_id: { type: string }
+                name: { type: string }
+                label: { type: [string, 'null'] }
+    Custom:
+      payload:
+        $ref: '#/components/schemas/Custom'

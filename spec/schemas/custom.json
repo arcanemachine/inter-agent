@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Custom",
+  "type": "object",
+  "required": ["op", "custom_type", "payload"],
+  "properties": {
+    "op": { "const": "custom" },
+    "custom_type": { "type": "string" },
+    "to": { "type": ["string", "null"] },
+    "payload": {}
+  },
+  "additionalProperties": true
+}

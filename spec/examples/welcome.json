@@ -1,0 +1,10 @@
+{
+  "op": "welcome",
+  "session_id": "sess-a",
+  "assigned_name": "agent-a",
+  "capabilities": {
+    "core": {"version": "0.1"},
+    "channels": false,
+    "rate_limit": false
+  }
+}

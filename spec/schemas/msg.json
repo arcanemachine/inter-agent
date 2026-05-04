@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Msg",
+  "type": "object",
+  "required": ["op", "msg_id", "from", "from_name", "text", "ts"],
+  "properties": {
+    "op": { "const": "msg" },
+    "msg_id": { "type": "string" },
+    "from": { "type": "string" },
+    "from_name": { "type": "string" },
+    "to": { "type": ["string", "null"] },
+    "text": { "type": "string" },
+    "ts": { "type": "string" },
+    "custom_type": { "type": ["string", "null"] },
+    "payload": {}
+  },
+  "additionalProperties": true
+}

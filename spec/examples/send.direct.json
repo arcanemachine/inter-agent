@@ -1,0 +1,5 @@
+{
+  "op": "send",
+  "to": "agent-b",
+  "text": "run tests"
+}
