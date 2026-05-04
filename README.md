@@ -1,22 +1,15 @@
 # inter-agent
 
 `inter-agent` is a lightweight localhost messaging bus for AI coding sessions.
-It lets one session send direct or broadcast messages to other running sessions, with a universal Python core protocol and a Pi adapter for day-to-day use.
 
-## MVP goals
+It provides a framework-agnostic protocol for direct and broadcast messaging between running sessions, plus host adapters that expose that protocol in specific tooling.
 
-- Core protocol over localhost WebSocket.
+## Core behavior
+
+- WebSocket protocol over localhost.
 - First-class direct (`A -> B`) and broadcast messaging.
-- Extension path via `op: "custom"` envelopes.
-- Unknown custom message types pass through the core bus.
-- Security baseline: localhost bind, shared token, file-permission hygiene, basic server identity check.
-
-## Non-goals (MVP)
-
-- Full pub-sub/channels.
-- Active rate limiting.
-- Durable replay queue.
-- Enterprise auth/TLS hardening.
+- Extension envelope via `op: "custom"` with pass-through routing.
+- Basic shared-token authentication and local identity checks.
 
 ## Layout
 
@@ -59,4 +52,4 @@ It lets one session send direct or broadcast messages to other running sessions,
 
 - `ARCHITECTURE.md`
 - `SECURITY.md`
-- `AGENTS.md` (agent workflow)
+- `AGENTS.md`

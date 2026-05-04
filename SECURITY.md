@@ -1,4 +1,4 @@
-# Security Model (MVP)
+# Security Model
 
 ## Baseline assumptions
 
@@ -6,7 +6,7 @@
 2. Localhost-only deployment.
 3. Threat model is defensive against accidental/mild local misuse, not malicious same-user code execution.
 
-## Controls in MVP
+## Security controls
 
 1. Server binds to localhost (`127.0.0.1`).
 2. Shared bearer token is required in `hello`.
@@ -14,14 +14,14 @@
 4. Clients perform basic server identity verification before sending token (`pid/meta/host/port`).
 5. Core validates operation shapes and rejects unauthenticated/invalid requests.
 
-## Explicit non-goals (MVP)
+## Explicit non-goals
 
 1. Protection from hostile processes running as the same OS user.
 2. Cross-machine trust, PKI lifecycle, or mTLS.
 3. Multi-tenant isolation and enterprise RBAC.
 
-## Future hardening path
+## Extension areas
 
-- Optional stronger identity attestation.
-- Optional transport hardening for remote scenarios.
-- Optional policy middleware (rate limits, channel permissions).
+- Stronger identity attestation.
+- Transport hardening for remote scenarios.
+- Policy middleware (for example, rate limits or channel permissions).
