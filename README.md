@@ -25,12 +25,34 @@ Permissive, universal-friendly agent-to-agent messaging bus with a Python core a
 - `tests/` conformance and validation tests
 - `docs/` supporting notes
 
+## Quickstart
+
+1. Create environment and install dependencies:
+   - `uv venv`
+   - `.venv/bin/pip install -e .`
+   - `.venv/bin/pip install pytest==9.0.3 pytest-asyncio==1.3.0 ruff==0.15.12 black==26.3.1 mypy==1.20.2 jsonschema==4.26.0 pyyaml==6.0.3`
+
+2. Start server:
+   - `./start.sh server`
+
+3. Connect two sessions (in separate terminals):
+   - `./start.sh connect agent-a`
+   - `./start.sh connect agent-b`
+
+4. Send and broadcast:
+   - `./start.sh send agent-b "run tests"`
+   - `./start.sh broadcast "build is green"`
+
+5. List sessions / status:
+   - `./start.sh list`
+   - `./start.sh status`
+
 ## Development checks
 
-- `uv run pytest`
-- `uv run ruff check .`
-- `uv run black --check .`
-- `uv run mypy core adapters tests`
+- `.venv/bin/pytest`
+- `.venv/bin/ruff check .`
+- `.venv/bin/black --check .`
+- `.venv/bin/mypy core adapters tests`
 
 ## Additional docs
 
