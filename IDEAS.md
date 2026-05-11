@@ -6,7 +6,19 @@ This file holds promising work that is not required for project completion as de
 
 ### Claude Code adapter
 
-Claude Code support is planned as `ROADMAP.md` Extra Phase 7. Keep new Claude Code ideas here only when they are outside that phase.
+Claude Code support is planned as `ROADMAP.md` Extra Phase 7. Durable research notes live in `docs/CLAUDE_CODE_SUPPORT.md`. Keep new Claude Code ideas here only when they are outside that phase.
+
+### Claude Code MCP and Channels follow-up
+
+Monitor is the primary planned Claude Code integration surface. MCP tools, MCP Channels, hooks, and Agent Teams may become useful after the Monitor-backed adapter exists.
+
+Possible follow-up work:
+
+1. MCP tools for structured send, broadcast, list, and status actions.
+2. MCP resources for session lists or recent messages.
+3. MCP Channels for push delivery independent of Monitor stdout.
+4. Hooks that notify the bus after selected Claude Code lifecycle events.
+5. Agent Team patterns that bridge team mailboxes with inter-agent messages.
 
 ### Additional host adapters
 

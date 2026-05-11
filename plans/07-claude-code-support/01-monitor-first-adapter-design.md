@@ -8,6 +8,8 @@ Design Claude Code support around the Monitor tool and the existing inter-agent 
 
 ## Research basis
 
+See `docs/CLAUDE_CODE_SUPPORT.md` for the durable research summary.
+
 - Claude Code Monitor runs a background shell command and streams stdout lines into the active Claude Code session.
 - `claude-code-inter-session` demonstrates a practical pattern: a Monitor-backed listener connects to a localhost WebSocket bus and prints inbound messages as Claude notifications.
 - MCP Channels may be useful later for richer push behavior, but Monitor is the primary integration surface for this extra phase.
@@ -41,6 +43,7 @@ Design Claude Code support around the Monitor tool and the existing inter-agent 
 ## Files likely to change
 
 - `src/inter_agent/adapters/claude/README.md`
+- `docs/CLAUDE_CODE_SUPPORT.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`
 - `IDEAS.md`

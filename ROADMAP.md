@@ -131,6 +131,8 @@ Completion criteria:
 
 Goal: add Claude Code as a supported host integration after the core project is release-ready.
 
+Design notes: `docs/CLAUDE_CODE_SUPPORT.md`
+
 Plan items:
 
 1. `plans/07-claude-code-support/01-monitor-first-adapter-design.md`
