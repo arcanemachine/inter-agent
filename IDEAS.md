@@ -6,14 +6,7 @@ This file holds promising work that is not required for project completion as de
 
 ### Claude Code adapter
 
-A Claude Code adapter could expose the same core protocol through Claude Code-specific commands, hooks, or UI conventions.
-
-Useful discovery questions:
-
-1. What command or extension mechanism should receive and display bus messages?
-2. How should Claude Code sessions choose stable agent names?
-3. Should the adapter support the same command surface as the Pi adapter or a host-native subset?
-4. What output shape is easiest for Claude Code tools to parse?
+Claude Code support is planned as `ROADMAP.md` Extra Phase 7. Keep new Claude Code ideas here only when they are outside that phase.
 
 ### Additional host adapters
 

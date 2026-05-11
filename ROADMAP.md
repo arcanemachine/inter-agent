@@ -2,7 +2,7 @@
 
 `inter-agent` is complete when it provides a stable localhost message bus for coding agents, a reliable Pi adapter, reproducible packaging and checks, documented protocol semantics, and operational safeguards that match the security model.
 
-The roadmap is the high-level view. Detailed sub-agent-ready work items live under `plans/`, grouped by the same phases shown here. Each phase is part of the completion path. Ideas outside the completion scope live in `IDEAS.md`.
+The roadmap is the high-level view. Detailed sub-agent-ready work items live under `plans/`, grouped by the same phases shown here. Phases 1 through 6 are the core completion path. Extra phases after that point are planned follow-on integrations. Ideas outside planned scope live in `IDEAS.md`.
 
 ## Scope
 
@@ -126,6 +126,27 @@ Completion criteria:
 - Versioning and changelog practices are documented.
 - Future host adapters can use the same core boundary without changing the core protocol.
 - Repository checks pass through the documented commands.
+
+## Extra Phase 7: Claude Code Support
+
+Goal: add Claude Code as a supported host integration after the core project is release-ready.
+
+Plan items:
+
+1. `plans/07-claude-code-support/01-monitor-first-adapter-design.md`
+2. `plans/07-claude-code-support/02-claude-code-plugin-and-skill-scaffold.md`
+3. `plans/07-claude-code-support/03-monitor-listener-and-session-state.md`
+4. `plans/07-claude-code-support/04-claude-command-surface-and-reaction-policy.md`
+5. `plans/07-claude-code-support/05-live-integration-tests-and-fixtures.md`
+6. `plans/07-claude-code-support/06-packaging-docs-and-entry-points.md`
+
+Completion criteria:
+
+- Claude Code sessions can join the inter-agent bus through a Monitor-backed listener.
+- Claude Code users can send, broadcast, list, check status, connect, and disconnect through documented commands.
+- Incoming bus messages are delivered as bounded Claude Code notifications with safe continuation behavior for long messages.
+- Plugin or skill installation is documented and does not redefine core protocol semantics.
+- Claude Code support passes the same project-local quality gate as core and Pi support.
 
 ## Completion standard
 
