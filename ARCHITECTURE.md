@@ -27,6 +27,7 @@
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation.
 - Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
+- Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; custom payloads are bounded by the incoming WebSocket frame limit.
 
 ## Evolution touchpoints
 

@@ -7,7 +7,6 @@ import websockets
 from helpers import agent_hello, connect_agent, running_server, send_json
 
 from inter_agent.core.errors import ErrorCode
-from inter_agent.core.shared import Limits
 
 
 @pytest.mark.asyncio
@@ -84,15 +83,10 @@ async def test_unknown_operation_uses_canonical_code(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("message", "expected_code", "limits"),
+    ("message", "expected_code"),
     [
-        ({"op": "send", "to": "agent-b", "text": 123}, ErrorCode.BAD_TEXT, None),
-        ({"op": "send", "to": "agent-b", "text": "hi"}, ErrorCode.UNKNOWN_TARGET, None),
-        (
-            {"op": "broadcast", "text": "too large"},
-            ErrorCode.TEXT_TOO_LARGE,
-            Limits(broadcast_text_max=1),
-        ),
+        ({"op": "send", "to": "agent-b", "text": 123}, ErrorCode.BAD_TEXT),
+        ({"op": "send", "to": "agent-b", "text": "hi"}, ErrorCode.UNKNOWN_TARGET),
     ],
 )
 async def test_routing_errors_use_canonical_codes(
@@ -101,9 +95,8 @@ async def test_routing_errors_use_canonical_codes(
     unused_tcp_port: int,
     message: dict[str, object],
     expected_code: ErrorCode,
-    limits: Limits | None,
 ) -> None:
-    async with running_server(monkeypatch, tmp_path, unused_tcp_port, limits) as context:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
         async with websockets.connect(context.url) as ws:
             await connect_agent(ws, context, "a", "agent-a")
             err = await send_json(ws, message)

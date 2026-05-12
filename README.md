@@ -49,6 +49,18 @@ Core command entry points are also available for direct protocol use:
 
 `start.sh` remains available as a local development/demo helper that delegates to the package entry points.
 
+## Resource limits
+
+Text limits are measured as UTF-8 encoded bytes after JSON decoding. Text exactly at the configured byte limit is accepted; text one byte over the limit is rejected with `TEXT_TOO_LARGE`.
+
+| Environment variable | Default | Applies to |
+| --- | ---: | --- |
+| `INTER_AGENT_DIRECT_MAX` | 2 MiB | `send.text` |
+| `INTER_AGENT_BROADCAST_MAX` | 512 KiB | `broadcast.text` |
+| `INTER_AGENT_FRAME_MAX` | 16 MiB | incoming WebSocket message frames |
+
+Custom extension payloads are routed as pass-through JSON and are bounded by the WebSocket frame limit.
+
 ## Development checks
 
 Run the full local quality gate:

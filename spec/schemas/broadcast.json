@@ -5,7 +5,10 @@
   "required": ["op", "text"],
   "properties": {
     "op": { "const": "broadcast" },
-    "text": { "type": "string" }
+    "text": {
+      "type": "string",
+      "description": "Broadcast message text. The server accepts UTF-8 encoded text bytes up to INTER_AGENT_BROADCAST_MAX."
+    }
   },
   "additionalProperties": true
 }

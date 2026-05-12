@@ -11,6 +11,7 @@ Constrain local resource usage from accidental client loops or oversized extensi
 - Add configurable connection limits.
 - Tighten custom message validation enough to protect receivers and the bus.
 - Keep defaults suitable for local coding-agent sessions.
+- Custom payloads are currently bounded by `INTER_AGENT_FRAME_MAX` only; define any separate custom payload limit here.
 
 ## Work
 

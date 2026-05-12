@@ -13,5 +13,5 @@ Protocol errors are returned as `{"op":"error","code":"...","message":"..."}`. T
 | `NAME_TAKEN` | An agent routing name is already connected. | Choose a different routing name or disconnect the existing session. |
 | `UNKNOWN_OP` | A post-handshake frame uses an unsupported `op`. | Use a supported core operation or an extension envelope. |
 | `BAD_TEXT` | A `send` or `broadcast` operation has a non-string `text`. | Send message text as a string. |
-| `TEXT_TOO_LARGE` | A direct or broadcast message exceeds configured text limits. | Shorten or split the message. |
+| `TEXT_TOO_LARGE` | A direct or broadcast message exceeds configured UTF-8 byte text limits (`INTER_AGENT_DIRECT_MAX` or `INTER_AGENT_BROADCAST_MAX`). | Shorten or split the message. |
 | `UNKNOWN_TARGET` | A direct `send` or targeted `custom` operation names no connected target. | Refresh session presence and retry with a connected routing name. |
