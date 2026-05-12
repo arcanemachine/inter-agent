@@ -1,3 +1,47 @@
+# ⚠️ AGENT CONCERNS — READ FIRST
+
+> **These concerns were raised by a previous agent working on Phase 6a and must be addressed before that phase is considered complete.**
+> **A future agent should prioritize resolving these items before continuing with new Phase 6a work.**
+>
+> **Important:** Do not treat this list as ground truth. Validate each concern yourself by reading the relevant files, running the checks, and confirming the current state. These items are markers and guides for follow-up, not verified facts. If a concern no longer applies, update or remove it.
+
+## Phase 6a: Pi Extension — Status Update
+
+> **An agent has begun implementing the Pi extension.**
+> **Repository:** `/workspace/projects/pi/pi-inter-agent`
+> **Current state:** Core implementation complete, TypeScript compiles, listener spawn and message delivery verified against a live server.
+> **Remaining work:** full interactive testing inside Pi, potential structural tests, documentation polish.
+
+### Decisions made
+
+- **Extension file placement:** Separate repo at `/workspace/projects/pi/pi-inter-agent` following existing Pi extension conventions (`package.json` with `pi.extensions`, `src/index.ts`, `README.md`, `AGENTS.md`).
+- **Entry point resolution:** Uses `uv run inter-agent-pi ...` and `uv run inter-agent-connect ...` with `cwd` set to `/workspace/projects/inter-agent` and `PYTHONUNBUFFERED=1` for reliable output.
+- **Notification truncation:** 1000 character limit.
+- **Installation:** `pi install /workspace/projects/pi/pi-inter-agent` or `pi -e /workspace/projects/pi/pi-inter-agent/src/index.ts`.
+
+### Open concerns (validate before continuing)
+
+1. **TypeScript quality gate coverage**
+   - `run-checks.sh` currently only runs Python checks.
+   - The Pi extension repo has its own `npm run typecheck` but this is not wired into the inter-agent project's quality gate.
+   - **Decision needed:** should `run-checks.sh` validate the extension file too?
+
+2. **Testing strategy for the TypeScript extension**
+   - The existing inter-agent test suite is entirely Python.
+   - Live Pi extension tests require a running `pi` process.
+   - **Decision needed:** what level of testing is acceptable — structural Python tests, a smoke test, or manual validation only.
+
+3. **Full interactive testing inside Pi**
+   - The extension has been validated to load without errors (`pi -e ./src/index.ts -p "say hello"`).
+   - Listener spawn and message delivery have been verified at the Node.js spawn level.
+   - **Not yet done:** running the full set of commands (`/inter-agent-connect`, `/inter-agent-send`, etc.) inside an interactive Pi session.
+
+4. **Documentation polish**
+   - README is drafted but may need updates after interactive testing.
+   - No `settings.json` configuration is currently supported; this may or may not be desired.
+
+---
+
 # Roadmap
 
 `inter-agent` is complete when it provides a stable localhost message bus for coding agents, a reliable Pi adapter, reproducible packaging and checks, documented protocol semantics, and operational safeguards that match the security model.
