@@ -27,8 +27,9 @@ This file is for coding agents working in this repository.
    - `uv run black --check .`
    - `uv run mypy src tests`
 3. Commit completed work when the task is done, keeping commits atomic per logical step.
-4. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
-5. Keep docs evergreen and scoped:
+4. When completing a plan phase, provide a user acceptance test when possible, along with the commit hash where that acceptance test applies.
+5. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
+6. Keep docs evergreen and scoped:
    - Agent process belongs in `AGENTS.md`.
    - User-oriented product docs belong in `README.md`.
    - Security model and assumptions belong in `SECURITY.md`.
