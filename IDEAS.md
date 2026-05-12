@@ -2,6 +2,16 @@
 
 This file holds promising work that is not required for project completion as defined in `AGENTS.PLAN.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
 
+## Misc. improvements
+
+- Discuss with user: Server lifecycle QoL improvements
+  - IDEA: The server should be able to be started by an agentic coding harness (e.g. Pi coding agent, Claude Code).
+    - When started this way, the server should be able to survive the coding harness being shutdown (separate process?)
+    - If started by a coding harness, perhaps the server should shut down automatically if no agents are connected to it for a given period of time? (e.g. 1 minute)
+    - Perhaps this feature could be gated by an opt-in flag used when starting the server? e.g. `STARTED_BY_CODING_AGENT=1` or `SHUTDOWN_IF_NO_CLIENTS_CONNECTED_FOR_SECONDS=60`
+  - How would agents behave if the server connection was lost (e.g. due to a crash)? Would they be notified? Should they attempt to reconnect? This process should be guided.
+  - IDEA: Perhaps the server could also be started externally (e.g. by the user), and would then run persistently until stopped by the user?
+
 ## Host adapters
 
 ### Claude Code adapter
