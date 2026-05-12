@@ -138,6 +138,27 @@ Completion criteria:
 - Future host adapters can use the same core boundary without changing the core protocol.
 - Repository checks pass through the documented commands.
 
+## Phase 6a: Create inter-agent Pi extension
+
+Goal: create a Pi coding agent extension that can be used to connect to the inter-agent server and communicate with other agents.
+
+Plan items:
+
+1. None yet (Still needs to be created)
+
+Completion criteria:
+
+- Pi coding agent sessions can join the inter-agent bus through a Monitor-backed listener.
+- Pi coding agent users can send, broadcast, list, check status, connect, and disconnect through documented commands.
+- Incoming bus messages are delivered as bounded Pi coding agent notifications with safe continuation behavior for long messages.
+- Plugin or skill installation is documented and does not redefine core protocol semantics.
+- Pi coding agent support passes the same project-local quality gate as core and Pi support.
+- If a live agent is needed, use the 'local-llama/default' agent from the /workspace/.pi config when experimenting with Pi adapter support. Keep tasks tightly scoped and do not the let the agent run amok.
+
+Extra notes:
+
+- A local instance of Pi coding agent is available (`claude`) to ensure that the plugin works as expected.
+
 ## Phase 7: Claude Code Support
 
 Goal: add Claude Code as a supported host integration after the core project is release-ready.
@@ -161,6 +182,9 @@ Completion criteria:
 - Plugin or skill installation is documented and does not redefine core protocol semantics.
 - Claude Code support passes the same project-local quality gate as core and Pi support.
 - If a live agent is needed, use the 'local-llama/default' agent from the /workspace/.pi config when experimenting with Pi adapter support. Keep tasks tightly scoped and do not the let the agent run amok.
+
+Extra notes:
+
 - A local instance of Claude Code is available (`claude`) to ensure that the plugin works as expected.
 
 ## Completion standard

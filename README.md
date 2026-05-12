@@ -85,6 +85,10 @@ Build and inspect local release artifacts without publishing:
 
 Publishing package artifacts and selecting package-index settings are maintainer-owned release actions.
 
+## Versioning and changelog
+
+The package version lives in `pyproject.toml`. Release preparation updates that version and `CHANGELOG.md` together. The changelog uses release-oriented behavior summaries rather than development session notes.
+
 ## Development checks
 
 Run the full local quality gate:
@@ -101,6 +105,7 @@ The gate runs `uv sync --locked` before the required checks. For targeted debugg
 ## Additional docs
 
 - `src/inter_agent/adapters/pi/README.md`
+- `CHANGELOG.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`
 - `ERROR_CODES.md`
