@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 
 import pytest
 
@@ -10,16 +12,52 @@ import inter_agent.core.send as core_send
 from inter_agent.adapters.pi import commands
 from inter_agent.adapters.pi.cli import main
 from inter_agent.core.list import ListResult
-from inter_agent.core.send import SendResult
+from inter_agent.core.send import ProtocolErrorResult, SendResult
+from inter_agent.core.shared import identity_path
 
 
-def test_status_outputs_json(capsys: pytest.CaptureFixture[str]) -> None:
-    code = main(["status"])
+def test_status_outputs_json(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+
+    code = main(["status", "--json"])
+
     assert code == 0
     assert json.loads(capsys.readouterr().out) == {
+        "state": "unavailable",
+        "host": "127.0.0.1",
+        "port": 9473,
+        "server_reachable": False,
+        "identity_verified": False,
+        "message": "server identity not found",
         "core_list_supported": True,
         "adapter_list_exposed": True,
     }
+
+
+def test_status_reports_identity_check_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    unused_tcp_port: int,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(commands, "DEFAULT_PORT", unused_tcp_port)
+    identity_path(unused_tcp_port).write_text(
+        json.dumps({"pid": os.getpid(), "host": "127.0.0.1", "port": unused_tcp_port + 1}),
+        encoding="utf-8",
+    )
+
+    code = main(["status"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["state"] == "identity_check_failed"
+    assert payload["identity_verified"] is False
+    assert payload["message"] == "server identity metadata does not match requested endpoint"
 
 
 def test_send_uses_core_api(
@@ -38,6 +76,34 @@ def test_send_uses_core_api(
     assert code == 0
     assert calls == [("127.0.0.1", 9473, "agent-b", "hello")]
     assert capsys.readouterr().out == '{"op": "welcome"}\n'
+
+
+def test_send_protocol_error_returns_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_send(host: str, port: int, to: str, text: str) -> SendResult:
+        return SendResult(
+            welcome='{"op": "welcome"}',
+            welcome_payload={"op": "welcome"},
+            error=ProtocolErrorResult(
+                code="UNKNOWN_TARGET",
+                message="unknown target: missing",
+                raw=(
+                    '{"op": "error", "code": "UNKNOWN_TARGET", '
+                    '"message": "unknown target: missing"}'
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+
+    code = commands.send("missing", "hello")
+
+    assert code == 1
+    assert capsys.readouterr().out.splitlines() == [
+        '{"op": "welcome"}',
+        '{"op": "error", "code": "UNKNOWN_TARGET", "message": "unknown target: missing"}',
+    ]
 
 
 def test_broadcast_uses_core_api(

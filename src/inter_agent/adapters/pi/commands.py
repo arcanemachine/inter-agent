@@ -9,6 +9,8 @@ import asyncio
 import json
 import sys
 
+from websockets.exceptions import WebSocketException
+
 from inter_agent.core import client as core_client
 from inter_agent.core import list as core_list
 from inter_agent.core import send as core_send
@@ -25,6 +27,11 @@ def _system_exit_code(exc: SystemExit) -> int:
     return 1
 
 
+def _expected_error_code(exc: Exception) -> int:
+    print(f"inter-agent-pi: {exc}", file=sys.stderr)
+    return 1
+
+
 def _send_result_code(result: SendResult) -> int:
     print(result.welcome)
     if result.error is not None:
@@ -38,6 +45,8 @@ def connect(name: str, label: str | None = None) -> int:
         asyncio.run(core_client.run_client(DEFAULT_HOST, DEFAULT_PORT, name, label))
     except SystemExit as exc:
         return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
     return 0
 
 
@@ -46,6 +55,8 @@ def send(to: str, text: str) -> int:
         result = asyncio.run(core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text))
     except SystemExit as exc:
         return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
     return _send_result_code(result)
 
 
@@ -54,6 +65,8 @@ def broadcast(text: str) -> int:
         result = asyncio.run(core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text))
     except SystemExit as exc:
         return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
     return _send_result_code(result)
 
 
@@ -62,13 +75,25 @@ def list_sessions() -> int:
         result = asyncio.run(core_list.list_sessions(DEFAULT_HOST, DEFAULT_PORT))
     except SystemExit as exc:
         return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
     print(result.raw_response)
     return 0
 
 
 def status() -> dict[str, object]:
-    result = core_status.command_status()
-    return {"core_list_supported": result.list_supported, "adapter_list_exposed": True}
+    command = core_status.command_status()
+    server = asyncio.run(core_status.check_server_status(DEFAULT_HOST, DEFAULT_PORT))
+    return {
+        "state": server.state,
+        "host": server.host,
+        "port": server.port,
+        "server_reachable": server.reachable,
+        "identity_verified": server.identity_verified,
+        "message": server.message,
+        "core_list_supported": command.list_supported,
+        "adapter_list_exposed": True,
+    }
 
 
 def status_json() -> str:

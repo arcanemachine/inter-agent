@@ -10,7 +10,7 @@
    - Routing (`send`, `broadcast`, `custom` pass-through)
    - Health (`ping` / `pong`, `bye`)
    - Introspection (`list` capability)
-   - Importable command APIs for server start, connect, send, broadcast, list, and static command capabilities.
+   - Importable command APIs for server start, connect, send, broadcast, list, and status checks.
 
 2. **Adapters (`src/inter_agent/adapters/`)**
    - Host-specific command UX and integration.

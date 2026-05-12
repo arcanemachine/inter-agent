@@ -16,7 +16,7 @@ from websockets.asyncio.client import ClientConnection
 from inter_agent.adapters.pi import commands as pi_commands
 from inter_agent.adapters.pi.cli import main as pi_main
 from inter_agent.core.client import build_hello
-from inter_agent.core.shared import control_hello
+from inter_agent.core.shared import control_hello, write_server_identity
 
 
 @dataclass(frozen=True)
@@ -80,15 +80,25 @@ async def assert_no_message(ws: ClientConnection) -> None:
         await asyncio.wait_for(ws.recv(), timeout=0.1)
 
 
-def test_pi_status_does_not_require_connected_agent() -> None:
-    result = run_pi(["status"])
+@pytest.mark.asyncio
+async def test_pi_status_reports_available_without_connected_agent(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_live_pi_defaults(monkeypatch, live_server)
 
+    result = await asyncio.to_thread(run_pi, ["status", "--json"])
+
+    payload = json.loads(result.stdout)
     assert result.code == 0
     assert result.stderr == ""
-    assert json.loads(result.stdout) == {
-        "core_list_supported": True,
-        "adapter_list_exposed": True,
-    }
+    assert payload["state"] == "available"
+    assert payload["host"] == live_server.host
+    assert payload["port"] == live_server.port
+    assert payload["server_reachable"] is True
+    assert payload["identity_verified"] is True
+    assert payload["core_list_supported"] is True
+    assert payload["adapter_list_exposed"] is True
 
 
 @pytest.mark.asyncio
@@ -188,3 +198,20 @@ def test_pi_cli_list_unavailable_identity_returns_failure(
     assert result.code == 1
     assert result.stdout == ""
     assert result.stderr == "server identity check failed\n"
+
+
+def test_pi_cli_list_connection_failure_returns_error_without_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    unused_tcp_port: int,
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(pi_commands, "DEFAULT_PORT", unused_tcp_port)
+    write_server_identity("127.0.0.1", unused_tcp_port)
+
+    result = run_pi(["list"])
+
+    assert result.code == 1
+    assert result.stdout == ""
+    assert result.stderr.startswith("inter-agent-pi: ")
+    assert "Traceback" not in result.stderr

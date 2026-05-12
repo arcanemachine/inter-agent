@@ -21,8 +21,11 @@ def build_parser() -> argparse.ArgumentParser:
     broadcast = sub.add_parser("broadcast")
     broadcast.add_argument("text")
 
-    sub.add_parser("list")
-    sub.add_parser("status")
+    list_parser = sub.add_parser("list")
+    list_parser.add_argument("--json", action="store_true", help="emit JSON protocol output")
+
+    status = sub.add_parser("status")
+    status.add_argument("--json", action="store_true", help="emit JSON status output")
     return parser
 
 
