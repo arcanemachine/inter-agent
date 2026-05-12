@@ -4,7 +4,7 @@ Protocol errors are returned as `{"op":"error","code":"...","message":"..."}`. T
 
 | Code | Trigger condition | Client expectation |
 | --- | --- | --- |
-| `PROTOCOL_ERROR` | The first frame is not `hello`, a frame is invalid JSON, or a frame is not a JSON object. | Treat the connection as invalid and reconnect with a valid protocol frame. |
+| `PROTOCOL_ERROR` | The first frame is not `hello`, a frame is invalid JSON, a frame is not a JSON object, or `hello.capabilities` is missing or not an object. | Treat the connection as invalid and reconnect with a valid protocol frame. |
 | `AUTH_FAILED` | `hello.token` does not match the server token. | Do not retry until token state has been refreshed or corrected. |
 | `BAD_ROLE` | `hello.role` is missing or is not `agent` or `control`. | Send a valid role. |
 | `BAD_SESSION` | `hello.session_id` is missing, empty, or not a string. | Generate and send a string session ID. |

@@ -30,6 +30,17 @@ async def test_auth_failure_uses_canonical_code(
         (agent_hello("token", session_id=""), ErrorCode.BAD_SESSION),
         (agent_hello("token", name="Not Valid"), ErrorCode.BAD_NAME),
         ({**agent_hello("token"), "label": 42}, ErrorCode.BAD_LABEL),
+        (
+            {
+                "op": "hello",
+                "token": "token",
+                "role": "agent",
+                "session_id": "a",
+                "name": "agent-a",
+            },
+            ErrorCode.PROTOCOL_ERROR,
+        ),
+        (agent_hello("token", capabilities=[]), ErrorCode.PROTOCOL_ERROR),
     ],
 )
 async def test_handshake_validation_errors_use_canonical_codes(

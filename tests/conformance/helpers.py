@@ -55,6 +55,7 @@ def agent_hello(
     session_id: object = "a",
     name: object = "agent-a",
     label: object = MISSING,
+    capabilities: object = MISSING,
 ) -> dict[str, object]:
     payload = {
         "op": "hello",
@@ -62,7 +63,7 @@ def agent_hello(
         "role": role,
         "session_id": session_id,
         "name": name,
-        "capabilities": {},
+        "capabilities": {} if capabilities is MISSING else capabilities,
     }
     if label is not MISSING:
         payload["label"] = label
@@ -74,6 +75,7 @@ def control_hello(
     *,
     session_id: object = "ctl",
     name: object = "control",
+    capabilities: object = MISSING,
 ) -> dict[str, object]:
     return {
         "op": "hello",
@@ -81,7 +83,7 @@ def control_hello(
         "role": "control",
         "session_id": session_id,
         "name": name,
-        "capabilities": {},
+        "capabilities": {} if capabilities is MISSING else capabilities,
     }
 
 

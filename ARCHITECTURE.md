@@ -29,7 +29,13 @@
 - Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
 - Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; custom payloads are bounded by the incoming WebSocket frame limit.
 
+## Capability exchange
+
+- `hello.capabilities` is a required JSON object where clients may declare known or extension capability keys.
+- Unknown client capability keys are tolerated and may be ignored; client declarations do not enable unimplemented features.
+- `welcome.capabilities` advertises server-supported baseline capabilities: `core.version` is `0.1`, `channels` is `false`, and `rate_limit` is `false`.
+- Future channel routing and policy negotiation ideas remain in `IDEAS.md` until promoted into the plan.
+
 ## Evolution touchpoints
 
-- `capabilities` field in handshake for future negotiation.
 - Middleware/router hook points reserved for future channel/pub-sub and rate-limit policies.

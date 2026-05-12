@@ -102,10 +102,13 @@ class BusServer:
             else:
                 assigned_name = f"control-{session_id[:6]}"
 
-            capabilities: dict[str, object] = {}
             raw_capabilities = hello.get("capabilities")
-            if isinstance(raw_capabilities, dict):
-                capabilities = {str(key): value for key, value in raw_capabilities.items()}
+            if not isinstance(raw_capabilities, dict):
+                await self.send_error(
+                    ws, ErrorCode.PROTOCOL_ERROR, "capabilities must be an object"
+                )
+                return
+            capabilities = {str(key): value for key, value in raw_capabilities.items()}
 
             conn = Conn(
                 ws=ws,

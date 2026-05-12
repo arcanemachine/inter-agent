@@ -2,7 +2,11 @@ asyncapi: 2.6.0
 info:
   title: inter-agent protocol
   version: 0.1.0
-  description: Minimal universal-friendly protocol for inter-agent bus.
+  description: >
+    Minimal universal-friendly protocol for inter-agent bus. Handshake
+    capabilities are JSON objects: clients declare optional known or extension
+    keys in `hello`, and the server advertises supported baseline capabilities
+    in `welcome`. Unknown client capability keys may be ignored.
 channels:
   /:
     publish:

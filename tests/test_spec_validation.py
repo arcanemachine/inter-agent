@@ -5,8 +5,9 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
 
+import pytest
 import yaml
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_DIR = ROOT / "spec"
@@ -67,6 +68,61 @@ def test_examples_validate_against_schemas() -> None:
         schema_path = SPEC_DIR / "schemas" / f"{op}.json"
         assert schema_path.exists(), f"{example_path} has no matching schema at {schema_path}"
         Draft202012Validator(_load_json(schema_path)).validate(example)
+
+
+def test_hello_capabilities_schema_requires_object_and_allows_extensions() -> None:
+    validator = Draft202012Validator(_load_json(SPEC_DIR / "schemas" / "hello.json"))
+    valid = {
+        "op": "hello",
+        "token": "shared-token",
+        "role": "agent",
+        "session_id": "sess-a",
+        "name": "agent-a",
+        "capabilities": {
+            "core": {"version": "0.1"},
+            "x.example.experimental": {"enabled": True},
+        },
+    }
+    validator.validate(valid)
+
+    missing_capabilities = dict(valid)
+    missing_capabilities.pop("capabilities")
+    with pytest.raises(ValidationError):
+        validator.validate(missing_capabilities)
+
+    invalid_capabilities = dict(valid)
+    invalid_capabilities["capabilities"] = []
+    with pytest.raises(ValidationError):
+        validator.validate(invalid_capabilities)
+
+
+def test_welcome_capabilities_schema_preserves_baseline_and_allows_extensions() -> None:
+    validator = Draft202012Validator(_load_json(SPEC_DIR / "schemas" / "welcome.json"))
+    valid = {
+        "op": "welcome",
+        "session_id": "sess-a",
+        "assigned_name": "agent-a",
+        "capabilities": {
+            "core": {"version": "0.1"},
+            "channels": False,
+            "rate_limit": False,
+            "x.example.experimental": {"enabled": True},
+        },
+    }
+    validator.validate(valid)
+
+    unsupported_channels = {
+        "op": "welcome",
+        "session_id": "sess-a",
+        "assigned_name": "agent-a",
+        "capabilities": {
+            "core": {"version": "0.1"},
+            "channels": True,
+            "rate_limit": False,
+        },
+    }
+    with pytest.raises(ValidationError):
+        validator.validate(unsupported_channels)
 
 
 def test_asyncapi_refs_exist() -> None:

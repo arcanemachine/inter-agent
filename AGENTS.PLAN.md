@@ -27,9 +27,7 @@ Completion criteria:
 
 Goal: align docs, schemas, implementation, and tests around a complete protocol contract.
 
-Plan items:
-
-1. `plans/02-protocol-contract-and-conformance/06-capability-negotiation-baseline.md`
+Plan items: complete.
 
 Completion criteria:
 

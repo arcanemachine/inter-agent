@@ -10,7 +10,20 @@
     "session_id": { "type": "string" },
     "name": { "type": "string" },
     "label": { "type": ["string", "null"] },
-    "capabilities": { "type": "object", "additionalProperties": true }
+    "capabilities": {
+      "type": "object",
+      "description": "Client-declared capabilities. Unknown keys are extension declarations and may be ignored by the server.",
+      "properties": {
+        "core": {
+          "type": "object",
+          "properties": {
+            "version": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }

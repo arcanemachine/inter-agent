@@ -7,7 +7,30 @@
     "op": { "const": "welcome" },
     "session_id": { "type": "string" },
     "assigned_name": { "type": "string" },
-    "capabilities": { "type": "object", "additionalProperties": true }
+    "capabilities": {
+      "type": "object",
+      "description": "Server-supported capabilities. Unknown keys are extension declarations.",
+      "required": ["core", "channels", "rate_limit"],
+      "properties": {
+        "core": {
+          "type": "object",
+          "required": ["version"],
+          "properties": {
+            "version": { "const": "0.1" }
+          },
+          "additionalProperties": true
+        },
+        "channels": {
+          "const": false,
+          "description": "Channel routing is not supported by the baseline server."
+        },
+        "rate_limit": {
+          "const": false,
+          "description": "Rate-limit negotiation is not supported by the baseline server."
+        }
+      },
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }
