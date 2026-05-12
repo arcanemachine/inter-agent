@@ -14,17 +14,19 @@ This file is for coding agents working in this repository.
 8. Use `AGENTS.PLAN.md` and `plans/` as the completion tracker. Keep exploratory work in `IDEAS.md` until it is promoted into the plan.
 9. When plan work is completed, update or remove the relevant plan item and update `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` as needed.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
-11. Keep commits atomic per logical step.
+11. Match existing project style and conventions in code, tests, docs, and commits.
+12. Keep commits atomic per logical step.
+13. Commit completed work before handing back unless the user explicitly requests no commits.
 
 ## Required workflow for every feature/change
 
 1. Add or update tests for the behavior change.
-2. Run repository checks locally before finishing:
+2. Run all configured repository checks locally before finishing, including tests, linters, formatters/style checks, type checkers, and spec validation. Current required commands:
    - `uv run pytest`
    - `uv run ruff check .`
    - `uv run black --check .`
    - `uv run mypy src tests`
-3. Keep commits atomic per logical step.
+3. Commit completed work when the task is done, keeping commits atomic per logical step.
 4. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
 5. Keep docs evergreen and scoped:
    - Agent process belongs in `AGENTS.md`.
