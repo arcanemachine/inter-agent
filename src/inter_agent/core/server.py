@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import signal
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -336,6 +337,19 @@ async def run_server(host: str, port: int, limits: Limits | None = None) -> None
     """Start the core WebSocket bus until the task is cancelled."""
     server = BusServer(host=host, port=port, limits=limits)
     identity = claim_server_state(host, port)
+    print(f"Starting inter-agent-server on {host}:{port}...")
+
+    def _request_shutdown() -> None:
+        print("\nShutting down inter-agent-server...")
+        server.shutdown_event.set()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, _request_shutdown)
+        except (NotImplementedError, ValueError):
+            pass  # Signal not supported on this platform
+
     try:
         async with websockets.serve(
             server.handle, host=host, port=port, max_size=server.limits.frame_max
@@ -343,6 +357,11 @@ async def run_server(host: str, port: int, limits: Limits | None = None) -> None
             await server.shutdown_event.wait()
             await server.close_connections()
     finally:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.remove_signal_handler(sig)
+            except (NotImplementedError, ValueError):
+                pass
         remove_server_state(host, port, identity.pid)
 
 
