@@ -96,6 +96,9 @@ class BusServer:
                 return
 
             role = role_value
+            if session_id_value in self.registry:
+                await self.send_error(ws, ErrorCode.SESSION_TAKEN, "session_id already active")
+                return
             session_id = session_id_value
             label = label_value
             if role == "agent":

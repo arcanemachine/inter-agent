@@ -24,6 +24,7 @@
 
 ## Messaging model
 
+- Session identity: active `session_id` values are unique. A duplicate active `session_id` is rejected; the ID may be reused after the previous connection closes.
 - Direct message: sender targets one agent by routing name. Resolution checks exact names first, then unique routing-name prefixes. Ambiguous prefixes are rejected.
 - Label: optional human-readable display metadata returned by introspection; labels are never routing keys.
 - List introspection returns agent sessions sorted by routing name and excludes control sessions.

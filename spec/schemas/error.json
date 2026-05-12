@@ -11,6 +11,7 @@
         "AUTH_FAILED",
         "BAD_ROLE",
         "BAD_SESSION",
+        "SESSION_TAKEN",
         "BAD_NAME",
         "BAD_LABEL",
         "NAME_TAKEN",

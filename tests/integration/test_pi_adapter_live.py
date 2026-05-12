@@ -48,6 +48,18 @@ def use_live_pi_defaults(monkeypatch: pytest.MonkeyPatch, server: LiveServer) ->
     monkeypatch.setattr(pi_commands, "DEFAULT_PORT", server.port)
 
 
+async def wait_for_pi_status_state(state: str) -> dict[str, object]:
+    deadline = asyncio.get_running_loop().time() + 1
+    last_payload: dict[str, object] = {}
+    while asyncio.get_running_loop().time() < deadline:
+        status = await asyncio.to_thread(run_pi, ["status", "--json"])
+        last_payload = json.loads(status.stdout)
+        if last_payload.get("state") == state:
+            return last_payload
+        await asyncio.sleep(0.02)
+    return last_payload
+
+
 async def recv_json(ws: ClientConnection) -> dict[str, object]:
     response: object = json.loads(await ws.recv())
     assert isinstance(response, dict)
@@ -193,12 +205,12 @@ async def test_pi_cli_shutdown_stops_live_server(
     use_live_pi_defaults(monkeypatch, live_server)
 
     result = await asyncio.to_thread(run_pi, ["shutdown"])
-    status = await asyncio.to_thread(run_pi, ["status", "--json"])
+    status_payload = await wait_for_pi_status_state("unavailable")
 
     assert result.code == 0
     assert result.stderr == ""
     assert json.loads(result.stdout) == {"op": "shutdown_ok"}
-    assert json.loads(status.stdout)["state"] == "unavailable"
+    assert status_payload["state"] == "unavailable"
 
 
 def test_pi_cli_shutdown_unavailable_identity_returns_failure(
