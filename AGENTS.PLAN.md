@@ -20,7 +20,6 @@ Plan items:
 
 1. `plans/01-workflow-and-packaging/02-console-entry-points-and-uv-workflow.md`
 2. `plans/01-workflow-and-packaging/03-package-metadata-and-artifacts.md`
-3. `plans/01-workflow-and-packaging/04-local-quality-gates.md`
 
 Completion criteria:
 

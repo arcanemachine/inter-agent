@@ -21,7 +21,7 @@ This file is for coding agents working in this repository.
 ## Required workflow for every feature/change
 
 1. Add or update tests for the behavior change.
-2. Run all configured repository checks locally before finishing, including tests, linters, formatters/style checks, type checkers, and spec validation. Current required commands:
+2. Run all configured repository checks locally before finishing, including tests, linters, formatters/style checks, type checkers, and spec validation. Use `./run-checks.sh` for the full gate. It runs `uv sync --locked` and the current required commands:
    - `uv run pytest`
    - `uv run ruff check .`
    - `uv run black --check .`

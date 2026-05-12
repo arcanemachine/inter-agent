@@ -41,6 +41,12 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 
 ## Development checks
 
+Run the full local quality gate:
+
+- `./run-checks.sh`
+
+The gate runs `uv sync --locked` before the required checks. For targeted debugging, run individual checks directly:
+
 - `uv run pytest`
 - `uv run ruff check .`
 - `uv run black --check .`
