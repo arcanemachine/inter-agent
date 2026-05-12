@@ -185,6 +185,37 @@ async def test_pi_cli_send_unknown_target_returns_protocol_error(
     assert error["code"] == "UNKNOWN_TARGET"
 
 
+@pytest.mark.asyncio
+async def test_pi_cli_shutdown_stops_live_server(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_live_pi_defaults(monkeypatch, live_server)
+
+    result = await asyncio.to_thread(run_pi, ["shutdown"])
+    status = await asyncio.to_thread(run_pi, ["status", "--json"])
+
+    assert result.code == 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout) == {"op": "shutdown_ok"}
+    assert json.loads(status.stdout)["state"] == "unavailable"
+
+
+def test_pi_cli_shutdown_unavailable_identity_returns_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    unused_tcp_port: int,
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(pi_commands, "DEFAULT_PORT", unused_tcp_port)
+
+    result = run_pi(["shutdown"])
+
+    assert result.code == 1
+    assert result.stdout == ""
+    assert result.stderr == "server identity check failed\n"
+
+
 def test_pi_cli_list_unavailable_identity_returns_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

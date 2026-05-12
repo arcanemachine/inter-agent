@@ -26,6 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     status = sub.add_parser("status")
     status.add_argument("--json", action="store_true", help="emit JSON status output")
+
+    sub.add_parser("shutdown")
     return parser
 
 
@@ -44,6 +46,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "status":
         print(commands.status_json())
         return 0
+    if args.command == "shutdown":
+        return commands.shutdown()
 
     parser.print_help()
     return 2

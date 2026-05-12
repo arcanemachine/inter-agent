@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 if [[ $# -lt 1 ]]; then
-  echo "Usage: ./start.sh <server|connect|send|broadcast|list|status> [args...]"
+  echo "Usage: ./start.sh <server|connect|send|broadcast|list|status|shutdown> [args...]"
   exit 2
 fi
 
@@ -30,6 +30,9 @@ case "$CMD" in
     ;;
   status)
     exec uv run inter-agent-pi status "$@"
+    ;;
+  shutdown)
+    exec uv run inter-agent-pi shutdown "$@"
     ;;
   *)
     echo "Unknown command: $CMD"

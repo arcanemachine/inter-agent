@@ -14,6 +14,7 @@ from websockets.exceptions import WebSocketException
 from inter_agent.core import client as core_client
 from inter_agent.core import list as core_list
 from inter_agent.core import send as core_send
+from inter_agent.core import shutdown as core_shutdown
 from inter_agent.core import status as core_status
 from inter_agent.core.send import SendResult
 from inter_agent.core.shared import DEFAULT_HOST, DEFAULT_PORT
@@ -79,6 +80,17 @@ def list_sessions() -> int:
         return _expected_error_code(exc)
     print(result.raw_response)
     return 0
+
+
+def shutdown() -> int:
+    try:
+        result = asyncio.run(core_shutdown.shutdown_server(DEFAULT_HOST, DEFAULT_PORT))
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    print(result.response)
+    return 0 if result.response_payload.get("op") == "shutdown_ok" else 1
 
 
 def status() -> dict[str, object]:

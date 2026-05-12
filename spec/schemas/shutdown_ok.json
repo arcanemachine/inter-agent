@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ShutdownOk",
+  "type": "object",
+  "required": ["op"],
+  "properties": {
+    "op": { "const": "shutdown_ok" }
+  },
+  "additionalProperties": true
+}

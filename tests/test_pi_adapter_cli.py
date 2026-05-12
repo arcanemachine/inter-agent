@@ -9,11 +9,13 @@ import pytest
 import inter_agent.core.client as core_client
 import inter_agent.core.list as core_list
 import inter_agent.core.send as core_send
+import inter_agent.core.shutdown as core_shutdown
 from inter_agent.adapters.pi import commands
 from inter_agent.adapters.pi.cli import main
 from inter_agent.core.list import ListResult
 from inter_agent.core.send import ProtocolErrorResult, SendResult
 from inter_agent.core.shared import identity_path
+from inter_agent.core.shutdown import ShutdownResult
 
 
 def test_status_outputs_json(
@@ -144,6 +146,27 @@ def test_list_uses_core_api(
     assert code == 0
     assert calls == [("127.0.0.1", 9473)]
     assert capsys.readouterr().out == '{"op": "list_ok", "sessions": []}\n'
+
+
+def test_shutdown_uses_core_api(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int]] = []
+
+    async def fake_shutdown(host: str, port: int) -> ShutdownResult:
+        calls.append((host, port))
+        return ShutdownResult(
+            response='{"op": "shutdown_ok"}',
+            response_payload={"op": "shutdown_ok"},
+        )
+
+    monkeypatch.setattr(core_shutdown, "shutdown_server", fake_shutdown)
+
+    code = commands.shutdown()
+
+    assert code == 0
+    assert calls == [("127.0.0.1", 9473)]
+    assert capsys.readouterr().out == '{"op": "shutdown_ok"}\n'
 
 
 def test_connect_uses_core_api(monkeypatch: pytest.MonkeyPatch) -> None:

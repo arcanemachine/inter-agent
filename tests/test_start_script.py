@@ -19,6 +19,7 @@ def test_start_script_delegates_to_package_entry_points() -> None:
     assert "uv run inter-agent-pi broadcast" in content
     assert "uv run inter-agent-pi list" in content
     assert "uv run inter-agent-pi status" in content
+    assert "uv run inter-agent-pi shutdown" in content
 
 
 def test_start_script_status_smoke(tmp_path: Path) -> None:

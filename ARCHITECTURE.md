@@ -8,7 +8,7 @@
    - Handshake/auth (`hello` / `welcome`)
    - Presence and identity (`session_id`, routing `name`, display-only `label`)
    - Routing (`send`, `broadcast`, `custom` pass-through)
-   - Health (`ping` / `pong`, `bye`)
+   - Health and lifecycle (`ping` / `pong`, `bye`, authenticated `shutdown`)
    - Introspection (`list` capability)
    - Importable command APIs for server start, connect, send, broadcast, list, and status checks.
 
@@ -37,6 +37,7 @@
 - The token file, server identity metadata, PID metadata, and reserved shutdown-control metadata are per-user local files with restrictive permissions.
 - Server identity metadata is written atomically and includes host, port, PID, state schema version, and startup timestamp.
 - Startup refuses to replace live metadata for the same port and removes stale metadata for dead server processes when safe.
+- Authenticated shutdown stops accepting new connections, closes active sessions, and removes server lifecycle metadata during normal shutdown.
 
 ## Capability exchange
 

@@ -11,6 +11,7 @@ from inter_agent.core.client import main as connect_main
 from inter_agent.core.list import main as list_main
 from inter_agent.core.send import main as send_main
 from inter_agent.core.server import main as server_main
+from inter_agent.core.shutdown import main as shutdown_main
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,6 +25,7 @@ def test_project_scripts_are_declared() -> None:
         "inter-agent-connect": "inter_agent.core.client:main",
         "inter-agent-send": "inter_agent.core.send:main",
         "inter-agent-list": "inter_agent.core.list:main",
+        "inter-agent-shutdown": "inter_agent.core.shutdown:main",
         "inter-agent-pi": "inter_agent.adapters.pi.cli:main",
     }
     assert expected.items() <= scripts.items()
@@ -36,6 +38,7 @@ def test_project_scripts_are_declared() -> None:
         ("inter-agent-connect", connect_main),
         ("inter-agent-send", send_main),
         ("inter-agent-list", list_main),
+        ("inter-agent-shutdown", shutdown_main),
         ("inter-agent-pi", pi_main),
     ],
 )

@@ -36,11 +36,12 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
    - `uv run inter-agent-pi send agent-b "run tests"`
    - `uv run inter-agent-pi broadcast "build is green"`
 
-5. Inspect the bus:
+5. Inspect or stop the bus:
    - `uv run inter-agent-pi list`
    - `uv run inter-agent-pi status`
+   - `uv run inter-agent-pi shutdown`
 
-Pi-specific command output, status fields, and failure behavior are documented in `src/inter_agent/adapters/pi/README.md`.
+Pi-specific command output, status fields, shutdown behavior, and failure behavior are documented in `src/inter_agent/adapters/pi/README.md`.
 
 ## Core protocol commands
 
@@ -50,6 +51,7 @@ Core command entry points are available for direct protocol use and adapter/debu
 - `uv run inter-agent-send <to> <text>`
 - `uv run inter-agent-send --text "broadcast text"`
 - `uv run inter-agent-list`
+- `uv run inter-agent-shutdown`
 
 ## Development helper
 

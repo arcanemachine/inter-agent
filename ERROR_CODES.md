@@ -6,7 +6,7 @@ Protocol errors are returned as `{"op":"error","code":"...","message":"..."}`. T
 | --- | --- | --- |
 | `PROTOCOL_ERROR` | The first frame is not `hello`, a frame is invalid JSON, a frame is not a JSON object, or `hello.capabilities` is missing or not an object. | Treat the connection as invalid and reconnect with a valid protocol frame. |
 | `AUTH_FAILED` | `hello.token` does not match the server token. | Do not retry until token state has been refreshed or corrected. |
-| `BAD_ROLE` | `hello.role` is missing or is not `agent` or `control`. | Send a valid role. |
+| `BAD_ROLE` | `hello.role` is missing or is not `agent` or `control`, or an agent-role session attempts a control-only operation such as `shutdown`. | Send a valid role or use a control-role connection for control-only operations. |
 | `BAD_SESSION` | `hello.session_id` is missing, empty, or not a string. | Generate and send a string session ID. |
 | `BAD_NAME` | An agent `hello.name` is missing or fails routing-name validation. | Choose a lowercase routing name matching the documented name format. |
 | `BAD_LABEL` | `hello.label` is present but is neither a string nor `null`. | Omit the label, send `null`, or send a string display label. |

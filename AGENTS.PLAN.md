@@ -56,9 +56,8 @@ Goal: make routine operation smooth: routing is ergonomic, server state is manag
 
 Plan items:
 
-1. `plans/04-lifecycle-and-routing-ux/03-safe-shutdown-command.md`
-2. `plans/04-lifecycle-and-routing-ux/04-session-list-and-status-semantics.md`
-3. `plans/04-lifecycle-and-routing-ux/05-structured-logging-and-output.md`
+1. `plans/04-lifecycle-and-routing-ux/04-session-list-and-status-semantics.md`
+2. `plans/04-lifecycle-and-routing-ux/05-structured-logging-and-output.md`
 
 Completion criteria:
 

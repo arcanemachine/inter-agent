@@ -50,6 +50,7 @@ class BusServer:
         self.limits = limits or Limits()
         self.registry: dict[str, Conn] = {}
         self.middlewares: list[RouterMiddleware] = []
+        self.shutdown_event = asyncio.Event()
 
     async def send_error(self, ws: ServerConnection, code: ErrorCode, message: str) -> None:
         await ws.send(json.dumps({"op": "error", "code": code.value, "message": message}))
@@ -152,6 +153,8 @@ class BusServer:
                     await ws.send(json.dumps({"op": "pong"}))
                 elif op == "bye":
                     return
+                elif op == "shutdown":
+                    await self._handle_shutdown(conn)
                 elif op == "list":
                     sessions = [
                         {
@@ -180,6 +183,17 @@ class BusServer:
     async def _apply_middlewares(self, sender: Conn, msg: dict[str, object]) -> None:
         for middleware in self.middlewares:
             await middleware.before_route(sender.session_id, msg)
+
+    async def _handle_shutdown(self, sender: Conn) -> None:
+        if sender.role != "control":
+            await self.send_error(sender.ws, ErrorCode.BAD_ROLE, "shutdown requires control role")
+            return
+        await sender.ws.send(json.dumps({"op": "shutdown_ok"}))
+        self.shutdown_event.set()
+
+    async def close_connections(self) -> None:
+        for conn in list(self.registry.values()):
+            await conn.ws.close(code=1001, reason="server shutdown")
 
     def _resolve_target(self, target_name: object) -> TargetResolution:
         if not isinstance(target_name, str) or not target_name:
@@ -303,7 +317,8 @@ async def run_server(host: str, port: int, limits: Limits | None = None) -> None
         async with websockets.serve(
             server.handle, host=host, port=port, max_size=server.limits.frame_max
         ):
-            await asyncio.Future()
+            await server.shutdown_event.wait()
+            await server.close_connections()
     finally:
         remove_server_state(host, port, identity.pid)
 

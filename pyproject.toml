@@ -26,6 +26,7 @@ inter-agent-server = "inter_agent.core.server:main"
 inter-agent-connect = "inter_agent.core.client:main"
 inter-agent-send = "inter_agent.core.send:main"
 inter-agent-list = "inter_agent.core.list:main"
+inter-agent-shutdown = "inter_agent.core.shutdown:main"
 inter-agent-pi = "inter_agent.adapters.pi.cli:main"
 
 [dependency-groups]
