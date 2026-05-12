@@ -76,6 +76,15 @@ Custom extension payloads are routed as pass-through JSON after `custom_type` an
 
 `AUTH_FAILED` means the client token did not match the running server. Stop the server, remove the token file from `INTER_AGENT_DATA_DIR/token` or `~/.inter-agent/token`, start the server again, and reconnect clients. See `SECURITY.md` for the token rotation procedure.
 
+## Release validation
+
+Build and inspect local release artifacts without publishing:
+
+- `uv build`
+- `uv run python scripts/validate-release-build.py`
+
+Publishing package artifacts and selecting package-index settings are maintainer-owned release actions.
+
 ## Development checks
 
 Run the full local quality gate:

@@ -40,8 +40,16 @@ dev = [
   "pyyaml==6.0.3",
 ]
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.data-files]
+"share/inter-agent/spec" = ["spec/asyncapi.yaml"]
+"share/inter-agent/spec/schemas" = ["spec/schemas/*.json"]
+"share/inter-agent/spec/examples" = ["spec/examples/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

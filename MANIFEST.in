@@ -1,0 +1,6 @@
+include README.md
+include ARCHITECTURE.md
+include SECURITY.md
+include ERROR_CODES.md
+recursive-include docs *.md
+recursive-include spec *.yaml *.json
