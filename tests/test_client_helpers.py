@@ -7,6 +7,12 @@ def test_build_hello_payload() -> None:
     assert payload["op"] == "hello"
     assert payload["role"] == "agent"
     assert payload["token"] == "tok"
+    assert "label" not in payload
+
+
+def test_build_hello_payload_with_label() -> None:
+    payload = build_hello("tok", "sess-1", "agent-a", "Agent A")
+    assert payload["label"] == "Agent A"
 
 
 def test_control_hello_payload() -> None:

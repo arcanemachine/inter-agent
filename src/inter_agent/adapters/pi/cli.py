@@ -13,6 +13,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     connect = sub.add_parser("connect")
     connect.add_argument("name")
+    connect.add_argument("--label")
 
     send = sub.add_parser("send")
     send.add_argument("to")
@@ -31,7 +32,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "connect":
-        return commands.connect(args.name)
+        return commands.connect(args.name, args.label)
     if args.command == "send":
         return commands.send(args.to, args.text)
     if args.command == "broadcast":

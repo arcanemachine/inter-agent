@@ -9,7 +9,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["session_id", "name"],
+        "required": ["session_id", "name", "label"],
         "properties": {
           "session_id": { "type": "string" },
           "name": { "type": "string" },

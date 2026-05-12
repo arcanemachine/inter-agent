@@ -6,7 +6,7 @@
 
 1. **Core protocol (`src/inter_agent/core/`)**
    - Handshake/auth (`hello` / `welcome`)
-   - Presence and identity (`session_id`, `name`)
+   - Presence and identity (`session_id`, routing `name`, display-only `label`)
    - Routing (`send`, `broadcast`, `custom` pass-through)
    - Health (`ping` / `pong`, `bye`)
    - Introspection (`list` capability)
@@ -23,6 +23,7 @@
 ## Messaging model
 
 - Direct message: sender targets one agent by name.
+- Label: optional human-readable display metadata returned by introspection; labels are never routing keys.
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation.
 

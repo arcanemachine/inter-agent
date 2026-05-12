@@ -8,6 +8,7 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 
 - WebSocket protocol over localhost.
 - First-class direct (`A -> B`) and broadcast messaging.
+- Stable routing names plus optional display-only labels for introspection.
 - Extension envelope via `op: "custom"` with pass-through routing.
 - Basic shared-token authentication and local identity checks.
 
@@ -28,8 +29,8 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
    - `uv run inter-agent-server`
 
 3. Connect two sessions (in separate terminals):
-   - `uv run inter-agent-pi connect agent-a`
-   - `uv run inter-agent-pi connect agent-b`
+   - `uv run inter-agent-pi connect agent-a --label "Agent A"`
+   - `uv run inter-agent-pi connect agent-b --label "Agent B"`
 
 4. Send and broadcast:
    - `uv run inter-agent-pi send agent-b "run tests"`

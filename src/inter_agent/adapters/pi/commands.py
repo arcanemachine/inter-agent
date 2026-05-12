@@ -9,8 +9,11 @@ import subprocess
 import sys
 
 
-def connect(name: str) -> int:
-    return subprocess.call([sys.executable, "-m", "inter_agent.core.client", "--name", name])
+def connect(name: str, label: str | None = None) -> int:
+    command = [sys.executable, "-m", "inter_agent.core.client", name]
+    if label is not None:
+        command.extend(["--label", label])
+    return subprocess.call(command)
 
 
 def send(to: str, text: str) -> int:

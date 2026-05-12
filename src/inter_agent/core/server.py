@@ -28,6 +28,7 @@ class Conn:
     session_id: str
     name: str
     role: str
+    label: str | None
     capabilities: dict[str, object]
 
 
@@ -57,6 +58,10 @@ class BusServer:
             role = hello.get("role")
             session_id = hello.get("session_id")
             name = hello.get("name")
+            label = hello.get("label")
+            if label is not None and not isinstance(label, str):
+                await self.send_error(ws, "BAD_LABEL", "label must be a string or null")
+                return
             if role not in {"agent", "control"}:
                 await self.send_error(ws, "BAD_ROLE", "role must be agent or control")
                 return
@@ -76,6 +81,7 @@ class BusServer:
                 session_id=session_id,
                 name=name or f"control-{session_id[:6]}",
                 role=role,
+                label=label,
                 capabilities=hello.get("capabilities") or {},
             )
             self.registry[session_id] = conn
@@ -106,6 +112,7 @@ class BusServer:
                         {
                             "session_id": c.session_id,
                             "name": c.name,
+                            "label": c.label,
                         }
                         for c in self.registry.values()
                         if c.role == "agent"

@@ -17,8 +17,10 @@ from inter_agent.core.shared import (
 )
 
 
-def build_hello(token: str, session_id: str, name: str) -> dict[str, object]:
-    return {
+def build_hello(
+    token: str, session_id: str, name: str, label: str | None = None
+) -> dict[str, object]:
+    payload: dict[str, object] = {
         "op": "hello",
         "token": token,
         "role": "agent",
@@ -26,15 +28,18 @@ def build_hello(token: str, session_id: str, name: str) -> dict[str, object]:
         "name": name,
         "capabilities": {},
     }
+    if label is not None:
+        payload["label"] = label
+    return payload
 
 
-async def run_client(host: str, port: int, name: str) -> None:
+async def run_client(host: str, port: int, name: str, label: str | None = None) -> None:
     if not verify_server_identity(host, port):
         raise SystemExit("server identity check failed")
     token = load_or_create_token()
     session_id = os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4()))
     async with websockets.connect(f"ws://{host}:{port}") as ws:
-        await ws.send(json.dumps(build_hello(token, session_id, name)))
+        await ws.send(json.dumps(build_hello(token, session_id, name, label)))
         print(await ws.recv())
         async for msg in ws:
             print(msg)
@@ -44,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-connect")
     parser.add_argument("name", nargs="?")
     parser.add_argument("--name", dest="name_option")
+    parser.add_argument("--label")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     return parser
@@ -55,7 +61,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     name = args.name_option or args.name
     if not name:
         parser.error("name is required")
-    asyncio.run(run_client(args.host, args.port, name))
+    asyncio.run(run_client(args.host, args.port, name, args.label))
     return 0
 
 
