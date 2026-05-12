@@ -16,10 +16,6 @@ The roadmap is the high-level view. Detailed sub-agent-ready work items live und
 
 Goal: make the project installable, runnable, and checkable through stable commands and reproducible tooling.
 
-Plan items:
-
-1. `plans/01-workflow-and-packaging/03-package-metadata-and-artifacts.md`
-
 Completion criteria:
 
 - Package imports use a stable project namespace.

@@ -12,6 +12,7 @@ Verify that the package can be built and inspected using local release commands.
 - Validate package metadata.
 - Ensure generated artifacts are ignored.
 - Do not publish artifacts as part of this plan.
+- Treat package license selection and package index configuration as maintainer-owned release decisions.
 
 ## Work
 
