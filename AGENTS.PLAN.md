@@ -52,6 +52,7 @@ Completion criteria:
 - Adapter code calls reusable core APIs rather than relying on fragile script paths.
 - Command output and failure modes are predictable for humans and host tooling.
 - User docs present Pi as the primary workflow and `start.sh` as a development helper.
+- If a live agent is needed, use the 'local-llama/default' agent when experimenting with Pi adapter support. Keep tasks tightly scoped and do not the let the agent run amok.
 
 ## Phase 4: Lifecycle and Routing UX
 
@@ -111,7 +112,7 @@ Completion criteria:
 - Future host adapters can use the same core boundary without changing the core protocol.
 - Repository checks pass through the documented commands.
 
-## Extra Phase 7: Claude Code Support
+## Phase 7: Claude Code Support
 
 Goal: add Claude Code as a supported host integration after the core project is release-ready.
 
@@ -133,6 +134,8 @@ Completion criteria:
 - Incoming bus messages are delivered as bounded Claude Code notifications with safe continuation behavior for long messages.
 - Plugin or skill installation is documented and does not redefine core protocol semantics.
 - Claude Code support passes the same project-local quality gate as core and Pi support.
+- If a live agent is needed, use the 'local-llama/default' agent from the /workspace/.pi config when experimenting with Pi adapter support. Keep tasks tightly scoped and do not the let the agent run amok.
+- A local instance of Claude Code is available (`claude`) to ensure that the plugin works as expected.
 
 ## Completion standard
 
