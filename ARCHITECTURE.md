@@ -36,7 +36,7 @@
 
 - Server state lives under `INTER_AGENT_DATA_DIR` or `~/.inter-agent` by default.
 - The token file, server identity metadata, PID metadata, and reserved shutdown-control metadata are per-user local files with restrictive permissions.
-- Server identity metadata is written atomically and includes host, port, PID, state schema version, and startup timestamp.
+- Server identity metadata is written atomically and includes host, port, PID, state schema version, startup timestamp, instance nonce, and a platform process start marker when available.
 - Startup refuses to replace live metadata for the same port and removes stale metadata for dead server processes when safe.
 - Authenticated shutdown stops accepting new connections, closes active sessions, and removes server lifecycle metadata during normal shutdown.
 - Status checks report available, unavailable, identity-check-failed, auth-failed, and protocol-mismatch states for host tooling.

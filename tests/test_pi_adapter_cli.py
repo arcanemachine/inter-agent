@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pytest
@@ -14,7 +13,7 @@ from inter_agent.adapters.pi import commands
 from inter_agent.adapters.pi.cli import main
 from inter_agent.core.list import ListResult
 from inter_agent.core.send import ProtocolErrorResult, SendResult
-from inter_agent.core.shared import identity_path
+from inter_agent.core.shared import identity_path, write_server_identity
 from inter_agent.core.shutdown import ShutdownResult
 
 
@@ -48,10 +47,10 @@ def test_status_reports_identity_check_failure(
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(commands, "DEFAULT_PORT", unused_tcp_port)
-    identity_path(unused_tcp_port).write_text(
-        json.dumps({"pid": os.getpid(), "host": "127.0.0.1", "port": unused_tcp_port + 1}),
-        encoding="utf-8",
-    )
+    write_server_identity("127.0.0.1", unused_tcp_port)
+    identity_payload = json.loads(identity_path(unused_tcp_port).read_text(encoding="utf-8"))
+    identity_payload["port"] = unused_tcp_port + 1
+    identity_path(unused_tcp_port).write_text(json.dumps(identity_payload), encoding="utf-8")
 
     code = main(["status"])
 

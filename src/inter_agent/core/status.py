@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import uuid
 from dataclasses import dataclass
 from typing import Literal
@@ -12,8 +11,8 @@ from websockets.exceptions import WebSocketException
 
 from inter_agent.core.shared import (
     control_hello,
-    identity_path,
     load_or_create_token,
+    verify_server_identity_details,
 )
 
 StatusState = Literal[
@@ -69,8 +68,11 @@ def _status(
 
 
 def _identity_failure(host: str, port: int) -> ServerStatus | None:
-    path = identity_path(port)
-    if not path.exists():
+    verification = verify_server_identity_details(host, port)
+    if verification.ok:
+        return None
+
+    if verification.reason == "missing_metadata":
         return _status(
             "unavailable",
             host,
@@ -79,59 +81,7 @@ def _identity_failure(host: str, port: int) -> ServerStatus | None:
             reachable=False,
             message="server identity not found",
         )
-
-    try:
-        payload: object = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return _status(
-            "identity_check_failed",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server identity metadata is invalid",
-        )
-
-    if not isinstance(payload, dict):
-        return _status(
-            "identity_check_failed",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server identity metadata is invalid",
-        )
-
-    identity_host = payload.get("host")
-    identity_port = payload.get("port")
-    if identity_host != host or identity_port != port:
-        return _status(
-            "identity_check_failed",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server identity metadata does not match requested endpoint",
-        )
-
-    pid_value = payload.get("pid")
-    try:
-        if not isinstance(pid_value, (int, str)):
-            raise ValueError
-        pid = int(pid_value)
-    except ValueError:
-        return _status(
-            "identity_check_failed",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server identity metadata is invalid",
-        )
-
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
+    if verification.reason == "process_not_running":
         return _status(
             "unavailable",
             host,
@@ -140,17 +90,21 @@ def _identity_failure(host: str, port: int) -> ServerStatus | None:
             reachable=False,
             message="server process is not running",
         )
-    except PermissionError:
-        return _status(
-            "identity_check_failed",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server identity process is not accessible",
-        )
 
-    return None
+    messages = {
+        "invalid_metadata": "server identity metadata is invalid",
+        "endpoint_mismatch": "server identity metadata does not match requested endpoint",
+        "pid_metadata_mismatch": "server PID metadata does not match identity",
+        "process_marker_mismatch": "server process marker does not match identity",
+    }
+    return _status(
+        "identity_check_failed",
+        host,
+        port,
+        identity_verified=False,
+        reachable=False,
+        message=messages.get(verification.reason, "server identity check failed"),
+    )
 
 
 async def _probe_server(host: str, port: int, token: str) -> ServerStatus:

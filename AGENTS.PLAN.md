@@ -69,11 +69,10 @@ Goal: strengthen the local security controls and resource boundaries promised by
 
 Plan items:
 
-1. `plans/05-security-and-operational-hardening/01-server-identity-hardening.md`
-2. `plans/05-security-and-operational-hardening/02-session-id-collision-policy.md`
-3. `plans/05-security-and-operational-hardening/03-connection-and-payload-limits.md`
-4. `plans/05-security-and-operational-hardening/04-token-management-docs-and-tests.md`
-5. `plans/05-security-and-operational-hardening/05-filesystem-permission-tests.md`
+1. `plans/05-security-and-operational-hardening/02-session-id-collision-policy.md`
+2. `plans/05-security-and-operational-hardening/03-connection-and-payload-limits.md`
+3. `plans/05-security-and-operational-hardening/04-token-management-docs-and-tests.md`
+4. `plans/05-security-and-operational-hardening/05-filesystem-permission-tests.md`
 
 Completion criteria:
 

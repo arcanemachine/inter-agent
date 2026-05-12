@@ -39,6 +39,22 @@ class ServerIdentity:
     port: int
     state_version: int
     started_at: str
+    instance_nonce: str
+    process_start_marker: str | None
+
+
+@dataclass(frozen=True)
+class ServerPidMetadata:
+    pid: int
+    state_version: int
+    instance_nonce: str
+
+
+@dataclass(frozen=True)
+class IdentityVerification:
+    ok: bool
+    reason: str
+    identity: ServerIdentity | None
 
 
 class ServerAlreadyRunningError(RuntimeError):
@@ -70,6 +86,16 @@ def shutdown_path(port: int) -> Path:
 
 def server_state_paths(port: int) -> tuple[Path, ...]:
     return (identity_path(port), pid_path(port), shutdown_path(port))
+
+
+def process_start_marker(pid: int) -> str | None:
+    stat_path = Path("/proc") / str(pid) / "stat"
+    try:
+        stat_text = stat_path.read_text(encoding="utf-8")
+        stat_fields = stat_text.rsplit(") ", maxsplit=1)[1].split()
+        return f"procfs:{stat_fields[19]}"
+    except (OSError, IndexError):
+        return None
 
 
 def _atomic_write_text(path: Path, content: str, mode: int = 0o600) -> None:
@@ -112,7 +138,13 @@ def read_server_identity(port: int) -> ServerIdentity | None:
     port_value = payload.get("port")
     version_value = payload.get("state_version", 0)
     started_at_value = payload.get("started_at", "")
+    nonce_value = payload.get("instance_nonce")
+    process_start_value = payload.get("process_start_marker")
     if not isinstance(host_value, str) or not isinstance(started_at_value, str):
+        return None
+    if not isinstance(nonce_value, str) or not nonce_value:
+        return None
+    if process_start_value is not None and not isinstance(process_start_value, str):
         return None
     try:
         if not isinstance(pid_value, (int, str)) or not isinstance(port_value, (int, str)):
@@ -125,6 +157,38 @@ def read_server_identity(port: int) -> ServerIdentity | None:
             port=int(port_value),
             state_version=int(version_value),
             started_at=started_at_value,
+            instance_nonce=nonce_value,
+            process_start_marker=process_start_value,
+        )
+    except ValueError:
+        return None
+
+
+def read_server_pid_metadata(port: int) -> ServerPidMetadata | None:
+    path = pid_path(port)
+    if not path.exists():
+        return None
+    try:
+        payload: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+
+    pid_value = payload.get("pid")
+    version_value = payload.get("state_version", 0)
+    nonce_value = payload.get("instance_nonce")
+    if not isinstance(nonce_value, str) or not nonce_value:
+        return None
+    try:
+        if not isinstance(pid_value, (int, str)):
+            return None
+        if not isinstance(version_value, (int, str)):
+            return None
+        return ServerPidMetadata(
+            pid=int(pid_value),
+            state_version=int(version_value),
+            instance_nonce=nonce_value,
         )
     except ValueError:
         return None
@@ -138,6 +202,28 @@ def is_pid_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
+
+
+def process_identity_failure(identity: ServerIdentity) -> str | None:
+    if not is_pid_alive(identity.pid):
+        return "process_not_running"
+    if identity.process_start_marker is None:
+        return None
+    current_marker = process_start_marker(identity.pid)
+    if current_marker != identity.process_start_marker:
+        return "process_marker_mismatch"
+    return None
+
+
+def pid_metadata_matches(identity: ServerIdentity) -> bool:
+    metadata = read_server_pid_metadata(identity.port)
+    if metadata is None:
+        return False
+    return metadata.pid == identity.pid and metadata.instance_nonce == identity.instance_nonce
+
+
+def server_process_matches_identity(identity: ServerIdentity) -> bool:
+    return process_identity_failure(identity) is None and pid_metadata_matches(identity)
 
 
 def remove_server_state(host: str, port: int, pid: int | None = None) -> None:
@@ -162,17 +248,20 @@ def cleanup_stale_server_state(host: str, port: int) -> None:
         return
     if identity.port != port:
         return
-    if not is_pid_alive(identity.pid):
+    if not server_process_matches_identity(identity):
         remove_server_state(identity.host, port, identity.pid)
 
 
 def write_server_identity(host: str, port: int) -> ServerIdentity:
+    pid = os.getpid()
     identity = ServerIdentity(
-        pid=os.getpid(),
+        pid=pid,
         host=host,
         port=port,
         state_version=STATE_VERSION,
         started_at=utc_now(),
+        instance_nonce=secrets.token_urlsafe(16),
+        process_start_marker=process_start_marker(pid),
     )
     payload = {
         "state_version": identity.state_version,
@@ -180,9 +269,16 @@ def write_server_identity(host: str, port: int) -> ServerIdentity:
         "host": identity.host,
         "port": identity.port,
         "started_at": identity.started_at,
+        "instance_nonce": identity.instance_nonce,
+        "process_start_marker": identity.process_start_marker,
+    }
+    pid_payload = {
+        "state_version": identity.state_version,
+        "pid": identity.pid,
+        "instance_nonce": identity.instance_nonce,
     }
     _atomic_write_text(identity_path(port), json.dumps(payload, sort_keys=True))
-    _atomic_write_text(pid_path(port), f"{identity.pid}\n")
+    _atomic_write_text(pid_path(port), json.dumps(pid_payload, sort_keys=True))
     return identity
 
 
@@ -190,20 +286,31 @@ def claim_server_state(host: str, port: int) -> ServerIdentity:
     cleanup_stale_server_state(host, port)
     existing = read_server_identity(port)
     if existing is not None and existing.port == port:
-        if is_pid_alive(existing.pid):
+        if server_process_matches_identity(existing):
             raise ServerAlreadyRunningError(
                 f"server already running for {existing.host}:{port} with pid {existing.pid}"
             )
     return write_server_identity(host, port)
 
 
-def verify_server_identity(host: str, port: int) -> bool:
+def verify_server_identity_details(host: str, port: int) -> IdentityVerification:
+    identity_file = identity_path(port)
     identity = read_server_identity(port)
     if identity is None:
-        return False
+        reason = "invalid_metadata" if identity_file.exists() else "missing_metadata"
+        return IdentityVerification(ok=False, reason=reason, identity=None)
     if identity.host != host or identity.port != port:
-        return False
-    return is_pid_alive(identity.pid)
+        return IdentityVerification(ok=False, reason="endpoint_mismatch", identity=identity)
+    if not pid_metadata_matches(identity):
+        return IdentityVerification(ok=False, reason="pid_metadata_mismatch", identity=identity)
+    process_failure = process_identity_failure(identity)
+    if process_failure is not None:
+        return IdentityVerification(ok=False, reason=process_failure, identity=identity)
+    return IdentityVerification(ok=True, reason="ok", identity=identity)
+
+
+def verify_server_identity(host: str, port: int) -> bool:
+    return verify_server_identity_details(host, port).ok
 
 
 def utc_now() -> str:
