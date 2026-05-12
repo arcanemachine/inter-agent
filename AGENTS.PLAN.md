@@ -42,11 +42,10 @@ Goal: make the Pi adapter reliable as the primary user-facing host integration w
 
 Plan items:
 
-1. `plans/03-adapter-integration-and-command-ux/01-core-command-api.md`
-2. `plans/03-adapter-integration-and-command-ux/02-pi-adapter-live-integration-tests.md`
-3. `plans/03-adapter-integration-and-command-ux/03-pi-command-status-and-errors.md`
-4. `plans/03-adapter-integration-and-command-ux/04-pi-user-workflow-docs.md`
-5. `plans/03-adapter-integration-and-command-ux/05-start-script-development-helper.md`
+1. `plans/03-adapter-integration-and-command-ux/02-pi-adapter-live-integration-tests.md`
+2. `plans/03-adapter-integration-and-command-ux/03-pi-command-status-and-errors.md`
+3. `plans/03-adapter-integration-and-command-ux/04-pi-user-workflow-docs.md`
+4. `plans/03-adapter-integration-and-command-ux/05-start-script-development-helper.md`
 
 Completion criteria:
 

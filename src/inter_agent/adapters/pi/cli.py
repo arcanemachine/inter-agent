@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections.abc import Sequence
 
 from inter_agent.adapters.pi import commands
@@ -40,8 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "list":
         return commands.list_sessions()
     if args.command == "status":
-        result = {"core_list_supported": True, "adapter_list_exposed": True}
-        print(json.dumps(result))
+        print(commands.status_json())
         return 0
 
     parser.print_help()

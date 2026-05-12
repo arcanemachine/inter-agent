@@ -5,6 +5,7 @@ import asyncio
 import json
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import websockets
 
@@ -17,25 +18,55 @@ from inter_agent.core.shared import (
 )
 
 
+@dataclass(frozen=True)
+class SendResult:
+    """Result returned after a command connection sends one outbound payload."""
+
+    welcome: str
+    welcome_payload: dict[str, object]
+
+
+def _text_frame(frame: str | bytes) -> str:
+    if isinstance(frame, bytes):
+        return frame.decode("utf-8")
+    return frame
+
+
+def _json_object(raw: str) -> dict[str, object]:
+    payload: object = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise ValueError("server response must be a JSON object")
+    return {str(key): value for key, value in payload.items()}
+
+
+def parse_custom_payload(payload: str | None) -> object:
+    """Parse a CLI custom payload string into a JSON-compatible value."""
+    if payload is None:
+        return {}
+    parsed: object = json.loads(payload)
+    return parsed
+
+
 async def send_message(
     host: str,
     port: int,
     to: str | None,
     text: str | None,
     custom_type: str | None,
-    payload: str | None,
-) -> None:
+    payload: object | None,
+) -> SendResult:
+    """Send a direct, broadcast, or custom message through a control connection."""
     if not verify_server_identity(host, port):
         raise SystemExit("server identity check failed")
     token = load_or_create_token()
     async with websockets.connect(f"ws://{host}:{port}") as ws:
         await ws.send(json.dumps(control_hello(token, f"ctl-{uuid.uuid4()}")))
-        print(await ws.recv())
-        if custom_type:
+        welcome = _text_frame(await ws.recv())
+        if custom_type is not None:
             msg: dict[str, object] = {
                 "op": "custom",
                 "custom_type": custom_type,
-                "payload": json.loads(payload or "{}"),
+                "payload": {} if payload is None else payload,
             }
             if to:
                 msg["to"] = to
@@ -44,6 +75,28 @@ async def send_message(
             await ws.send(json.dumps({"op": "send", "to": to, "text": text or ""}))
         else:
             await ws.send(json.dumps({"op": "broadcast", "text": text or ""}))
+        return SendResult(welcome=welcome, welcome_payload=_json_object(welcome))
+
+
+async def send_direct_message(host: str, port: int, to: str, text: str) -> SendResult:
+    """Send a direct text message to one routing name."""
+    return await send_message(host, port, to, text, custom_type=None, payload=None)
+
+
+async def broadcast_message(host: str, port: int, text: str) -> SendResult:
+    """Broadcast a text message to all other connected agent sessions."""
+    return await send_message(host, port, to=None, text=text, custom_type=None, payload=None)
+
+
+async def send_custom_message(
+    host: str,
+    port: int,
+    to: str | None,
+    custom_type: str,
+    payload: object,
+) -> SendResult:
+    """Send a custom protocol envelope through a control connection."""
+    return await send_message(host, port, to, text=None, custom_type=custom_type, payload=payload)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -64,7 +117,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     to = args.to_option or args.to
     text = args.text_option if args.text_option is not None else args.text
-    asyncio.run(send_message(args.host, args.port, to, text, args.custom_type, args.payload))
+    payload = parse_custom_payload(args.payload) if args.custom_type is not None else None
+    result = asyncio.run(send_message(args.host, args.port, to, text, args.custom_type, payload))
+    print(result.welcome)
     return 0
 
 

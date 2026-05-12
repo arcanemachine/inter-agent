@@ -255,6 +255,7 @@ class BusServer:
 
 
 async def run_server(host: str, port: int, limits: Limits | None = None) -> None:
+    """Start the core WebSocket bus until the task is cancelled."""
     server = BusServer(host=host, port=port, limits=limits)
     write_server_identity(host, port)
     async with websockets.serve(
