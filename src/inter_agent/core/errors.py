@@ -15,6 +15,7 @@ class ErrorCode(Enum):
     BAD_TEXT = "BAD_TEXT"
     TEXT_TOO_LARGE = "TEXT_TOO_LARGE"
     UNKNOWN_TARGET = "UNKNOWN_TARGET"
+    AMBIGUOUS_TARGET = "AMBIGUOUS_TARGET"
 
 
 ERROR_CODE_VALUES: tuple[str, ...] = tuple(code.value for code in ErrorCode)

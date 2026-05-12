@@ -32,7 +32,7 @@ Start the server in another terminal before connecting sessions:
    - `uv run inter-agent-pi list --json`
    - `uv run inter-agent-pi status --json`
 
-`label` is optional display metadata; routing still uses `name`. `list` is core-supported and adapter-exposed.
+`label` is optional display metadata; routing still uses `name`. Direct targets resolve by exact routing name first, then by unique routing-name prefix. `list` is core-supported and adapter-exposed.
 
 ## Output and failures
 

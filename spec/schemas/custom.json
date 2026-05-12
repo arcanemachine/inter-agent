@@ -6,7 +6,10 @@
   "properties": {
     "op": { "const": "custom" },
     "custom_type": { "type": "string" },
-    "to": { "type": ["string", "null"] },
+    "to": {
+      "type": ["string", "null"],
+      "description": "Optional target routing name or unambiguous routing-name prefix. Exact names are resolved before prefixes."
+    },
     "payload": {}
   },
   "additionalProperties": true

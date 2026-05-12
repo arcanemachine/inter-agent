@@ -33,6 +33,13 @@ class Conn:
     capabilities: dict[str, object]
 
 
+@dataclass(frozen=True)
+class TargetResolution:
+    target: Conn | None
+    error_code: ErrorCode | None = None
+    message: str | None = None
+
+
 class BusServer:
     def __init__(self, host: str, port: int, limits: Limits | None = None) -> None:
         self.host = host
@@ -172,6 +179,38 @@ class BusServer:
         for middleware in self.middlewares:
             await middleware.before_route(sender.session_id, msg)
 
+    def _resolve_target(self, target_name: object) -> TargetResolution:
+        if not isinstance(target_name, str) or not target_name:
+            return TargetResolution(
+                target=None,
+                error_code=ErrorCode.UNKNOWN_TARGET,
+                message=f"unknown target: {target_name}",
+            )
+
+        exact = next((c for c in self.registry.values() if c.name == target_name), None)
+        if exact is not None:
+            return TargetResolution(target=exact)
+
+        prefix_matches = [c for c in self.registry.values() if c.name.startswith(target_name)]
+        if len(prefix_matches) == 1:
+            return TargetResolution(target=prefix_matches[0])
+        if len(prefix_matches) > 1:
+            return TargetResolution(
+                target=None,
+                error_code=ErrorCode.AMBIGUOUS_TARGET,
+                message=f"ambiguous target: {target_name}",
+            )
+        return TargetResolution(
+            target=None,
+            error_code=ErrorCode.UNKNOWN_TARGET,
+            message=f"unknown target: {target_name}",
+        )
+
+    async def _send_resolution_error(self, sender: Conn, resolution: TargetResolution) -> None:
+        if resolution.error_code is None or resolution.message is None:
+            raise RuntimeError("target resolution did not include an error")
+        await self.send_error(sender.ws, resolution.error_code, resolution.message)
+
     async def _route_send(self, sender: Conn, msg: dict[str, object]) -> None:
         await self._apply_middlewares(sender, msg)
         to = msg.get("to")
@@ -182,10 +221,11 @@ class BusServer:
         if len(text.encode()) > self.limits.direct_text_max:
             await self.send_error(sender.ws, ErrorCode.TEXT_TOO_LARGE, "direct message too large")
             return
-        target = next((c for c in self.registry.values() if c.name == to), None)
-        if not target:
-            await self.send_error(sender.ws, ErrorCode.UNKNOWN_TARGET, f"unknown target: {to}")
+        resolution = self._resolve_target(to)
+        if resolution.target is None:
+            await self._send_resolution_error(sender, resolution)
             return
+        target = resolution.target
         await target.ws.send(
             json.dumps(
                 {
@@ -239,12 +279,11 @@ class BusServer:
             "ts": utc_now(),
         }
         if msg.get("to"):
-            target = next((c for c in self.registry.values() if c.name == msg.get("to")), None)
-            if not target:
-                await self.send_error(
-                    sender.ws, ErrorCode.UNKNOWN_TARGET, f"unknown target: {msg.get('to')}"
-                )
+            resolution = self._resolve_target(msg.get("to"))
+            if resolution.target is None:
+                await self._send_resolution_error(sender, resolution)
                 return
+            target = resolution.target
             payload["to"] = target.name
             await target.ws.send(json.dumps(payload))
             return

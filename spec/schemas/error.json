@@ -17,7 +17,8 @@
         "UNKNOWN_OP",
         "BAD_TEXT",
         "TEXT_TOO_LARGE",
-        "UNKNOWN_TARGET"
+        "UNKNOWN_TARGET",
+        "AMBIGUOUS_TARGET"
       ]
     },
     "message": { "type": "string" }

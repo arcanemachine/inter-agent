@@ -24,7 +24,7 @@
 
 ## Messaging model
 
-- Direct message: sender targets one agent by name.
+- Direct message: sender targets one agent by routing name. Resolution checks exact names first, then unique routing-name prefixes. Ambiguous prefixes are rejected.
 - Label: optional human-readable display metadata returned by introspection; labels are never routing keys.
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation.
