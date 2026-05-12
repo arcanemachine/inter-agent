@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from core.router import RouterMiddleware
-from core.shared import (
+from inter_agent.core.router import RouterMiddleware
+from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     Limits,

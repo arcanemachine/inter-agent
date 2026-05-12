@@ -4,7 +4,7 @@ import argparse
 import json
 from collections.abc import Sequence
 
-from adapters.pi import commands
+from inter_agent.adapters.pi import commands
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -8,7 +8,12 @@ import uuid
 
 import websockets
 
-from core.shared import DEFAULT_HOST, DEFAULT_PORT, load_or_create_token, verify_server_identity
+from inter_agent.core.shared import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    load_or_create_token,
+    verify_server_identity,
+)
 
 
 def build_hello(token: str, session_id: str, name: str) -> dict[str, object]:

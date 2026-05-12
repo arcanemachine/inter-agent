@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from adapters.pi.cli import main
+from inter_agent.adapters.pi.cli import main
 
 
 def test_status_outputs_json(capsys: pytest.CaptureFixture[str]) -> None:

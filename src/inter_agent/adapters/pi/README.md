@@ -10,7 +10,7 @@ Commands (recommended via `./start.sh`):
 - `./start.sh list`
 - `./start.sh status`
 
-Equivalent direct CLI (via `python -m adapters.pi.cli`):
+Equivalent direct CLI (via `python -m inter_agent.adapters.pi.cli`):
 
 - `connect <name>`
 - `send <to> <text>`

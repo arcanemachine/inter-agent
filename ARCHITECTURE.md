@@ -4,14 +4,14 @@
 
 ## Layers
 
-1. **Core protocol (`core/`)**
+1. **Core protocol (`src/inter_agent/core/`)**
    - Handshake/auth (`hello` / `welcome`)
    - Presence and identity (`session_id`, `name`)
    - Routing (`send`, `broadcast`, `custom` pass-through)
    - Health (`ping` / `pong`, `bye`)
    - Introspection (`list` capability)
 
-2. **Adapters (`adapters/`)**
+2. **Adapters (`src/inter_agent/adapters/`)**
    - Host-specific command UX and integration.
    - May expose only a subset of core-supported operations.
 

@@ -4,8 +4,8 @@ import json
 import pytest
 import websockets
 
-from core.server import run_server
-from core.shared import load_or_create_token
+from inter_agent.core.server import run_server
+from inter_agent.core.shared import load_or_create_token
 
 
 @pytest.mark.asyncio

@@ -18,10 +18,9 @@ Goal: make the project installable, runnable, and checkable through stable comma
 
 Plan items:
 
-1. `plans/01-workflow-and-packaging/01-namespace-package-layout.md`
-2. `plans/01-workflow-and-packaging/02-console-entry-points-and-uv-workflow.md`
-3. `plans/01-workflow-and-packaging/03-package-metadata-and-artifacts.md`
-4. `plans/01-workflow-and-packaging/04-local-quality-gates.md`
+1. `plans/01-workflow-and-packaging/02-console-entry-points-and-uv-workflow.md`
+2. `plans/01-workflow-and-packaging/03-package-metadata-and-artifacts.md`
+3. `plans/01-workflow-and-packaging/04-local-quality-gates.md`
 
 Completion criteria:
 
@@ -157,6 +156,6 @@ A phase is complete when its plan items meet their acceptance criteria and the r
 - `uv run pytest`
 - `uv run ruff check .`
 - `uv run black --check .`
-- `uv run mypy core adapters tests`
+- `uv run mypy src tests`
 
 When package names or source layout change, update the mypy paths in this standard at the same time as the code change.

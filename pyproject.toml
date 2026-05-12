@@ -22,8 +22,8 @@ dev = [
   "pyyaml==6.0.3",
 ]
 
-[tool.setuptools]
-packages = ["core", "adapters", "adapters.pi"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -7,7 +7,7 @@ import uuid
 
 import websockets
 
-from core.shared import (
+from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     control_hello,

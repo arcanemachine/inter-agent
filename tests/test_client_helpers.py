@@ -1,5 +1,5 @@
-from core.client import build_hello
-from core.shared import control_hello, validate_name
+from inter_agent.core.client import build_hello
+from inter_agent.core.shared import control_hello, validate_name
 
 
 def test_build_hello_payload() -> None:

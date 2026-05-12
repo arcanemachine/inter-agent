@@ -4,7 +4,7 @@ import json
 import pytest
 import websockets
 
-from core.server import run_server
+from inter_agent.core.server import run_server
 
 
 @pytest.mark.asyncio

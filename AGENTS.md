@@ -11,7 +11,7 @@ This file is for coding agents working in this repository.
 5. Keep informational documents evergreen (`README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `AGENTS.md`).
 6. Write docs as stable descriptions of what the project is and how it works; avoid temporary status language and date-specific status notes.
 7. Use precise project terminology. Prefer `sub-agent` for delegated coding-agent work; avoid overloaded role names.
-8. Use `AGENTS.PLAN.md` and `plans/` as the completion tracker. Keep exploratory work in `IDEAS.md` until it is promoted into the roadmap.
+8. Use `AGENTS.PLAN.md` and `plans/` as the completion tracker. Keep exploratory work in `IDEAS.md` until it is promoted into the plan.
 9. When plan work is completed, update or remove the relevant plan item and update `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` as needed.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
 11. Keep commits atomic per logical step.
@@ -23,7 +23,7 @@ This file is for coding agents working in this repository.
    - `uv run pytest`
    - `uv run ruff check .`
    - `uv run black --check .`
-   - `uv run mypy core adapters tests`
+   - `uv run mypy src tests`
 3. Keep commits atomic per logical step.
 4. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
 5. Keep docs evergreen and scoped:
@@ -33,8 +33,8 @@ This file is for coding agents working in this repository.
 
 ## Design boundary
 
-- `core/`: transport/auth/identity/routing/limits.
-- `adapters/`: UX and host-integration behavior.
+- `src/inter_agent/core/`: transport/auth/identity/routing/limits.
+- `src/inter_agent/adapters/`: UX and host-integration behavior.
 - `spec/`: protocol contract and examples.
 - `tests/conformance/`: black-box protocol semantics.
 

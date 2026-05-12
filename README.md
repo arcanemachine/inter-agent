@@ -13,8 +13,8 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 
 ## Layout
 
-- `core/` universal protocol server/client bits
-- `adapters/pi/` Pi-specific UX adapter
+- `src/inter_agent/core/` universal protocol server/client bits
+- `src/inter_agent/adapters/pi/` Pi-specific UX adapter
 - `spec/` AsyncAPI + schemas + examples
 - `tests/` conformance and validation tests
 - `docs/` supporting notes
@@ -22,9 +22,7 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 ## Quickstart
 
 1. Create environment and install dependencies:
-   - `uv venv`
-   - `.venv/bin/pip install -e .`
-   - `.venv/bin/pip install pytest==9.0.3 pytest-asyncio==1.3.0 ruff==0.15.12 black==26.3.1 mypy==1.20.2 jsonschema==4.26.0 pyyaml==6.0.3`
+   - `uv sync`
 
 2. Start server:
    - `./start.sh server`
@@ -43,10 +41,10 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 
 ## Development checks
 
-- `.venv/bin/pytest`
-- `.venv/bin/ruff check .`
-- `.venv/bin/black --check .`
-- `.venv/bin/mypy core adapters tests`
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run black --check .`
+- `uv run mypy src tests`
 
 ## Additional docs
 
