@@ -35,6 +35,12 @@ This file is for coding agents working in this repository.
    - User-oriented product docs belong in `README.md`.
    - Security model and assumptions belong in `SECURITY.md`.
 
+## Workflow notes
+
+- After changing package entry points or project metadata, run `uv sync --locked` before command smoke tests so generated scripts reflect `pyproject.toml`.
+- For live-server tests, prefer `unused_tcp_port` over fixed ports to avoid local collisions.
+- For protocol examples, keep example `op` values aligned with schema filenames so validation can stay table-driven.
+
 ## Design boundary
 
 - `src/inter_agent/core/`: transport/auth/identity/routing/limits.
