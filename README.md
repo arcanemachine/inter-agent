@@ -2,7 +2,7 @@
 
 `inter-agent` is a lightweight localhost messaging bus for AI coding sessions.
 
-It provides a framework-agnostic protocol for direct and broadcast messaging between running sessions, plus host adapters that expose that protocol in specific tooling.
+It provides a framework-agnostic protocol for direct and broadcast messaging between running sessions, plus host adapters that expose that protocol in specific tooling. The Pi adapter is the primary user-facing workflow.
 
 ## Core behavior
 
@@ -20,34 +20,40 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 - `tests/` conformance and validation tests
 - `docs/` supporting notes
 
-## Quickstart
+## Quickstart: Pi workflow
 
-1. Create environment and install dependencies:
+1. Create the environment and install dependencies:
    - `uv sync`
 
-2. Start server:
+2. Start the localhost bus server:
    - `uv run inter-agent-server`
 
-3. Connect two sessions (in separate terminals):
+3. Connect Pi sessions in separate terminals:
    - `uv run inter-agent-pi connect agent-a --label "Agent A"`
    - `uv run inter-agent-pi connect agent-b --label "Agent B"`
 
-4. Send and broadcast:
+4. Send messages through the Pi adapter:
    - `uv run inter-agent-pi send agent-b "run tests"`
    - `uv run inter-agent-pi broadcast "build is green"`
 
-5. List sessions / status:
+5. Inspect the bus:
    - `uv run inter-agent-pi list`
    - `uv run inter-agent-pi status`
 
-Core command entry points are also available for direct protocol use:
+Pi-specific command output, status fields, and failure behavior are documented in `src/inter_agent/adapters/pi/README.md`.
+
+## Core protocol commands
+
+Core command entry points are available for direct protocol use and adapter/debug workflows. Pi users should prefer `inter-agent-pi` for host-facing commands.
 
 - `uv run inter-agent-connect <name>`
 - `uv run inter-agent-send <to> <text>`
 - `uv run inter-agent-send --text "broadcast text"`
 - `uv run inter-agent-list`
 
-`start.sh` remains available as a local development/demo helper that delegates to the package entry points.
+## Development helper
+
+`start.sh` is a local development/demo helper that delegates to the package entry points. It is not required for the installed command workflow.
 
 ## Resource limits
 
@@ -76,6 +82,7 @@ The gate runs `uv sync --locked` before the required checks. For targeted debugg
 
 ## Additional docs
 
+- `src/inter_agent/adapters/pi/README.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`
 - `ERROR_CODES.md`
