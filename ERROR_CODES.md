@@ -5,7 +5,7 @@ Protocol errors are returned as `{"op":"error","code":"...","message":"..."}`. T
 | Code | Trigger condition | Client expectation |
 | --- | --- | --- |
 | `PROTOCOL_ERROR` | The first frame is not `hello`, a frame is invalid JSON, a frame is not a JSON object, or `hello.capabilities` is missing or not an object. | Treat the connection as invalid and reconnect with a valid protocol frame. |
-| `AUTH_FAILED` | `hello.token` does not match the server token. | Do not retry until token state has been refreshed or corrected. |
+| `AUTH_FAILED` | `hello.token` does not match the server token. | Do not retry until token state has been refreshed or corrected; see the token rotation procedure in `SECURITY.md`. |
 | `TOO_MANY_CONNECTIONS` | A valid connection attempt would exceed the configured active connection limit. | Close unused sessions or increase the local connection limit. |
 | `BAD_ROLE` | `hello.role` is missing or is not `agent` or `control`, or an agent-role session attempts a control-only operation such as `shutdown`. | Send a valid role or use a control-role connection for control-only operations. |
 | `BAD_SESSION` | `hello.session_id` is missing, empty, or not a string. | Generate and send a string session ID. |

@@ -72,6 +72,10 @@ Text limits are measured as UTF-8 encoded bytes after JSON decoding. Text exactl
 
 Custom extension payloads are routed as pass-through JSON after `custom_type` and payload-size validation.
 
+## Troubleshooting auth failures
+
+`AUTH_FAILED` means the client token did not match the running server. Stop the server, remove the token file from `INTER_AGENT_DATA_DIR/token` or `~/.inter-agent/token`, start the server again, and reconnect clients. See `SECURITY.md` for the token rotation procedure.
+
 ## Development checks
 
 Run the full local quality gate:

@@ -69,8 +69,7 @@ Goal: strengthen the local security controls and resource boundaries promised by
 
 Plan items:
 
-1. `plans/05-security-and-operational-hardening/04-token-management-docs-and-tests.md`
-2. `plans/05-security-and-operational-hardening/05-filesystem-permission-tests.md`
+1. `plans/05-security-and-operational-hardening/05-filesystem-permission-tests.md`
 
 Completion criteria:
 

@@ -9,14 +9,21 @@
 ## Security controls
 
 1. Server binds to localhost (`127.0.0.1`).
-2. Shared bearer token is required in `hello`; invalid tokens receive canonical `AUTH_FAILED` errors.
-3. Token/state files use restrictive permissions (`0600`), state directory (`0700`). Server-owned lifecycle files include the token, server identity metadata, PID metadata, and reserved shutdown-control metadata.
+2. Shared bearer token is required in `hello`; invalid tokens receive canonical `AUTH_FAILED` errors. The token is stored as plaintext in `INTER_AGENT_DATA_DIR/token`, or `~/.inter-agent/token` by default, and is sent over plaintext localhost WebSocket connections after server identity verification succeeds.
+3. Token/state files use restrictive permissions (`0600`), state directory (`0700`). Existing token files with broader POSIX permissions are tightened to `0600` when loaded. Server-owned lifecycle files include the token, server identity metadata, PID metadata, and reserved shutdown-control metadata.
 4. Clients verify server identity before sending the shared token. Verification checks host, port, PID liveness, matching identity/PID metadata nonce, and a process start marker when the platform exposes one. Server identity metadata is written atomically, includes a startup timestamp, state schema version, instance nonce, and process start marker, and is removed by the server during normal shutdown. On platforms without a process start marker, verification falls back to PID liveness plus matching local metadata.
 5. Shutdown uses the same localhost shared-token authentication as other control operations and requires a control-role connection.
 6. Core validates operation shapes and rejects unauthenticated/invalid requests with documented protocol error codes.
 7. Resource limits bound incoming WebSocket frames, active authenticated connections, direct/broadcast text, and custom extension fields. Text limits are measured as UTF-8 encoded bytes after JSON decoding: `INTER_AGENT_DIRECT_MAX` defaults to 2 MiB and `INTER_AGENT_BROADCAST_MAX` defaults to 512 KiB. `INTER_AGENT_FRAME_MAX` defaults to 16 MiB, `INTER_AGENT_CONNECTION_MAX` defaults to 64, `INTER_AGENT_CUSTOM_TYPE_MAX` defaults to 128 bytes, and `INTER_AGENT_CUSTOM_PAYLOAD_MAX` defaults to 1 MiB of JSON-encoded UTF-8 bytes.
 
 Custom extension payloads remain pass-through JSON after `custom_type` and payload-size validation.
+
+## Token rotation
+
+1. Stop the local server with `uv run inter-agent-pi shutdown` when it is reachable, or terminate the server process if it is not reachable.
+2. Remove the token file from `INTER_AGENT_DATA_DIR/token`, or from `~/.inter-agent/token` when `INTER_AGENT_DATA_DIR` is unset.
+3. Start the server again with `uv run inter-agent-server`; a new token is created with `0600` permissions.
+4. Reconnect clients and adapters. Connections using the old token fail with `AUTH_FAILED`.
 
 ## Explicit non-goals
 

@@ -122,6 +122,7 @@ def _unlink_if_exists(path: Path) -> None:
 def load_or_create_token() -> str:
     path = token_path()
     if path.exists():
+        os.chmod(path, 0o600)
         return path.read_text(encoding="utf-8").strip()
     token = secrets.token_urlsafe(32)
     _atomic_write_text(path, token + "\n")
