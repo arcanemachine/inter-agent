@@ -29,10 +29,9 @@ Goal: align docs, schemas, implementation, and tests around a complete protocol 
 
 Plan items:
 
-1. `plans/02-protocol-contract-and-conformance/03-error-code-semantics.md`
-2. `plans/02-protocol-contract-and-conformance/04-core-operation-conformance.md`
-3. `plans/02-protocol-contract-and-conformance/05-message-size-boundaries.md`
-4. `plans/02-protocol-contract-and-conformance/06-capability-negotiation-baseline.md`
+1. `plans/02-protocol-contract-and-conformance/04-core-operation-conformance.md`
+2. `plans/02-protocol-contract-and-conformance/05-message-size-boundaries.md`
+3. `plans/02-protocol-contract-and-conformance/06-capability-negotiation-baseline.md`
 
 Completion criteria:
 

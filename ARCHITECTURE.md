@@ -26,6 +26,7 @@
 - Label: optional human-readable display metadata returned by introspection; labels are never routing keys.
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation.
+- Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
 
 ## Evolution touchpoints
 

@@ -106,7 +106,7 @@ def control_hello(token: str, session_id: str) -> dict[str, object]:
     }
 
 
-def validate_name(name: str) -> bool:
+def validate_name(name: object) -> bool:
     if not isinstance(name, str):
         return False
     import re

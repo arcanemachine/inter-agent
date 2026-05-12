@@ -5,7 +5,21 @@
   "required": ["op", "code", "message"],
   "properties": {
     "op": { "const": "error" },
-    "code": { "type": "string" },
+    "code": {
+      "enum": [
+        "PROTOCOL_ERROR",
+        "AUTH_FAILED",
+        "BAD_ROLE",
+        "BAD_SESSION",
+        "BAD_NAME",
+        "BAD_LABEL",
+        "NAME_TAKEN",
+        "UNKNOWN_OP",
+        "BAD_TEXT",
+        "TEXT_TOO_LARGE",
+        "UNKNOWN_TARGET"
+      ]
+    },
     "message": { "type": "string" }
   },
   "additionalProperties": true

@@ -10,7 +10,7 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 - First-class direct (`A -> B`) and broadcast messaging.
 - Stable routing names plus optional display-only labels for introspection.
 - Extension envelope via `op: "custom"` with pass-through routing.
-- Basic shared-token authentication and local identity checks.
+- Basic shared-token authentication, local identity checks, and documented protocol error codes.
 
 ## Layout
 
@@ -66,4 +66,5 @@ The gate runs `uv sync --locked` before the required checks. For targeted debugg
 
 - `ARCHITECTURE.md`
 - `SECURITY.md`
+- `ERROR_CODES.md`
 - `AGENTS.md`

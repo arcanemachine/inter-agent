@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import websockets
 from websockets.asyncio.server import ServerConnection
 
+from inter_agent.core.errors import ErrorCode
 from inter_agent.core.router import RouterMiddleware
 from inter_agent.core.shared import (
     DEFAULT_HOST,
@@ -41,48 +42,78 @@ class BusServer:
         self.registry: dict[str, Conn] = {}
         self.middlewares: list[RouterMiddleware] = []
 
-    async def send_error(self, ws: ServerConnection, code: str, message: str) -> None:
-        await ws.send(json.dumps({"op": "error", "code": code, "message": message}))
+    async def send_error(self, ws: ServerConnection, code: ErrorCode, message: str) -> None:
+        await ws.send(json.dumps({"op": "error", "code": code.value, "message": message}))
+
+    async def read_object(
+        self, ws: ServerConnection, raw: str | bytes, frame_name: str
+    ) -> dict[str, object] | None:
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            await self.send_error(ws, ErrorCode.PROTOCOL_ERROR, f"{frame_name} must be valid JSON")
+            return None
+        if not isinstance(payload, dict):
+            await self.send_error(ws, ErrorCode.PROTOCOL_ERROR, f"{frame_name} must be an object")
+            return None
+        return {str(key): value for key, value in payload.items()}
 
     async def handle(self, ws: ServerConnection) -> None:
         session_id = None
         try:
             raw = await ws.recv()
-            hello = json.loads(raw)
+            hello = await self.read_object(ws, raw, "first frame")
+            if hello is None:
+                return
             if hello.get("op") != "hello":
-                await self.send_error(ws, "PROTOCOL_ERROR", "first op must be hello")
+                await self.send_error(ws, ErrorCode.PROTOCOL_ERROR, "first op must be hello")
                 return
             if hello.get("token") != self.token:
-                await self.send_error(ws, "AUTH_FAILED", "invalid token")
+                await self.send_error(ws, ErrorCode.AUTH_FAILED, "invalid token")
                 return
-            role = hello.get("role")
-            session_id = hello.get("session_id")
-            name = hello.get("name")
-            label = hello.get("label")
-            if label is not None and not isinstance(label, str):
-                await self.send_error(ws, "BAD_LABEL", "label must be a string or null")
+            role_value = hello.get("role")
+            session_id_value = hello.get("session_id")
+            name_value = hello.get("name")
+            label_value = hello.get("label")
+            if label_value is not None and not isinstance(label_value, str):
+                await self.send_error(ws, ErrorCode.BAD_LABEL, "label must be a string or null")
                 return
-            if role not in {"agent", "control"}:
-                await self.send_error(ws, "BAD_ROLE", "role must be agent or control")
+            if not isinstance(role_value, str) or role_value not in {"agent", "control"}:
+                await self.send_error(ws, ErrorCode.BAD_ROLE, "role must be agent or control")
                 return
-            if not session_id or not isinstance(session_id, str):
-                await self.send_error(ws, "BAD_SESSION", "missing session_id")
+            if not session_id_value or not isinstance(session_id_value, str):
+                await self.send_error(ws, ErrorCode.BAD_SESSION, "missing session_id")
                 return
+
+            role = role_value
+            session_id = session_id_value
+            label = label_value
             if role == "agent":
-                if not validate_name(name):
-                    await self.send_error(ws, "BAD_NAME", "invalid name")
+                if not validate_name(name_value):
+                    await self.send_error(ws, ErrorCode.BAD_NAME, "invalid name")
                     return
-                if any(c.name == name for c in self.registry.values()):
-                    await self.send_error(ws, "NAME_TAKEN", "name already in use")
+                assert isinstance(name_value, str)
+                assigned_name = name_value
+                if any(c.name == assigned_name for c in self.registry.values()):
+                    await self.send_error(ws, ErrorCode.NAME_TAKEN, "name already in use")
                     return
+            elif isinstance(name_value, str) and name_value:
+                assigned_name = name_value
+            else:
+                assigned_name = f"control-{session_id[:6]}"
+
+            capabilities: dict[str, object] = {}
+            raw_capabilities = hello.get("capabilities")
+            if isinstance(raw_capabilities, dict):
+                capabilities = {str(key): value for key, value in raw_capabilities.items()}
 
             conn = Conn(
                 ws=ws,
                 session_id=session_id,
-                name=name or f"control-{session_id[:6]}",
+                name=assigned_name,
                 role=role,
                 label=label,
-                capabilities=hello.get("capabilities") or {},
+                capabilities=capabilities,
             )
             self.registry[session_id] = conn
             await ws.send(
@@ -101,7 +132,9 @@ class BusServer:
             )
 
             async for frame in ws:
-                msg = json.loads(frame)
+                msg = await self.read_object(ws, frame, "frame")
+                if msg is None:
+                    return
                 op = msg.get("op")
                 if op == "ping":
                     await ws.send(json.dumps({"op": "pong"}))
@@ -125,7 +158,7 @@ class BusServer:
                 elif op == "custom":
                     await self._route_custom(conn, msg)
                 else:
-                    await self.send_error(ws, "UNKNOWN_OP", f"unsupported op: {op}")
+                    await self.send_error(ws, ErrorCode.UNKNOWN_OP, f"unsupported op: {op}")
         except websockets.ConnectionClosed:
             pass
         finally:
@@ -141,14 +174,14 @@ class BusServer:
         to = msg.get("to")
         text = msg.get("text")
         if not isinstance(text, str):
-            await self.send_error(sender.ws, "BAD_TEXT", "text must be a string")
+            await self.send_error(sender.ws, ErrorCode.BAD_TEXT, "text must be a string")
             return
         if len(text.encode()) > self.limits.direct_text_max:
-            await self.send_error(sender.ws, "TEXT_TOO_LARGE", "direct message too large")
+            await self.send_error(sender.ws, ErrorCode.TEXT_TOO_LARGE, "direct message too large")
             return
         target = next((c for c in self.registry.values() if c.name == to), None)
         if not target:
-            await self.send_error(sender.ws, "UNKNOWN_TARGET", f"unknown target: {to}")
+            await self.send_error(sender.ws, ErrorCode.UNKNOWN_TARGET, f"unknown target: {to}")
             return
         await target.ws.send(
             json.dumps(
@@ -168,10 +201,12 @@ class BusServer:
         await self._apply_middlewares(sender, msg)
         text = msg.get("text")
         if not isinstance(text, str):
-            await self.send_error(sender.ws, "BAD_TEXT", "text must be a string")
+            await self.send_error(sender.ws, ErrorCode.BAD_TEXT, "text must be a string")
             return
         if len(text.encode()) > self.limits.broadcast_text_max:
-            await self.send_error(sender.ws, "TEXT_TOO_LARGE", "broadcast message too large")
+            await self.send_error(
+                sender.ws, ErrorCode.TEXT_TOO_LARGE, "broadcast message too large"
+            )
             return
         payload = json.dumps(
             {
@@ -204,7 +239,7 @@ class BusServer:
             target = next((c for c in self.registry.values() if c.name == msg.get("to")), None)
             if not target:
                 await self.send_error(
-                    sender.ws, "UNKNOWN_TARGET", f"unknown target: {msg.get('to')}"
+                    sender.ws, ErrorCode.UNKNOWN_TARGET, f"unknown target: {msg.get('to')}"
                 )
                 return
             payload["to"] = target.name
@@ -216,8 +251,8 @@ class BusServer:
             await conn.ws.send(json.dumps(payload))
 
 
-async def run_server(host: str, port: int) -> None:
-    server = BusServer(host=host, port=port)
+async def run_server(host: str, port: int, limits: Limits | None = None) -> None:
+    server = BusServer(host=host, port=port, limits=limits)
     write_server_identity(host, port)
     async with websockets.serve(
         server.handle, host=host, port=port, max_size=server.limits.frame_max
