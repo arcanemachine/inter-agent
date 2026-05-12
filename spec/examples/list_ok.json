@@ -1,0 +1,9 @@
+{
+  "op": "list_ok",
+  "sessions": [
+    {
+      "session_id": "sess-a",
+      "name": "agent-a"
+    }
+  ]
+}

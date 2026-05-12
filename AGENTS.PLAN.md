@@ -29,12 +29,11 @@ Goal: align docs, schemas, implementation, and tests around a complete protocol 
 
 Plan items:
 
-1. `plans/02-protocol-contract-and-conformance/01-complete-message-schemas.md`
-2. `plans/02-protocol-contract-and-conformance/02-label-field-contract.md`
-3. `plans/02-protocol-contract-and-conformance/03-error-code-semantics.md`
-4. `plans/02-protocol-contract-and-conformance/04-core-operation-conformance.md`
-5. `plans/02-protocol-contract-and-conformance/05-message-size-boundaries.md`
-6. `plans/02-protocol-contract-and-conformance/06-capability-negotiation-baseline.md`
+1. `plans/02-protocol-contract-and-conformance/02-label-field-contract.md`
+2. `plans/02-protocol-contract-and-conformance/03-error-code-semantics.md`
+3. `plans/02-protocol-contract-and-conformance/04-core-operation-conformance.md`
+4. `plans/02-protocol-contract-and-conformance/05-message-size-boundaries.md`
+5. `plans/02-protocol-contract-and-conformance/06-capability-negotiation-baseline.md`
 
 Completion criteria:
 

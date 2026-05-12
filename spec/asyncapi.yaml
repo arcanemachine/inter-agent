@@ -29,12 +29,26 @@ components:
       $ref: './schemas/envelope.json'
     Hello:
       $ref: './schemas/hello.json'
+    Welcome:
+      $ref: './schemas/welcome.json'
     Send:
       $ref: './schemas/send.json'
+    Broadcast:
+      $ref: './schemas/broadcast.json'
+    Ping:
+      $ref: './schemas/ping.json'
+    Pong:
+      $ref: './schemas/pong.json'
+    Bye:
+      $ref: './schemas/bye.json'
     Msg:
       $ref: './schemas/msg.json'
     Error:
       $ref: './schemas/error.json'
+    List:
+      $ref: './schemas/list.json'
+    ListOk:
+      $ref: './schemas/list_ok.json'
     Custom:
       $ref: './schemas/custom.json'
   messages:
@@ -43,43 +57,22 @@ components:
         $ref: '#/components/schemas/Hello'
     Welcome:
       payload:
-        type: object
-        required: [op, session_id, assigned_name, capabilities]
-        properties:
-          op: { const: welcome }
-          session_id: { type: string }
-          assigned_name: { type: string }
-          capabilities:
-            type: object
-            additionalProperties: true
+        $ref: '#/components/schemas/Welcome'
     Send:
       payload:
         $ref: '#/components/schemas/Send'
     Broadcast:
       payload:
-        type: object
-        required: [op, text]
-        properties:
-          op: { const: broadcast }
-          text: { type: string }
+        $ref: '#/components/schemas/Broadcast'
     Ping:
       payload:
-        type: object
-        required: [op]
-        properties:
-          op: { const: ping }
+        $ref: '#/components/schemas/Ping'
     Pong:
       payload:
-        type: object
-        required: [op]
-        properties:
-          op: { const: pong }
+        $ref: '#/components/schemas/Pong'
     Bye:
       payload:
-        type: object
-        required: [op]
-        properties:
-          op: { const: bye }
+        $ref: '#/components/schemas/Bye'
     Msg:
       payload:
         $ref: '#/components/schemas/Msg'
@@ -88,25 +81,10 @@ components:
         $ref: '#/components/schemas/Error'
     List:
       payload:
-        type: object
-        required: [op]
-        properties:
-          op: { const: list }
+        $ref: '#/components/schemas/List'
     ListOk:
       payload:
-        type: object
-        required: [op, sessions]
-        properties:
-          op: { const: list_ok }
-          sessions:
-            type: array
-            items:
-              type: object
-              required: [session_id, name]
-              properties:
-                session_id: { type: string }
-                name: { type: string }
-                label: { type: [string, 'null'] }
+        $ref: '#/components/schemas/ListOk'
     Custom:
       payload:
         $ref: '#/components/schemas/Custom'

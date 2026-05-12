@@ -16,8 +16,9 @@
    - May expose only a subset of core-supported operations.
 
 3. **Spec (`spec/`)**
-   - AsyncAPI contract and JSON Schemas.
-   - Example payloads for canonical behavior.
+   - AsyncAPI contract in `spec/asyncapi.yaml`.
+   - Standalone JSON Schemas for protocol operations in `spec/schemas/`.
+   - Example payloads for canonical behavior in `spec/examples/`.
 
 ## Messaging model
 

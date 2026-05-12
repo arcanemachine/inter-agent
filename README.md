@@ -15,7 +15,7 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 
 - `src/inter_agent/core/` universal protocol server/client bits
 - `src/inter_agent/adapters/pi/` Pi-specific UX adapter
-- `spec/` AsyncAPI + schemas + examples
+- `spec/` AsyncAPI contract, standalone operation schemas in `spec/schemas/`, and canonical examples in `spec/examples/`
 - `tests/` conformance and validation tests
 - `docs/` supporting notes
 

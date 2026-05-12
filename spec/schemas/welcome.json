@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Welcome",
+  "type": "object",
+  "required": ["op", "session_id", "assigned_name", "capabilities"],
+  "properties": {
+    "op": { "const": "welcome" },
+    "session_id": { "type": "string" },
+    "assigned_name": { "type": "string" },
+    "capabilities": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": true
+}
