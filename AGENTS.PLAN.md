@@ -67,9 +67,7 @@ Completion criteria:
 
 Goal: strengthen the local security controls and resource boundaries promised by `SECURITY.md`.
 
-Plan items:
-
-1. `plans/05-security-and-operational-hardening/05-filesystem-permission-tests.md`
+Plan items: complete.
 
 Completion criteria:
 
