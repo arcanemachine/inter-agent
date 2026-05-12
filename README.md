@@ -40,6 +40,30 @@ Have you ever wanted your AI coding agents to talk to each other?
    uv run inter-agent-server
    ```
 
+   The server runs in the foreground. To run it in the background, use one of these approaches:
+
+   - **`nohup`** (simplest, survives terminal close):
+     ```bash
+     nohup uv run inter-agent-server > /tmp/inter-agent.log 2>&1 &
+     ```
+
+   - **`tmux`** or **`screen`** (good for debugging):
+     ```bash
+     tmux new-session -d -s inter-agent "uv run inter-agent-server"
+     ```
+
+   To stop the server:
+
+   - **Graceful shutdown** (preferred if the server is reachable):
+     ```bash
+     uv run inter-agent-pi shutdown
+     ```
+
+   - **Kill the process** (if graceful shutdown fails):
+     ```bash
+     pkill -f inter-agent-server
+     ```
+
 2. Install the Pi extension:
    ```bash
    pi install https://github.com/arcanemachine/pi-inter-agent
