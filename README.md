@@ -25,19 +25,28 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
    - `uv sync`
 
 2. Start server:
-   - `./start.sh server`
+   - `uv run inter-agent-server`
 
 3. Connect two sessions (in separate terminals):
-   - `./start.sh connect agent-a`
-   - `./start.sh connect agent-b`
+   - `uv run inter-agent-pi connect agent-a`
+   - `uv run inter-agent-pi connect agent-b`
 
 4. Send and broadcast:
-   - `./start.sh send agent-b "run tests"`
-   - `./start.sh broadcast "build is green"`
+   - `uv run inter-agent-pi send agent-b "run tests"`
+   - `uv run inter-agent-pi broadcast "build is green"`
 
 5. List sessions / status:
-   - `./start.sh list`
-   - `./start.sh status`
+   - `uv run inter-agent-pi list`
+   - `uv run inter-agent-pi status`
+
+Core command entry points are also available for direct protocol use:
+
+- `uv run inter-agent-connect <name>`
+- `uv run inter-agent-send <to> <text>`
+- `uv run inter-agent-send --text "broadcast text"`
+- `uv run inter-agent-list`
+
+`start.sh` remains available as a local development/demo helper that delegates to the package entry points.
 
 ## Development checks
 

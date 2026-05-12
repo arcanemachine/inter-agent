@@ -18,8 +18,7 @@ Goal: make the project installable, runnable, and checkable through stable comma
 
 Plan items:
 
-1. `plans/01-workflow-and-packaging/02-console-entry-points-and-uv-workflow.md`
-2. `plans/01-workflow-and-packaging/03-package-metadata-and-artifacts.md`
+1. `plans/01-workflow-and-packaging/03-package-metadata-and-artifacts.md`
 
 Completion criteria:
 

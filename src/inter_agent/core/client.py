@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import uuid
+from collections.abc import Sequence
 
 import websockets
 
@@ -39,14 +40,24 @@ async def run_client(host: str, port: int, name: str) -> None:
             print(msg)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="inter-agent-connect")
+    parser.add_argument("name", nargs="?")
+    parser.add_argument("--name", dest="name_option")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--name", required=True)
-    args = parser.parse_args()
-    asyncio.run(run_client(args.host, args.port, args.name))
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    name = args.name_option or args.name
+    if not name:
+        parser.error("name is required")
+    asyncio.run(run_client(args.host, args.port, name))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

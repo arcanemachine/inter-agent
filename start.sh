@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: ./start.sh <server|connect|send|broadcast|list|status> [args...]"
@@ -13,22 +14,22 @@ shift
 
 case "$CMD" in
   server)
-    exec "$ROOT/.venv/bin/python" -m inter_agent.core.server "$@"
+    exec uv run inter-agent-server "$@"
     ;;
   connect)
-    exec "$ROOT/.venv/bin/python" -m inter_agent.adapters.pi.cli connect "$@"
+    exec uv run inter-agent-pi connect "$@"
     ;;
   send)
-    exec "$ROOT/.venv/bin/python" -m inter_agent.adapters.pi.cli send "$@"
+    exec uv run inter-agent-pi send "$@"
     ;;
   broadcast)
-    exec "$ROOT/.venv/bin/python" -m inter_agent.adapters.pi.cli broadcast "$@"
+    exec uv run inter-agent-pi broadcast "$@"
     ;;
   list)
-    exec "$ROOT/.venv/bin/python" -m inter_agent.adapters.pi.cli list "$@"
+    exec uv run inter-agent-pi list "$@"
     ;;
   status)
-    exec "$ROOT/.venv/bin/python" -m inter_agent.adapters.pi.cli status "$@"
+    exec uv run inter-agent-pi status "$@"
     ;;
   *)
     echo "Unknown command: $CMD"

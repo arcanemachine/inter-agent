@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import uuid
+from collections.abc import Sequence
 
 import websockets
 
@@ -45,19 +46,27 @@ async def send_message(
             await ws.send(json.dumps({"op": "broadcast", "text": text or ""}))
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="inter-agent-send")
+    parser.add_argument("to", nargs="?")
+    parser.add_argument("text", nargs="?")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--to")
-    parser.add_argument("--text")
+    parser.add_argument("--to", dest="to_option")
+    parser.add_argument("--text", dest="text_option")
     parser.add_argument("--custom-type")
     parser.add_argument("--payload")
-    args = parser.parse_args()
-    asyncio.run(
-        send_message(args.host, args.port, args.to, args.text, args.custom_type, args.payload)
-    )
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    to = args.to_option or args.to
+    text = args.text_option if args.text_option is not None else args.text
+    asyncio.run(send_message(args.host, args.port, to, text, args.custom_type, args.payload))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

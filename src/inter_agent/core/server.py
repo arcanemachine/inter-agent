@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import websockets
@@ -217,13 +218,19 @@ async def run_server(host: str, port: int) -> None:
         await asyncio.Future()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="inter-agent-server")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
     asyncio.run(run_server(args.host, args.port))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

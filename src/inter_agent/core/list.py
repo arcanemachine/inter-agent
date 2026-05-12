@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import uuid
+from collections.abc import Sequence
 
 import websockets
 
@@ -27,13 +28,19 @@ async def list_sessions(host: str, port: int) -> None:
         print(await ws.recv())
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="inter-agent-list")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
     asyncio.run(list_sessions(args.host, args.port))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

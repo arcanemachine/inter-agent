@@ -1,21 +1,17 @@
-# Pi Adapter (MVP)
+# Pi Adapter
 
 Pi-facing command UX built on top of the universal core protocol.
 
-Commands (recommended via `./start.sh`):
+Run Pi adapter commands through the installed package entry point:
 
-- `./start.sh connect <name>`
-- `./start.sh send <to> <text>`
-- `./start.sh broadcast <text>`
-- `./start.sh list`
-- `./start.sh status`
+- `uv run inter-agent-pi connect <name>`
+- `uv run inter-agent-pi send <to> <text>`
+- `uv run inter-agent-pi broadcast <text>`
+- `uv run inter-agent-pi list`
+- `uv run inter-agent-pi status`
 
-Equivalent direct CLI (via `python -m inter_agent.adapters.pi.cli`):
+Start the server in another terminal before connecting sessions:
 
-- `connect <name>`
-- `send <to> <text>`
-- `broadcast <text>`
-- `list`
-- `status`
+- `uv run inter-agent-server`
 
-`list` is core-supported and adapter-exposed in this MVP.
+`list` is core-supported and adapter-exposed. `start.sh` is a local development/demo helper that delegates to these package entry points.
