@@ -122,6 +122,31 @@ async def test_list_reports_agents_to_agent_and_control_roles(
 
 
 @pytest.mark.asyncio
+async def test_list_is_sorted_by_name_and_excludes_control_sessions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    expected = [
+        {"session_id": "a", "name": "agent-a", "label": None},
+        {"session_id": "b", "name": "agent-b", "label": None},
+    ]
+
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with (
+            websockets.connect(context.url) as b,
+            websockets.connect(context.url) as a,
+            websockets.connect(context.url) as control,
+        ):
+            await connect_agent(b, context, "b", "agent-b")
+            await connect_agent(a, context, "a", "agent-a")
+            await connect_control(control, context)
+
+            response = await send_json(control, {"op": "list"})
+
+    assert response["op"] == "list_ok"
+    assert _sessions(response) == expected
+
+
+@pytest.mark.asyncio
 async def test_broadcast_excludes_sender_and_control_sessions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
 ) -> None:

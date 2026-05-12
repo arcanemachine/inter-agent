@@ -7,13 +7,14 @@
     "op": { "const": "list_ok" },
     "sessions": {
       "type": "array",
+      "description": "Connected agent sessions sorted by routing name. Control sessions are excluded.",
       "items": {
         "type": "object",
         "required": ["session_id", "name", "label"],
         "properties": {
-          "session_id": { "type": "string" },
-          "name": { "type": "string" },
-          "label": { "type": ["string", "null"] }
+          "session_id": { "type": "string", "description": "Stable session identifier from hello." },
+          "name": { "type": "string", "description": "Routing name used for direct targets." },
+          "label": { "type": ["string", "null"], "description": "Optional display-only label." }
         },
         "additionalProperties": true
       }

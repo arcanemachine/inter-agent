@@ -16,7 +16,13 @@ from inter_agent.core.shared import (
     load_or_create_token,
 )
 
-StatusState = Literal["available", "unavailable", "identity_check_failed"]
+StatusState = Literal[
+    "available",
+    "unavailable",
+    "identity_check_failed",
+    "auth_failed",
+    "protocol_mismatch",
+]
 
 
 @dataclass(frozen=True)
@@ -154,7 +160,7 @@ async def _probe_server(host: str, port: int, token: str) -> ServerStatus:
 
     if not isinstance(response, dict):
         return _status(
-            "identity_check_failed",
+            "protocol_mismatch",
             host,
             port,
             identity_verified=True,
@@ -174,7 +180,7 @@ async def _probe_server(host: str, port: int, token: str) -> ServerStatus:
         )
     if op == "error" and response.get("code") == "AUTH_FAILED":
         return _status(
-            "identity_check_failed",
+            "auth_failed",
             host,
             port,
             identity_verified=True,
@@ -182,7 +188,7 @@ async def _probe_server(host: str, port: int, token: str) -> ServerStatus:
             message="server authentication failed",
         )
     return _status(
-        "identity_check_failed",
+        "protocol_mismatch",
         host,
         port,
         identity_verified=True,

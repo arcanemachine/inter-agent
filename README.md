@@ -8,7 +8,7 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
 
 - WebSocket protocol over localhost.
 - First-class direct (`A -> B`) and broadcast messaging.
-- Stable routing names, unique-prefix target resolution, and optional display-only labels for introspection.
+- Stable routing names, unique-prefix target resolution, sorted session lists, and optional display-only labels for introspection.
 - Extension envelope via `op: "custom"` with pass-through routing.
 - Basic shared-token authentication, local identity checks, and documented protocol error codes.
 

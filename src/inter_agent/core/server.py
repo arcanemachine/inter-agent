@@ -162,7 +162,7 @@ class BusServer:
                             "name": c.name,
                             "label": c.label,
                         }
-                        for c in self.registry.values()
+                        for c in sorted(self.registry.values(), key=lambda conn: conn.name)
                         if c.role == "agent"
                     ]
                     await ws.send(json.dumps({"op": "list_ok", "sessions": sessions}))

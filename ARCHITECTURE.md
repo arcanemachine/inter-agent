@@ -26,6 +26,7 @@
 
 - Direct message: sender targets one agent by routing name. Resolution checks exact names first, then unique routing-name prefixes. Ambiguous prefixes are rejected.
 - Label: optional human-readable display metadata returned by introspection; labels are never routing keys.
+- List introspection returns agent sessions sorted by routing name and excludes control sessions.
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation.
 - Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
@@ -38,6 +39,7 @@
 - Server identity metadata is written atomically and includes host, port, PID, state schema version, and startup timestamp.
 - Startup refuses to replace live metadata for the same port and removes stale metadata for dead server processes when safe.
 - Authenticated shutdown stops accepting new connections, closes active sessions, and removes server lifecycle metadata during normal shutdown.
+- Status checks report available, unavailable, identity-check-failed, auth-failed, and protocol-mismatch states for host tooling.
 
 ## Capability exchange
 
