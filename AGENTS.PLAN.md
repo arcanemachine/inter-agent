@@ -40,6 +40,13 @@
    - README is drafted but may need updates after interactive testing.
    - No `settings.json` configuration is currently supported; this may or may not be desired.
 
+5. **Eliminate the Python CLI bridge in the Pi extension**
+   - The current Pi extension shells out to `inter-agent-pi` (a Python CLI) for every command and spawns `inter-agent-connect` (also Python) for the listener.
+   - The user would prefer the extension speak the WebSocket protocol directly, eliminating the dependency on Python/venv/uv from the Pi side.
+   - This would require adding `ws` as a runtime dependency and implementing a small TypeScript client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop.
+   - **Scope:** medium refactor, well-bounded. The protocol is simple JSON over WebSocket. Token path, identity verification, and frame parsing already exist in the Python core and could be ported.
+   - **Preference:** this is the desired long-term architecture. Not required for Phase 6a completion, but should be tracked as a follow-up refactor.
+
 ---
 
 # Roadmap
