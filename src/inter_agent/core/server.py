@@ -51,6 +51,7 @@ class BusServer:
         self.registry: dict[str, Conn] = {}
         self.middlewares: list[RouterMiddleware] = []
         self.shutdown_event = asyncio.Event()
+        self._lock = asyncio.Lock()
 
     async def send_error(self, ws: ServerConnection, code: ErrorCode, message: str) -> None:
         await ws.send(json.dumps({"op": "error", "code": code.value, "message": message}))
@@ -96,47 +97,48 @@ class BusServer:
                 return
 
             role = role_value
-            if session_id_value in self.registry:
-                await self.send_error(ws, ErrorCode.SESSION_TAKEN, "session_id already active")
-                return
-            if len(self.registry) >= self.limits.connection_max:
-                await self.send_error(
-                    ws, ErrorCode.TOO_MANY_CONNECTIONS, "connection limit reached"
-                )
-                return
-            session_id = session_id_value
-            label = label_value
-            if role == "agent":
-                if not validate_name(name_value):
-                    await self.send_error(ws, ErrorCode.BAD_NAME, "invalid name")
+            async with self._lock:
+                if session_id_value in self.registry:
+                    await self.send_error(ws, ErrorCode.SESSION_TAKEN, "session_id already active")
                     return
-                assert isinstance(name_value, str)
-                assigned_name = name_value
-                if any(c.name == assigned_name for c in self.registry.values()):
-                    await self.send_error(ws, ErrorCode.NAME_TAKEN, "name already in use")
+                if len(self.registry) >= self.limits.connection_max:
+                    await self.send_error(
+                        ws, ErrorCode.TOO_MANY_CONNECTIONS, "connection limit reached"
+                    )
                     return
-            elif isinstance(name_value, str) and name_value:
-                assigned_name = name_value
-            else:
-                assigned_name = f"control-{session_id[:6]}"
+                session_id = session_id_value
+                label = label_value
+                if role == "agent":
+                    if not validate_name(name_value):
+                        await self.send_error(ws, ErrorCode.BAD_NAME, "invalid name")
+                        return
+                    assert isinstance(name_value, str)
+                    assigned_name = name_value
+                    if any(c.name == assigned_name for c in self.registry.values()):
+                        await self.send_error(ws, ErrorCode.NAME_TAKEN, "name already in use")
+                        return
+                elif isinstance(name_value, str) and name_value:
+                    assigned_name = name_value
+                else:
+                    assigned_name = f"control-{session_id[:6]}"
 
-            raw_capabilities = hello.get("capabilities")
-            if not isinstance(raw_capabilities, dict):
-                await self.send_error(
-                    ws, ErrorCode.PROTOCOL_ERROR, "capabilities must be an object"
+                raw_capabilities = hello.get("capabilities")
+                if not isinstance(raw_capabilities, dict):
+                    await self.send_error(
+                        ws, ErrorCode.PROTOCOL_ERROR, "capabilities must be an object"
+                    )
+                    return
+                capabilities = {str(key): value for key, value in raw_capabilities.items()}
+
+                conn = Conn(
+                    ws=ws,
+                    session_id=session_id,
+                    name=assigned_name,
+                    role=role,
+                    label=label,
+                    capabilities=capabilities,
                 )
-                return
-            capabilities = {str(key): value for key, value in raw_capabilities.items()}
-
-            conn = Conn(
-                ws=ws,
-                session_id=session_id,
-                name=assigned_name,
-                role=role,
-                label=label,
-                capabilities=capabilities,
-            )
-            self.registry[session_id] = conn
+                self.registry[session_id] = conn
             await ws.send(
                 json.dumps(
                     {
