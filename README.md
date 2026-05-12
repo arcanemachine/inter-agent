@@ -32,26 +32,41 @@ Have you ever wanted your AI coding agents to talk to each other?
 
 ## Quickstart: Pi workflow
 
-1. Create the environment and install dependencies:
-   - `uv sync`
+1. Install the inter-agent server and start it:
+   ```bash
+   git clone https://github.com/arcanemachine/inter-agent ~/.local/share/inter-agent
+   cd ~/.local/share/inter-agent
+   uv sync
+   uv run inter-agent-server
+   ```
 
-2. Start the localhost bus server:
-   - `uv run inter-agent-server`
+2. Install the Pi extension:
+   ```bash
+   pi install https://github.com/arcanemachine/pi-inter-agent
+   ```
 
-3. Connect Pi sessions in separate terminals:
-   - `uv run inter-agent-pi connect agent-a --label "Agent A"`
-   - `uv run inter-agent-pi connect agent-b --label "Agent B"`
+3. Inside Pi, connect to the bus and start messaging:
+   ```
+   /inter-agent-connect my-agent --label "My Agent"
+   /inter-agent-send other-agent "run tests"
+   /inter-agent-broadcast "build is green"
+   /inter-agent-list
+   /inter-agent-status
+   /inter-agent-disconnect
+   /inter-agent-shutdown
+   ```
 
-4. Send messages through the Pi adapter:
-   - `uv run inter-agent-pi send agent-b "run tests"`
-   - `uv run inter-agent-pi broadcast "build is green"`
+For details on command output, status fields, and failure behavior, see `src/inter_agent/adapters/pi/README.md`.
 
-5. Inspect or stop the bus:
-   - `uv run inter-agent-pi list`
-   - `uv run inter-agent-pi status`
-   - `uv run inter-agent-pi shutdown`
+### Core protocol commands (for debugging)
 
-Pi-specific command output, status fields, stdout/stderr conventions, shutdown behavior, and failure behavior are documented in `src/inter_agent/adapters/pi/README.md`.
+If you prefer to use the raw Python CLI directly:
+
+- `uv run inter-agent-connect <name>`
+- `uv run inter-agent-send <to> <text>`
+- `uv run inter-agent-send --text "broadcast text"`
+- `uv run inter-agent-list`
+- `uv run inter-agent-shutdown`
 
 ## Core protocol commands
 
