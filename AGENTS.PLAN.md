@@ -82,11 +82,10 @@ Goal: prepare the project for dependable use and future evolution.
 
 Plan items:
 
-1. `plans/06-release-readiness/01-documentation-evergreen-pass.md`
-2. `plans/06-release-readiness/02-release-build-validation.md`
-3. `plans/06-release-readiness/03-versioning-and-changelog.md`
-4. `plans/06-release-readiness/04-adapter-boundary-for-future-hosts.md`
-5. `plans/06-release-readiness/05-final-completion-review.md`
+1. `plans/06-release-readiness/02-release-build-validation.md`
+2. `plans/06-release-readiness/03-versioning-and-changelog.md`
+3. `plans/06-release-readiness/04-adapter-boundary-for-future-hosts.md`
+4. `plans/06-release-readiness/05-final-completion-review.md`
 
 Completion criteria:
 
