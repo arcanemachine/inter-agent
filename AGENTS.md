@@ -16,6 +16,7 @@ This file is for coding agents working in this repository.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
 11. Match existing project style and conventions in code, tests, docs, and commits.
 12. Keep commits atomic per logical step.
+13. Use [Conventional Commits](https://www.conventionalcommits.org/) style: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
 13. Commit completed work before handing back unless the user explicitly requests no commits.
 14. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
 
