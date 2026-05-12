@@ -47,6 +47,11 @@
    - **Scope:** medium refactor, well-bounded. The protocol is simple JSON over WebSocket. Token path, identity verification, and frame parsing already exist in the Python core and could be ported.
    - **Preference:** this is the desired long-term architecture. Not required for Phase 6a completion, but should be tracked as a follow-up refactor.
 
+6. **Project path auto-discovery**
+   - The current default is `~/.local/share/inter-agent` (hardcoded fallback).
+   - The user wants auto-discovery: check PATH first, then walk up from `process.cwd()` looking for `.venv/bin/inter-agent-pi`.
+   - **Status:** tracked as a follow-up. Current hardcoded fallback plus `settings.json` config is sufficient for Phase 6a.
+
 ---
 
 # Roadmap
