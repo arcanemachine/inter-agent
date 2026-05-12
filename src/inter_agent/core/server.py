@@ -15,11 +15,13 @@ from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     Limits,
+    ServerAlreadyRunningError,
+    claim_server_state,
     load_or_create_token,
     next_msg_id,
+    remove_server_state,
     utc_now,
     validate_name,
-    write_server_identity,
 )
 
 
@@ -296,11 +298,14 @@ class BusServer:
 async def run_server(host: str, port: int, limits: Limits | None = None) -> None:
     """Start the core WebSocket bus until the task is cancelled."""
     server = BusServer(host=host, port=port, limits=limits)
-    write_server_identity(host, port)
-    async with websockets.serve(
-        server.handle, host=host, port=port, max_size=server.limits.frame_max
-    ):
-        await asyncio.Future()
+    identity = claim_server_state(host, port)
+    try:
+        async with websockets.serve(
+            server.handle, host=host, port=port, max_size=server.limits.frame_max
+        ):
+            await asyncio.Future()
+    finally:
+        remove_server_state(host, port, identity.pid)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -313,7 +318,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    asyncio.run(run_server(args.host, args.port))
+    try:
+        asyncio.run(run_server(args.host, args.port))
+    except ServerAlreadyRunningError as exc:
+        raise SystemExit(str(exc)) from exc
     return 0
 
 

@@ -31,6 +31,13 @@
 - Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
 - Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; custom payloads are bounded by the incoming WebSocket frame limit.
 
+## Lifecycle state
+
+- Server state lives under `INTER_AGENT_DATA_DIR` or `~/.inter-agent` by default.
+- The token file, server identity metadata, PID metadata, and reserved shutdown-control metadata are per-user local files with restrictive permissions.
+- Server identity metadata is written atomically and includes host, port, PID, state schema version, and startup timestamp.
+- Startup refuses to replace live metadata for the same port and removes stale metadata for dead server processes when safe.
+
 ## Capability exchange
 
 - `hello.capabilities` is a required JSON object where clients may declare known or extension capability keys.
