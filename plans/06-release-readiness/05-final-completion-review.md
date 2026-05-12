@@ -15,7 +15,7 @@ Verify that all roadmap goals are satisfied and no completion-scope work remains
 
 ## Work
 
-1. Confirm every phase in `ROADMAP.md` meets its completion criteria.
+1. Confirm every phase in `AGENTS.PLAN.md` meets its completion criteria.
 2. Confirm each plan item has either been completed or intentionally revised into another completion-scope plan.
 3. Confirm `IDEAS.md` contains exploratory work that is not required for completion.
 4. Run the local quality gate command and individual checks if needed for diagnosis.
@@ -25,14 +25,14 @@ Verify that all roadmap goals are satisfied and no completion-scope work remains
 
 ## Acceptance criteria
 
-- `ROADMAP.md` accurately describes completed scope.
+- `AGENTS.PLAN.md` accurately describes completed scope.
 - No completion-scope work is hidden only in chat history or removed planning files.
 - Required checks pass.
 - The repository is ready for maintainer review.
 
 ## Files likely to change
 
-- `ROADMAP.md`
+- `AGENTS.PLAN.md`
 - `README.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`

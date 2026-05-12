@@ -1,6 +1,6 @@
 # Claude Code Support Planning Notes
 
-Claude Code support is planned as `ROADMAP.md` Extra Phase 7. It is not part of the core completion path, but it is the first planned follow-on host adapter after the Pi adapter and core release-readiness work.
+Claude Code support is planned as `AGENTS.PLAN.md` Extra Phase 7. It is not part of the core completion path, but it is the first planned follow-on host adapter after the Pi adapter and core release-readiness work.
 
 ## Integration decision
 

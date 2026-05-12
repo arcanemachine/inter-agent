@@ -1,12 +1,12 @@
 # Ideas
 
-This file holds promising work that is not required for project completion as defined in `ROADMAP.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
+This file holds promising work that is not required for project completion as defined in `AGENTS.PLAN.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
 
 ## Host adapters
 
 ### Claude Code adapter
 
-Claude Code support is planned as `ROADMAP.md` Extra Phase 7. Durable research notes live in `docs/CLAUDE_CODE_SUPPORT.md`. Keep new Claude Code ideas here only when they are outside that phase.
+Claude Code support is planned as `AGENTS.PLAN.md` Extra Phase 7. Durable research notes live in `docs/CLAUDE_CODE_SUPPORT.md`. Keep new Claude Code ideas here only when they are outside that phase.
 
 ### Claude Code MCP and Channels follow-up
 
