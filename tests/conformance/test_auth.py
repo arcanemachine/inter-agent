@@ -1,38 +1,21 @@
-import asyncio
-import json
+from __future__ import annotations
+
+from pathlib import Path
 
 import pytest
 import websockets
+from helpers import agent_hello, running_server, send_json
 
-from inter_agent.core.server import run_server
+from inter_agent.core.errors import ErrorCode
 
 
 @pytest.mark.asyncio
-async def test_auth_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: object) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    host, port = "127.0.0.1", 9783
+async def test_auth_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as ws:
+            err = await send_json(ws, agent_hello("wrong"))
 
-    task = asyncio.create_task(run_server(host, port))
-    await asyncio.sleep(0.1)
-
-    try:
-        async with websockets.connect(f"ws://{host}:{port}") as ws:
-            await ws.send(
-                json.dumps(
-                    {
-                        "op": "hello",
-                        "token": "wrong",
-                        "role": "agent",
-                        "session_id": "a",
-                        "name": "agent-a",
-                        "capabilities": {},
-                    }
-                )
-            )
-            err = json.loads(await ws.recv())
-            assert err["op"] == "error"
-            assert err["code"] == "AUTH_FAILED"
-    finally:
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+    assert err["op"] == "error"
+    assert err["code"] == ErrorCode.AUTH_FAILED.value

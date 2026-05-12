@@ -1,73 +1,22 @@
 from __future__ import annotations
 
-import asyncio
-import json
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from pathlib import Path
 
 import pytest
 import websockets
-from websockets.asyncio.client import ClientConnection
+from helpers import agent_hello, connect_agent, running_server, send_json
 
 from inter_agent.core.errors import ErrorCode
-from inter_agent.core.server import run_server
-from inter_agent.core.shared import Limits, load_or_create_token
-
-
-@asynccontextmanager
-async def _running_server(
-    host: str, port: int, limits: Limits | None = None
-) -> AsyncIterator[None]:
-    task = asyncio.create_task(run_server(host, port, limits=limits))
-    await asyncio.sleep(0.1)
-    try:
-        yield
-    finally:
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-
-
-def _hello(
-    token: str,
-    *,
-    role: object = "agent",
-    session_id: object = "a",
-    name: object = "agent-a",
-) -> dict[str, object]:
-    return {
-        "op": "hello",
-        "token": token,
-        "role": role,
-        "session_id": session_id,
-        "name": name,
-        "capabilities": {},
-    }
-
-
-async def _send_json(ws: ClientConnection, payload: object) -> dict[str, object]:
-    await ws.send(json.dumps(payload))
-    response = json.loads(await ws.recv())
-    assert isinstance(response, dict)
-    return response
-
-
-async def _connect_agent(ws: ClientConnection, token: str, session_id: str, name: str) -> None:
-    response = await _send_json(ws, _hello(token, session_id=session_id, name=name))
-    assert response["op"] == "welcome"
+from inter_agent.core.shared import Limits
 
 
 @pytest.mark.asyncio
 async def test_auth_failure_uses_canonical_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: object, unused_tcp_port: int
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    host, port = "127.0.0.1", unused_tcp_port
-    load_or_create_token()
-
-    async with _running_server(host, port):
-        async with websockets.connect(f"ws://{host}:{port}") as ws:
-            err = await _send_json(ws, _hello("wrong"))
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as ws:
+            err = await send_json(ws, agent_hello("wrong"))
 
     assert err["op"] == "error"
     assert err["code"] == ErrorCode.AUTH_FAILED.value
@@ -78,30 +27,25 @@ async def test_auth_failure_uses_canonical_code(
     ("hello_payload", "expected_code"),
     [
         ({"op": "ping"}, ErrorCode.PROTOCOL_ERROR),
-        (_hello("token", role="observer"), ErrorCode.BAD_ROLE),
-        (_hello("token", session_id=""), ErrorCode.BAD_SESSION),
-        (_hello("token", name="Not Valid"), ErrorCode.BAD_NAME),
-        ({**_hello("token"), "label": 42}, ErrorCode.BAD_LABEL),
+        (agent_hello("token", role="observer"), ErrorCode.BAD_ROLE),
+        (agent_hello("token", session_id=""), ErrorCode.BAD_SESSION),
+        (agent_hello("token", name="Not Valid"), ErrorCode.BAD_NAME),
+        ({**agent_hello("token"), "label": 42}, ErrorCode.BAD_LABEL),
     ],
 )
 async def test_handshake_validation_errors_use_canonical_codes(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: object,
+    tmp_path: Path,
     unused_tcp_port: int,
     hello_payload: dict[str, object],
     expected_code: ErrorCode,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
-    host, port = "127.0.0.1", unused_tcp_port
-
-    payload = dict(hello_payload)
-    if payload.get("token") == "token":
-        payload["token"] = token
-
-    async with _running_server(host, port):
-        async with websockets.connect(f"ws://{host}:{port}") as ws:
-            err = await _send_json(ws, payload)
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        payload = dict(hello_payload)
+        if payload.get("token") == "token":
+            payload["token"] = context.token
+        async with websockets.connect(context.url) as ws:
+            err = await send_json(ws, payload)
 
     assert err["op"] == "error"
     assert err["code"] == expected_code.value
@@ -109,19 +53,17 @@ async def test_handshake_validation_errors_use_canonical_codes(
 
 @pytest.mark.asyncio
 async def test_duplicate_name_uses_canonical_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: object, unused_tcp_port: int
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
-    host, port = "127.0.0.1", unused_tcp_port
-
-    async with _running_server(host, port):
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
         async with (
-            websockets.connect(f"ws://{host}:{port}") as first,
-            websockets.connect(f"ws://{host}:{port}") as duplicate,
+            websockets.connect(context.url) as first,
+            websockets.connect(context.url) as duplicate,
         ):
-            await _connect_agent(first, token, "a", "agent-a")
-            err = await _send_json(duplicate, _hello(token, session_id="b", name="agent-a"))
+            await connect_agent(first, context, "a", "agent-a")
+            err = await send_json(
+                duplicate, agent_hello(context.token, session_id="b", name="agent-a")
+            )
 
     assert err["op"] == "error"
     assert err["code"] == ErrorCode.NAME_TAKEN.value
@@ -129,16 +71,12 @@ async def test_duplicate_name_uses_canonical_code(
 
 @pytest.mark.asyncio
 async def test_unknown_operation_uses_canonical_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: object, unused_tcp_port: int
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
-    host, port = "127.0.0.1", unused_tcp_port
-
-    async with _running_server(host, port):
-        async with websockets.connect(f"ws://{host}:{port}") as ws:
-            await _connect_agent(ws, token, "a", "agent-a")
-            err = await _send_json(ws, {"op": "not_supported"})
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as ws:
+            await connect_agent(ws, context, "a", "agent-a")
+            err = await send_json(ws, {"op": "not_supported"})
 
     assert err["op"] == "error"
     assert err["code"] == ErrorCode.UNKNOWN_OP.value
@@ -159,20 +97,16 @@ async def test_unknown_operation_uses_canonical_code(
 )
 async def test_routing_errors_use_canonical_codes(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: object,
+    tmp_path: Path,
     unused_tcp_port: int,
     message: dict[str, object],
     expected_code: ErrorCode,
     limits: Limits | None,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
-    host, port = "127.0.0.1", unused_tcp_port
-
-    async with _running_server(host, port, limits):
-        async with websockets.connect(f"ws://{host}:{port}") as ws:
-            await _connect_agent(ws, token, "a", "agent-a")
-            err = await _send_json(ws, message)
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port, limits) as context:
+        async with websockets.connect(context.url) as ws:
+            await connect_agent(ws, context, "a", "agent-a")
+            err = await send_json(ws, message)
 
     assert err["op"] == "error"
     assert err["code"] == expected_code.value
@@ -180,16 +114,12 @@ async def test_routing_errors_use_canonical_codes(
 
 @pytest.mark.asyncio
 async def test_targeted_custom_unknown_target_uses_canonical_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: object, unused_tcp_port: int
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
-    host, port = "127.0.0.1", unused_tcp_port
-
-    async with _running_server(host, port):
-        async with websockets.connect(f"ws://{host}:{port}") as ws:
-            await _connect_agent(ws, token, "a", "agent-a")
-            err = await _send_json(
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as ws:
+            await connect_agent(ws, context, "a", "agent-a")
+            err = await send_json(
                 ws,
                 {
                     "op": "custom",
