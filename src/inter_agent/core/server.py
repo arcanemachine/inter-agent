@@ -99,6 +99,11 @@ class BusServer:
             if session_id_value in self.registry:
                 await self.send_error(ws, ErrorCode.SESSION_TAKEN, "session_id already active")
                 return
+            if len(self.registry) >= self.limits.connection_max:
+                await self.send_error(
+                    ws, ErrorCode.TOO_MANY_CONNECTIONS, "connection limit reached"
+                )
+                return
             session_id = session_id_value
             label = label_value
             if role == "agent":
@@ -288,13 +293,26 @@ class BusServer:
     async def _route_custom(self, sender: Conn, msg: dict[str, object]) -> None:
         await self._apply_middlewares(sender, msg)
         custom_type = msg.get("custom_type")
+        if not isinstance(custom_type, str) or not custom_type:
+            await self.send_error(sender.ws, ErrorCode.BAD_CUSTOM_TYPE, "custom_type required")
+            return
+        if len(custom_type.encode()) > self.limits.custom_type_max:
+            await self.send_error(sender.ws, ErrorCode.BAD_CUSTOM_TYPE, "custom_type too large")
+            return
+        custom_payload = msg.get("payload")
+        custom_payload_size = len(json.dumps(custom_payload, ensure_ascii=False).encode())
+        if custom_payload_size > self.limits.custom_payload_max:
+            await self.send_error(
+                sender.ws, ErrorCode.CUSTOM_PAYLOAD_TOO_LARGE, "custom payload too large"
+            )
+            return
         payload = {
             "op": "msg",
             "msg_id": next_msg_id(),
             "from": sender.session_id,
             "from_name": sender.name,
             "custom_type": custom_type,
-            "payload": msg.get("payload"),
+            "payload": custom_payload,
             "ts": utc_now(),
         }
         if msg.get("to"):

@@ -5,12 +5,19 @@
   "required": ["op", "custom_type", "payload"],
   "properties": {
     "op": { "const": "custom" },
-    "custom_type": { "type": "string" },
+    "custom_type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Extension message type. The default server limit is 128 UTF-8 bytes."
+    },
     "to": {
       "type": ["string", "null"],
       "description": "Optional target routing name or unambiguous routing-name prefix. Exact names are resolved before prefixes."
     },
-    "payload": {}
+    "payload": {
+      "description": "Pass-through JSON payload. The default server limit is 1 MiB of JSON-encoded UTF-8 bytes."
+    }
   },
   "additionalProperties": true
 }

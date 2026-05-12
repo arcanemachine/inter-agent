@@ -14,9 +14,9 @@
 4. Clients verify server identity before sending the shared token. Verification checks host, port, PID liveness, matching identity/PID metadata nonce, and a process start marker when the platform exposes one. Server identity metadata is written atomically, includes a startup timestamp, state schema version, instance nonce, and process start marker, and is removed by the server during normal shutdown. On platforms without a process start marker, verification falls back to PID liveness plus matching local metadata.
 5. Shutdown uses the same localhost shared-token authentication as other control operations and requires a control-role connection.
 6. Core validates operation shapes and rejects unauthenticated/invalid requests with documented protocol error codes.
-7. Resource limits bound incoming WebSocket frames and direct/broadcast text. Text limits are measured as UTF-8 encoded bytes after JSON decoding: `INTER_AGENT_DIRECT_MAX` defaults to 2 MiB, `INTER_AGENT_BROADCAST_MAX` defaults to 512 KiB, and `INTER_AGENT_FRAME_MAX` defaults to 16 MiB.
+7. Resource limits bound incoming WebSocket frames, active authenticated connections, direct/broadcast text, and custom extension fields. Text limits are measured as UTF-8 encoded bytes after JSON decoding: `INTER_AGENT_DIRECT_MAX` defaults to 2 MiB and `INTER_AGENT_BROADCAST_MAX` defaults to 512 KiB. `INTER_AGENT_FRAME_MAX` defaults to 16 MiB, `INTER_AGENT_CONNECTION_MAX` defaults to 64, `INTER_AGENT_CUSTOM_TYPE_MAX` defaults to 128 bytes, and `INTER_AGENT_CUSTOM_PAYLOAD_MAX` defaults to 1 MiB of JSON-encoded UTF-8 bytes.
 
-Custom extension payloads are pass-through JSON. They are bounded by the WebSocket frame limit, not by a separate application-level custom payload cap.
+Custom extension payloads remain pass-through JSON after `custom_type` and payload-size validation.
 
 ## Explicit non-goals
 

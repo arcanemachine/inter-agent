@@ -29,9 +29,9 @@
 - Label: optional human-readable display metadata returned by introspection; labels are never routing keys.
 - List introspection returns agent sessions sorted by routing name and excludes control sessions.
 - Broadcast: sender targets all other connected agents.
-- Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation.
+- Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation after type and payload-size checks.
 - Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
-- Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; custom payloads are bounded by the incoming WebSocket frame limit.
+- Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; active connections, custom types, and JSON-encoded custom payloads also have configurable limits.
 
 ## Lifecycle state
 

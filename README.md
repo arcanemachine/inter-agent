@@ -66,8 +66,11 @@ Text limits are measured as UTF-8 encoded bytes after JSON decoding. Text exactl
 | `INTER_AGENT_DIRECT_MAX` | 2 MiB | `send.text` |
 | `INTER_AGENT_BROADCAST_MAX` | 512 KiB | `broadcast.text` |
 | `INTER_AGENT_FRAME_MAX` | 16 MiB | incoming WebSocket message frames |
+| `INTER_AGENT_CONNECTION_MAX` | 64 | active authenticated connections |
+| `INTER_AGENT_CUSTOM_TYPE_MAX` | 128 bytes | `custom.custom_type` |
+| `INTER_AGENT_CUSTOM_PAYLOAD_MAX` | 1 MiB | JSON-encoded `custom.payload` |
 
-Custom extension payloads are routed as pass-through JSON and are bounded by the WebSocket frame limit.
+Custom extension payloads are routed as pass-through JSON after `custom_type` and payload-size validation.
 
 ## Development checks
 
