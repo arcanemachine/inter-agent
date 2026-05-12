@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import websockets
+from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.shared import (
     DEFAULT_HOST,
@@ -19,11 +20,21 @@ from inter_agent.core.shared import (
 
 
 @dataclass(frozen=True)
+class ProtocolErrorResult:
+    """Protocol error received after sending an outbound payload."""
+
+    code: str
+    message: str
+    raw: str
+
+
+@dataclass(frozen=True)
 class SendResult:
     """Result returned after a command connection sends one outbound payload."""
 
     welcome: str
     welcome_payload: dict[str, object]
+    error: ProtocolErrorResult | None = None
 
 
 def _text_frame(frame: str | bytes) -> str:
@@ -47,6 +58,24 @@ def parse_custom_payload(payload: str | None) -> object:
     return parsed
 
 
+async def _recv_protocol_error(ws: ClientConnection, timeout: float) -> ProtocolErrorResult | None:
+    try:
+        raw = _text_frame(await asyncio.wait_for(ws.recv(), timeout=timeout))
+    except TimeoutError:
+        return None
+
+    response = _json_object(raw)
+    if response.get("op") != "error":
+        return None
+    code = response.get("code")
+    message = response.get("message")
+    return ProtocolErrorResult(
+        code=code if isinstance(code, str) else "PROTOCOL_ERROR",
+        message=message if isinstance(message, str) else "protocol error",
+        raw=raw,
+    )
+
+
 async def send_message(
     host: str,
     port: int,
@@ -54,6 +83,7 @@ async def send_message(
     text: str | None,
     custom_type: str | None,
     payload: object | None,
+    response_timeout: float = 0.1,
 ) -> SendResult:
     """Send a direct, broadcast, or custom message through a control connection."""
     if not verify_server_identity(host, port):
@@ -75,7 +105,11 @@ async def send_message(
             await ws.send(json.dumps({"op": "send", "to": to, "text": text or ""}))
         else:
             await ws.send(json.dumps({"op": "broadcast", "text": text or ""}))
-        return SendResult(welcome=welcome, welcome_payload=_json_object(welcome))
+        return SendResult(
+            welcome=welcome,
+            welcome_payload=_json_object(welcome),
+            error=await _recv_protocol_error(ws, response_timeout),
+        )
 
 
 async def send_direct_message(host: str, port: int, to: str, text: str) -> SendResult:
@@ -120,6 +154,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     payload = parse_custom_payload(args.payload) if args.custom_type is not None else None
     result = asyncio.run(send_message(args.host, args.port, to, text, args.custom_type, payload))
     print(result.welcome)
+    if result.error is not None:
+        print(result.error.raw)
+        return 1
     return 0
 
 

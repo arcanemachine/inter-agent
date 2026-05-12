@@ -14,4 +14,8 @@ Start the server in another terminal before connecting sessions:
 
 - `uv run inter-agent-server`
 
-`label` is optional display metadata; routing still uses `name`. `list` is core-supported and adapter-exposed. `start.sh` is a local development/demo helper that delegates to these package entry points.
+`label` is optional display metadata; routing still uses `name`. `list` is core-supported and adapter-exposed.
+
+Pi commands perform the core localhost server identity check before sending the shared token; unavailable identity returns a non-zero exit code. Protocol error envelopes returned to `send` or `broadcast`, such as `UNKNOWN_TARGET`, are printed and return a non-zero exit code.
+
+`start.sh` is a local development/demo helper that delegates to these package entry points.
