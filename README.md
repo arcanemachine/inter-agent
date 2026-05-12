@@ -4,6 +4,16 @@
 
 It provides a framework-agnostic protocol for direct and broadcast messaging between running sessions, plus host adapters that expose that protocol in specific tooling. The Pi adapter is the primary user-facing workflow.
 
+## Elevator pitch
+
+Have you ever wanted your AI coding agents to talk to each other?
+
+- **Inter-agent messaging** — Send direct messages from one agent to another by name.
+- **Broadcast to all** — Notify every connected session at once.
+- **Framework-agnostic** — Any agent that speaks JSON over WebSocket can join, no matter what tool it runs in.
+- **Localhost only** — Nothing leaves your machine. Shared-token auth, local identity checks, and no remote exposure.
+- **Minimal ceremony** — Start the server, connect a session, send messages. No databases, no cloud services, no configuration files.
+
 ## Core behavior
 
 - WebSocket protocol over localhost.
