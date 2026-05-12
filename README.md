@@ -53,7 +53,7 @@ Core command entry points are available for direct protocol use and adapter/debu
 
 ## Development helper
 
-`start.sh` is a local development/demo helper that delegates to the package entry points. It is not required for the installed command workflow.
+`start.sh` is a local development/demo helper that delegates to the package entry points. It is not required for the installed command workflow. For a bounded smoke check, run `./start.sh status --json`.
 
 ## Resource limits
 

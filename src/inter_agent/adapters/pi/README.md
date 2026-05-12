@@ -42,4 +42,4 @@ Pi commands perform the core localhost server identity check before sending the 
 
 ## Development helper
 
-`start.sh` is a local development/demo helper that delegates to these package entry points.
+`start.sh` is a local development/demo helper that delegates to these package entry points. For a bounded smoke check, run `./start.sh status --json` from the repository root.

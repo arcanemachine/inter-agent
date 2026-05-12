@@ -40,9 +40,7 @@ Completion criteria:
 
 Goal: make the Pi adapter reliable as the primary user-facing host integration while preserving the core/adapter boundary.
 
-Plan items:
-
-1. `plans/03-adapter-integration-and-command-ux/05-start-script-development-helper.md`
+Plan items: complete.
 
 Completion criteria:
 
