@@ -216,15 +216,24 @@ def test_pi_cli_shutdown_unavailable_identity_returns_failure(
     assert result.stderr == "server identity check failed\n"
 
 
-def test_pi_cli_list_unavailable_identity_returns_failure(
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["send", "agent-b", "hello"],
+        ["broadcast", "hello"],
+        ["list"],
+    ],
+)
+def test_pi_cli_unavailable_identity_failures_use_stderr(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     unused_tcp_port: int,
+    args: list[str],
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(pi_commands, "DEFAULT_PORT", unused_tcp_port)
 
-    result = run_pi(["list"])
+    result = run_pi(args)
 
     assert result.code == 1
     assert result.stdout == ""

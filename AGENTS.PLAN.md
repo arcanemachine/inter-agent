@@ -54,9 +54,7 @@ Completion criteria:
 
 Goal: make routine operation smooth: routing is ergonomic, server state is managed, shutdown is safe, and status reflects reality.
 
-Plan items:
-
-1. `plans/04-lifecycle-and-routing-ux/05-structured-logging-and-output.md`
+Plan items: complete.
 
 Completion criteria:
 

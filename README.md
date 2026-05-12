@@ -41,7 +41,7 @@ It provides a framework-agnostic protocol for direct and broadcast messaging bet
    - `uv run inter-agent-pi status`
    - `uv run inter-agent-pi shutdown`
 
-Pi-specific command output, status fields, shutdown behavior, and failure behavior are documented in `src/inter_agent/adapters/pi/README.md`.
+Pi-specific command output, status fields, stdout/stderr conventions, shutdown behavior, and failure behavior are documented in `src/inter_agent/adapters/pi/README.md`.
 
 ## Core protocol commands
 
