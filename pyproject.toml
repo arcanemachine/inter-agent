@@ -28,6 +28,7 @@ inter-agent-send = "inter_agent.core.send:main"
 inter-agent-list = "inter_agent.core.list:main"
 inter-agent-shutdown = "inter_agent.core.shutdown:main"
 inter-agent-pi = "inter_agent.adapters.pi.cli:main"
+inter-agent-claude = "inter_agent.adapters.claude.cli:main"
 
 [dependency-groups]
 dev = [
@@ -50,6 +51,7 @@ where = ["src"]
 "share/inter-agent/spec" = ["spec/asyncapi.yaml"]
 "share/inter-agent/spec/schemas" = ["spec/schemas/*.json"]
 "share/inter-agent/spec/examples" = ["spec/examples/*.json"]
+"share/inter-agent/claude-plugin" = ["claude-plugin/**/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

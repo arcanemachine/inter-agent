@@ -1,0 +1,8 @@
+[
+  {
+    "name": "inter-agent-listener",
+    "command": "inter-agent-claude listen",
+    "description": "inter-agent bus messages",
+    "when": "on-skill-invoke:inter-agent"
+  }
+]
