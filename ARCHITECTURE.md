@@ -16,6 +16,8 @@
    - Host-specific command UX and integration.
    - Call importable core command APIs rather than spawning core scripts by file path.
    - May expose only a subset of core-supported operations.
+   - Pi adapter (`pi/`) provides TypeScript extension integration.
+   - Claude Code adapter (`claude/`) provides Monitor-backed listener and CLI commands.
 
 3. **Spec (`spec/`)**
    - AsyncAPI contract in `spec/asyncapi.yaml`.

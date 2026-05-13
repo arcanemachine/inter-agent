@@ -26,9 +26,35 @@ Have you ever wanted your AI coding agents to talk to each other?
 
 - `src/inter_agent/core/` universal protocol server/client bits
 - `src/inter_agent/adapters/pi/` Pi-specific UX adapter
+- `src/inter_agent/adapters/claude/` Claude Code-specific UX adapter
 - `spec/` AsyncAPI contract, standalone operation schemas in `spec/schemas/`, and canonical examples in `spec/examples/`
 - `tests/` conformance and validation tests
 - `docs/` supporting notes
+
+## Quickstart: Claude Code workflow
+
+1. Start the server:
+   ```bash
+   uv run inter-agent-server
+   ```
+
+2. Load the plugin in a Claude Code session:
+   ```bash
+   claude --plugin-dir ./claude-plugin
+   ```
+
+3. Connect and start messaging:
+   ```
+   /inter-agent connect my-agent
+   /inter-agent send other-agent "run tests"
+   /inter-agent broadcast "build is green"
+   /inter-agent list
+   /inter-agent status
+   /inter-agent disconnect
+   /inter-agent shutdown
+   ```
+
+For details on command output and failure behavior, see `src/inter_agent/adapters/claude/README.md`.
 
 ## Quickstart: Pi workflow
 

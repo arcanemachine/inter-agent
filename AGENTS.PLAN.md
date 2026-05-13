@@ -177,14 +177,7 @@ Goal: add Claude Code as a supported host integration after the core project is 
 
 Design notes: `docs/CLAUDE_CODE_SUPPORT.md`
 
-Plan items:
-
-1. `plans/07-claude-code-support/01-monitor-first-adapter-design.md`
-2. `plans/07-claude-code-support/02-claude-code-plugin-and-skill-scaffold.md`
-3. `plans/07-claude-code-support/03-monitor-listener-and-session-state.md`
-4. `plans/07-claude-code-support/04-claude-command-surface-and-reaction-policy.md`
-5. `plans/07-claude-code-support/05-live-integration-tests-and-fixtures.md`
-6. `plans/07-claude-code-support/06-packaging-docs-and-entry-points.md`
+Plan items: complete.
 
 Completion criteria:
 
