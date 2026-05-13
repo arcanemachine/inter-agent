@@ -66,7 +66,8 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 
 ## connect — start the monitor
 
-To connect, invoke the skill which starts the Monitor listener:
+To connect, invoke the skill which starts the Monitor listener. If a monitor
+from a previous connect is still running, stop it first to avoid duplicates.
 
 ```
 Monitor(
@@ -78,6 +79,10 @@ Monitor(
 ```
 
 The listener auto-names from the current working directory if no name is given.
+The server starts automatically if it is not already running, and stops itself
+after 300 seconds of idle time (no connected sessions). Use
+`--idle-timeout <seconds>` with `inter-agent-server` to change this, or
+`--idle-timeout 0` to disable it.
 
 ## send / broadcast / list / status / disconnect
 

@@ -7,6 +7,7 @@ import json
 import os
 import signal
 import sys
+from pathlib import Path
 
 from websockets.exceptions import WebSocketException
 
@@ -107,13 +108,7 @@ def status_json() -> str:
     return json.dumps(status())
 
 
-def disconnect() -> int:
-    """Stop the running listener for this Claude Code session."""
-    found_state, path = state.find_listener_state()
-    if found_state is None:
-        print("not connected", file=sys.stderr)
-        return 1
-
+def _stop_listener(found_state: dict[str, object], path: Path | None) -> int:
     listener_pid = found_state.get("listener_pid")
     if listener_pid and isinstance(listener_pid, int):
         try:
@@ -123,8 +118,30 @@ def disconnect() -> int:
         except (OSError, ProcessLookupError):
             pass
 
-    # Stale state — clean it up
     if path is not None:
         state.unlink_if_matches(path, found_state)
     print("not connected (stale state cleaned up)", file=sys.stderr)
+    return 1
+
+
+def disconnect() -> int:
+    """Stop the running listener for this Claude Code session."""
+    found_state, path = state.find_listener_state()
+    if found_state is not None:
+        return _stop_listener(found_state, path)
+
+    # Scan for orphaned listeners from other parent PIDs.
+    for session_file in state.claude_data_dir().glob("*.session"):
+        sess = state.read_session_state(int(session_file.stem))
+        if sess is None:
+            continue
+        fd = state.acquire_lock(int(session_file.stem))
+        if fd is None:
+            return _stop_listener(sess, session_file)
+        state.release_lock(fd)
+        if state.unlink_if_matches(session_file, sess):
+            print("not connected (stale state cleaned up)", file=sys.stderr)
+            return 1
+
+    print("not connected", file=sys.stderr)
     return 1
