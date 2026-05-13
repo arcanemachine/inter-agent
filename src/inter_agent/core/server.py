@@ -25,6 +25,8 @@ from inter_agent.core.shared import (
     validate_name,
 )
 
+DEFAULT_IDLE_TIMEOUT_S = 300
+
 
 @dataclass
 class Conn:
@@ -44,7 +46,13 @@ class TargetResolution:
 
 
 class BusServer:
-    def __init__(self, host: str, port: int, limits: Limits | None = None) -> None:
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        limits: Limits | None = None,
+        idle_timeout_s: float | None = DEFAULT_IDLE_TIMEOUT_S,
+    ) -> None:
         self.host = host
         self.port = port
         self.token = load_or_create_token()
@@ -53,6 +61,27 @@ class BusServer:
         self.middlewares: list[RouterMiddleware] = []
         self.shutdown_event = asyncio.Event()
         self._lock = asyncio.Lock()
+        self._idle_timeout = idle_timeout_s
+        self._idle_timer: asyncio.Task[None] | None = None
+
+    def _cancel_idle_timer(self) -> None:
+        if self._idle_timer is not None:
+            self._idle_timer.cancel()
+            self._idle_timer = None
+
+    async def _start_idle_timer(self) -> None:
+        """Shut down after idle_timeout seconds with no connections."""
+        timeout = self._idle_timeout
+        if timeout is None or timeout <= 0:
+            return
+        try:
+            # Use a CancelledError check below rather than watching shutdown_event,
+            # so we don't race with an external shutdown_set + new connection.
+            await asyncio.sleep(timeout)
+        except asyncio.CancelledError:
+            return
+        # If we weren't cancelled, nobody reconnected — time to stop.
+        self.shutdown_event.set()
 
     async def send_error(self, ws: ServerConnection, code: ErrorCode, message: str) -> None:
         await ws.send(json.dumps({"op": "error", "code": code.value, "message": message}))
@@ -72,6 +101,7 @@ class BusServer:
 
     async def handle(self, ws: ServerConnection) -> None:
         session_id = None
+        self._cancel_idle_timer()
         try:
             raw = await ws.recv()
             hello = await self.read_object(ws, raw, "first frame")
@@ -190,6 +220,8 @@ class BusServer:
         finally:
             if session_id and session_id in self.registry:
                 self.registry.pop(session_id, None)
+            if not self.registry:
+                self._idle_timer = asyncio.create_task(self._start_idle_timer())
 
     async def _apply_middlewares(self, sender: Conn, msg: dict[str, object]) -> None:
         for middleware in self.middlewares:
@@ -333,9 +365,14 @@ class BusServer:
             await conn.ws.send(json.dumps(payload))
 
 
-async def run_server(host: str, port: int, limits: Limits | None = None) -> None:
+async def run_server(
+    host: str,
+    port: int,
+    limits: Limits | None = None,
+    idle_timeout_s: float | None = DEFAULT_IDLE_TIMEOUT_S,
+) -> None:
     """Start the core WebSocket bus until the task is cancelled."""
-    server = BusServer(host=host, port=port, limits=limits)
+    server = BusServer(host=host, port=port, limits=limits, idle_timeout_s=idle_timeout_s)
     identity = claim_server_state(host, port)
     print(f"Starting inter-agent-server on {host}:{port}...")
 
@@ -369,14 +406,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-server")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument(
+        "--idle-timeout",
+        type=int,
+        default=None,
+        help="shut down after N seconds with no connections (default 300, 0 to disable)",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    idle_timeout = DEFAULT_IDLE_TIMEOUT_S if args.idle_timeout is None else args.idle_timeout
     try:
-        asyncio.run(run_server(args.host, args.port))
+        asyncio.run(run_server(args.host, args.port, idle_timeout_s=idle_timeout))
     except ServerAlreadyRunningError as exc:
         raise SystemExit(str(exc)) from exc
     return 0

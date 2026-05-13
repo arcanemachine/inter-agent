@@ -10,6 +10,7 @@ import os
 import random
 import secrets
 import signal
+import subprocess
 import sys
 import uuid
 from pathlib import Path
@@ -31,7 +32,26 @@ RECONNECT_BACKOFF_MAX_S = 4.0
 RECONNECT_JITTER_FRAC = 0.2
 PING_INTERVAL_S = 15
 
+# Server error codes that won't resolve by reconnecting.
+# When the server returns one of these, the listener exits instead of retrying.
+_PERMANENT_ERROR_CODES = frozenset(
+    {
+        "AUTH_FAILED",
+        "BAD_LABEL",
+        "BAD_NAME",
+        "BAD_ROLE",
+        "BAD_SESSION",
+        "NAME_TAKEN",
+        "SESSION_TAKEN",
+        "TOO_MANY_CONNECTIONS",
+    }
+)
+
 log = logging.getLogger("inter-agent.claude.listener")
+
+
+class PermanentError(Exception):
+    """Raised when the server returns an error that reconnecting cannot resolve."""
 
 
 def _print_line(line: str, out: TextIO) -> None:
@@ -70,12 +90,35 @@ class Listener:
         self._stop = asyncio.Event()
         self._lock_fd: int | None = None
         self._connect_task: asyncio.Task[None] | None = None
+        self._server_proc: subprocess.Popen[bytes] | None = None
 
     def stop(self) -> None:
         self._stop.set()
         t = self._connect_task
         if t is not None and not t.done():
             t.cancel()
+        # Do not kill self._server_proc here — the server's idle timeout
+        # handles automatic shutdown when no connections remain.
+
+    def _start_server(self) -> subprocess.Popen[bytes] | None:
+        """Start inter-agent-server as a child process.
+
+        The server will shut itself down via its idle timeout once
+        all connections are gone. The listener never sends this
+        process a signal — it owns its own lifecycle.
+        """
+        try:
+            return subprocess.Popen(
+                [sys.executable, "-m", "inter_agent.core.server"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            _print_line(
+                f"[inter-agent] failed to start server: {exc}",
+                self.output,
+            )
+            return None
 
     async def run(self) -> int:
         ppid = state._resolve_listener_key()
@@ -98,16 +141,30 @@ class Listener:
             return 0
 
         try:
-            backoff = RECONNECT_BACKOFF_MIN_S
-            while not self._stop.is_set():
-                if not verify_server_identity(self.host, self.port):
+            # Auto-start server if not running.
+            if not verify_server_identity(self.host, self.port):
+                self._server_proc = self._start_server()
+                if self._server_proc is None:
+                    return 1
+                _print_line(
+                    f"[inter-agent] started server (pid {self._server_proc.pid})",
+                    self.output,
+                )
+                for _ in range(30):
+                    if self._stop.is_set():
+                        return 0
+                    if verify_server_identity(self.host, self.port):
+                        break
+                    await asyncio.sleep(0.5)
+                else:
                     _print_line(
-                        "[inter-agent] server identity check failed; " "refusing to connect",
+                        "[inter-agent] server did not become available in time",
                         self.output,
                     )
-                    self._stop.set()
-                    break
+                    return 1
 
+            backoff = RECONNECT_BACKOFF_MIN_S
+            while not self._stop.is_set():
                 self._connect_task = asyncio.create_task(self._connect_and_serve(ppid))
                 try:
                     await self._connect_task
@@ -119,6 +176,12 @@ class Listener:
                 except websockets.InvalidHandshake as exc:
                     _print_line(
                         f"[inter-agent] connected to a non-inter-agent service: {exc}",
+                        self.output,
+                    )
+                    return 1
+                except PermanentError as exc:
+                    _print_line(
+                        f"[inter-agent] permanent error — giving up: {exc}",
                         self.output,
                     )
                     return 1
@@ -176,6 +239,8 @@ class Listener:
                     f"[inter-agent] connection error: {code}: {message}",
                     self.output,
                 )
+                if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
+                    raise PermanentError(f"{code}: {message}")
                 continue
 
             if op == "msg":
