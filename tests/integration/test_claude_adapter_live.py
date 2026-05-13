@@ -150,7 +150,7 @@ async def test_claude_python_send_delivers_to_live_agent(
 
     assert result.code == 0
     assert result.stderr == ""
-    assert json.loads(result.stdout)["op"] == "welcome"
+    assert result.stdout == ""
     assert delivered["op"] == "msg"
     assert delivered["to"] == "agent-b"
     assert delivered["text"] == "hello"
@@ -180,7 +180,7 @@ async def test_claude_python_broadcast_delivers_to_agents_only(
 
     assert result.code == 0
     assert result.stderr == ""
-    assert json.loads(result.stdout)["op"] == "welcome"
+    assert result.stdout == ""
     assert delivered_a["text"] == "hello all"
     assert delivered_b["text"] == "hello all"
 
@@ -197,8 +197,8 @@ async def test_claude_cli_send_unknown_target_returns_protocol_error(
     lines = result.stdout.strip().splitlines()
     assert result.code == 1
     assert result.stderr == ""
-    assert json.loads(lines[0])["op"] == "welcome"
-    error = json.loads(lines[1])
+    assert len(lines) == 1
+    error = json.loads(lines[0])
     assert error["op"] == "error"
     assert error["code"] == "UNKNOWN_TARGET"
 

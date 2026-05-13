@@ -77,10 +77,12 @@ def test_status_reports_identity_check_failure(
 def test_send_uses_core_api(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    calls: list[tuple[str, int, str, str]] = []
+    calls: list[tuple[str, int, str, str, str | None]] = []
 
-    async def fake_send(host: str, port: int, to: str, text: str) -> SendResult:
-        calls.append((host, port, to, text))
+    async def fake_send(
+        host: str, port: int, to: str, text: str, from_name: str | None = None
+    ) -> SendResult:
+        calls.append((host, port, to, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
     monkeypatch.setattr(core_send, "send_direct_message", fake_send)
@@ -88,14 +90,16 @@ def test_send_uses_core_api(
     code = commands.send("agent-b", "hello")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello")]
-    assert capsys.readouterr().out == '{"op": "welcome"}\n'
+    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", None)]
+    assert capsys.readouterr().out == ""
 
 
 def test_send_protocol_error_returns_failure(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    async def fake_send(host: str, port: int, to: str, text: str) -> SendResult:
+    async def fake_send(
+        host: str, port: int, to: str, text: str, from_name: str | None = None
+    ) -> SendResult:
         return SendResult(
             welcome='{"op": "welcome"}',
             welcome_payload={"op": "welcome"},
@@ -115,7 +119,6 @@ def test_send_protocol_error_returns_failure(
 
     assert code == 1
     assert capsys.readouterr().out.splitlines() == [
-        '{"op": "welcome"}',
         '{"op": "error", "code": "UNKNOWN_TARGET", "message": "unknown target: missing"}',
     ]
 
@@ -123,10 +126,12 @@ def test_send_protocol_error_returns_failure(
 def test_broadcast_uses_core_api(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    calls: list[tuple[str, int, str]] = []
+    calls: list[tuple[str, int, str, str | None]] = []
 
-    async def fake_broadcast(host: str, port: int, text: str) -> SendResult:
-        calls.append((host, port, text))
+    async def fake_broadcast(
+        host: str, port: int, text: str, from_name: str | None = None
+    ) -> SendResult:
+        calls.append((host, port, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
     monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
@@ -134,8 +139,8 @@ def test_broadcast_uses_core_api(
     code = commands.broadcast("hello all")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "hello all")]
-    assert capsys.readouterr().out == '{"op": "welcome"}\n'
+    assert calls == [("127.0.0.1", 9473, "hello all", None)]
+    assert capsys.readouterr().out == ""
 
 
 def test_list_uses_core_api(
@@ -158,6 +163,44 @@ def test_list_uses_core_api(
     assert code == 0
     assert calls == [("127.0.0.1", 9473)]
     assert capsys.readouterr().out == '{"op": "list_ok", "sessions": []}\n'
+
+
+def test_send_with_from_name_passes_through(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int, str, str, str | None]] = []
+
+    async def fake_send(
+        host: str, port: int, to: str, text: str, from_name: str | None = None
+    ) -> SendResult:
+        calls.append((host, port, to, text, from_name))
+        return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
+
+    monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+
+    code = main(["send", "agent-b", "hello", "--from", "agent-a"])
+
+    assert code == 0
+    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-a")]
+
+
+def test_broadcast_with_from_name_passes_through(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int, str, str | None]] = []
+
+    async def fake_broadcast(
+        host: str, port: int, text: str, from_name: str | None = None
+    ) -> SendResult:
+        calls.append((host, port, text, from_name))
+        return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
+
+    monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
+
+    code = main(["broadcast", "hello all", "--from", "agent-a"])
+
+    assert code == 0
+    assert calls == [("127.0.0.1", 9473, "hello all", "agent-a")]
 
 
 def test_shutdown_uses_core_api(

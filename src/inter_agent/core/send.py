@@ -83,6 +83,7 @@ async def send_message(
     text: str | None,
     custom_type: str | None,
     payload: object | None,
+    from_name: str | None = None,
     response_timeout: float = 0.1,
 ) -> SendResult:
     """Send a direct, broadcast, or custom message through a control connection."""
@@ -100,11 +101,19 @@ async def send_message(
             }
             if to:
                 msg["to"] = to
+            if from_name:
+                msg["from_name"] = from_name
             await ws.send(json.dumps(msg))
         elif to:
-            await ws.send(json.dumps({"op": "send", "to": to, "text": text or ""}))
+            outbound: dict[str, object] = {"op": "send", "to": to, "text": text or ""}
+            if from_name:
+                outbound["from_name"] = from_name
+            await ws.send(json.dumps(outbound))
         else:
-            await ws.send(json.dumps({"op": "broadcast", "text": text or ""}))
+            outbound = {"op": "broadcast", "text": text or ""}
+            if from_name:
+                outbound["from_name"] = from_name
+            await ws.send(json.dumps(outbound))
         return SendResult(
             welcome=welcome,
             welcome_payload=_json_object(welcome),
@@ -112,14 +121,22 @@ async def send_message(
         )
 
 
-async def send_direct_message(host: str, port: int, to: str, text: str) -> SendResult:
+async def send_direct_message(
+    host: str, port: int, to: str, text: str, from_name: str | None = None
+) -> SendResult:
     """Send a direct text message to one routing name."""
-    return await send_message(host, port, to, text, custom_type=None, payload=None)
+    return await send_message(
+        host, port, to, text, custom_type=None, payload=None, from_name=from_name
+    )
 
 
-async def broadcast_message(host: str, port: int, text: str) -> SendResult:
+async def broadcast_message(
+    host: str, port: int, text: str, from_name: str | None = None
+) -> SendResult:
     """Broadcast a text message to all other connected agent sessions."""
-    return await send_message(host, port, to=None, text=text, custom_type=None, payload=None)
+    return await send_message(
+        host, port, to=None, text=text, custom_type=None, payload=None, from_name=from_name
+    )
 
 
 async def send_custom_message(
@@ -143,6 +160,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--text", dest="text_option")
     parser.add_argument("--custom-type")
     parser.add_argument("--payload")
+    parser.add_argument("--from", dest="from_name")
     return parser
 
 
@@ -152,8 +170,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     to = args.to_option or args.to
     text = args.text_option if args.text_option is not None else args.text
     payload = parse_custom_payload(args.payload) if args.custom_type is not None else None
-    result = asyncio.run(send_message(args.host, args.port, to, text, args.custom_type, payload))
-    print(result.welcome)
+    result = asyncio.run(
+        send_message(args.host, args.port, to, text, args.custom_type, payload, args.from_name)
+    )
     if result.error is not None:
         print(result.error.raw)
         return 1

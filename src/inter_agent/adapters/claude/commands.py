@@ -34,7 +34,6 @@ def _expected_error_code(exc: Exception) -> int:
 
 
 def _send_result_code(result: SendResult) -> int:
-    print(result.welcome)
     if result.error is not None:
         print(result.error.raw)
         return 1
@@ -47,9 +46,11 @@ def connect(name: str, label: str | None = None) -> int:
     return 0
 
 
-def send(to: str, text: str) -> int:
+def send(to: str, text: str, from_name: str | None = None) -> int:
     try:
-        result = asyncio.run(core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text))
+        result = asyncio.run(
+            core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text, from_name)
+        )
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -57,9 +58,11 @@ def send(to: str, text: str) -> int:
     return _send_result_code(result)
 
 
-def broadcast(text: str) -> int:
+def broadcast(text: str, from_name: str | None = None) -> int:
     try:
-        result = asyncio.run(core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text))
+        result = asyncio.run(
+            core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text, from_name)
+        )
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:

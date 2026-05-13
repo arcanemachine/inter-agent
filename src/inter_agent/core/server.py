@@ -285,13 +285,14 @@ class BusServer:
             await self._send_resolution_error(sender, resolution)
             return
         target = resolution.target
+        from_name = msg.get("from_name", sender.name)
         await target.ws.send(
             json.dumps(
                 {
                     "op": "msg",
                     "msg_id": next_msg_id(),
                     "from": sender.session_id,
-                    "from_name": sender.name,
+                    "from_name": from_name,
                     "to": target.name,
                     "text": text,
                     "ts": utc_now(),
@@ -310,12 +311,13 @@ class BusServer:
                 sender.ws, ErrorCode.TEXT_TOO_LARGE, "broadcast message too large"
             )
             return
+        from_name = msg.get("from_name", sender.name)
         payload = json.dumps(
             {
                 "op": "msg",
                 "msg_id": next_msg_id(),
                 "from": sender.session_id,
-                "from_name": sender.name,
+                "from_name": from_name,
                 "text": text,
                 "ts": utc_now(),
             }

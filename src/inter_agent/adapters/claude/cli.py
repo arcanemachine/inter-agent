@@ -23,9 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
     send = sub.add_parser("send")
     send.add_argument("to")
     send.add_argument("text")
+    send.add_argument("--from", dest="from_name")
 
     broadcast = sub.add_parser("broadcast")
     broadcast.add_argument("text")
+    broadcast.add_argument("--from", dest="from_name")
 
     list_parser = sub.add_parser("list")
     list_parser.add_argument("--json", action="store_true")
@@ -59,9 +61,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "connect":
         return commands.connect(args.name or "claude", args.label)
     if args.command == "send":
-        return commands.send(args.to, args.text)
+        return commands.send(args.to, args.text, args.from_name)
     if args.command == "broadcast":
-        return commands.broadcast(args.text)
+        return commands.broadcast(args.text, args.from_name)
     if args.command == "list":
         return commands.list_sessions()
     if args.command == "status":

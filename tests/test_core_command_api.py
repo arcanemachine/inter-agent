@@ -134,3 +134,49 @@ async def test_broadcast_message_delivers_to_agent_sessions(
     assert isinstance(delivered_b, dict)
     assert delivered_a["text"] == "hello all"
     assert delivered_b["text"] == "hello all"
+
+
+@pytest.mark.asyncio
+async def test_send_direct_message_with_from_name_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as target:
+            await connect_agent(target, context, "b", "agent-b")
+
+            result = await send_direct_message(
+                context.host, context.port, "agent-b", "hello", from_name="agent-a"
+            )
+            delivered: object = json.loads(await target.recv())
+
+    assert result.welcome_payload["op"] == "welcome"
+    assert isinstance(delivered, dict)
+    assert delivered["op"] == "msg"
+    assert delivered["to"] == "agent-b"
+    assert delivered["text"] == "hello"
+    assert delivered["from_name"] == "agent-a"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_message_with_from_name_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with (
+            websockets.connect(context.url) as agent_a,
+            websockets.connect(context.url) as agent_b,
+        ):
+            await connect_agent(agent_a, context, "a", "agent-a")
+            await connect_agent(agent_b, context, "b", "agent-b")
+
+            result = await broadcast_message(
+                context.host, context.port, "hello all", from_name="agent-a"
+            )
+            delivered_a: object = json.loads(await agent_a.recv())
+            delivered_b: object = json.loads(await agent_b.recv())
+
+    assert result.welcome_payload["op"] == "welcome"
+    assert isinstance(delivered_a, dict)
+    assert isinstance(delivered_b, dict)
+    assert delivered_a["from_name"] == "agent-a"
+    assert delivered_b["from_name"] == "agent-a"
