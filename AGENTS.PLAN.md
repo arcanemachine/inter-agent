@@ -8,16 +8,16 @@
 ## Phase 6a: Pi Extension — Status Update
 
 > **An agent has begun implementing the Pi extension.**
-> **Repository:** `/workspace/projects/pi/pi-inter-agent`
+> **Repository:** within `/path/to/inter-agent` under `integrations/pi/`
 > **Current state:** Core implementation complete, TypeScript compiles, listener spawn and message delivery verified against a live server.
 > **Remaining work:** full interactive testing inside Pi, potential structural tests, documentation polish.
 
 ### Decisions made
 
-- **Extension file placement:** Separate repo at `/workspace/projects/pi/pi-inter-agent` following existing Pi extension conventions (`package.json` with `pi.extensions`, `src/index.ts`, `README.md`, `AGENTS.md`).
-- **Entry point resolution:** Uses `uv run inter-agent-pi ...` and `uv run inter-agent-connect ...` with `cwd` set to `/workspace/projects/inter-agent` and `PYTHONUNBUFFERED=1` for reliable output.
+- **Extension file placement:** `integrations/pi/` in this monorepo, following existing Pi extension conventions (`package.json` with `pi.extensions`, `src/index.ts`, `README.md`, `AGENTS.md`).
+- **Entry point resolution:** Uses `uv run inter-agent-pi ...` and `uv run inter-agent-connect ...` with `cwd` set to `/path/to/inter-agent` and `PYTHONUNBUFFERED=1` for reliable output.
 - **Notification truncation:** 1000 character limit.
-- **Installation:** `pi install /workspace/projects/pi/pi-inter-agent` or `pi -e /workspace/projects/pi/pi-inter-agent/src/index.ts`.
+- **Installation:** `pi install /path/to/inter-agent/integrations/pi` or `pi -e /path/to/inter-agent/integrations/pi/src/index.ts`.
 
 ### Open concerns (validate before continuing)
 

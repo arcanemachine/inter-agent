@@ -7,7 +7,7 @@ Create a Pi coding agent extension that connects to the inter-agent message bus,
 
 1. **Entry point resolution**: Use `uv run inter-agent-pi ...` and `uv run inter-agent-connect ...` (slower but reliable, per user instruction).
 2. **Notification truncation**: 1000 character limit for `ctx.ui.notify()`.
-3. **File placement**: New repo at `/workspace/projects/pi/pi-inter-agent`.
+3. **File placement**: Part of the inter-agent monorepo under `integrations/pi/`.
 4. **Testing**: Structural tests + live smoke test.
 
 ## Tasks
