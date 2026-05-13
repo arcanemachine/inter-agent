@@ -27,6 +27,8 @@ Have you ever wanted your AI coding agents to talk to each other?
 - `src/inter_agent/core/` universal protocol server/client bits
 - `src/inter_agent/adapters/pi/` Pi-specific UX adapter
 - `src/inter_agent/adapters/claude/` Claude Code-specific UX adapter
+- `integrations/` host-specific plugin and extension assets
+  - `integrations/claude-code/` Claude Code plugin (`.claude-plugin/`, `monitors/`, `skills/`)
 - `spec/` AsyncAPI contract, standalone operation schemas in `spec/schemas/`, and canonical examples in `spec/examples/`
 - `tests/` conformance and validation tests
 - `docs/` supporting notes
@@ -40,7 +42,7 @@ Have you ever wanted your AI coding agents to talk to each other?
 
 2. Load the plugin in a Claude Code session:
    ```bash
-   claude --plugin-dir ./claude-plugin
+   claude --plugin-dir ./integrations/claude-code
    ```
 
 3. Connect and start messaging:

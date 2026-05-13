@@ -2,7 +2,5 @@
   "name": "inter-agent",
   "version": "0.1.0",
   "description": "Inter-agent messaging for Claude Code sessions on the same machine.",
-  "experimental": {
-    "monitors": "./monitors/monitors.json"
-  }
+  "monitors": "./monitors/monitors.json"
 }
