@@ -29,6 +29,7 @@ Have you ever wanted your AI coding agents to talk to each other?
 - `src/inter_agent/adapters/claude/` Claude Code-specific UX adapter
 - `integrations/` host-specific plugin and extension assets
   - `integrations/claude-code/` Claude Code plugin (`.claude-plugin/`, `monitors/`, `skills/`)
+  - `integrations/pi/` Pi coding agent extension (TypeScript, `package.json`, `src/`)
 - `spec/` AsyncAPI contract, standalone operation schemas in `spec/schemas/`, and canonical examples in `spec/examples/`
 - `tests/` conformance and validation tests
 - `docs/` supporting notes

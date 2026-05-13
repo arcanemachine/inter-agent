@@ -18,6 +18,7 @@
    - May expose only a subset of core-supported operations.
    - Pi adapter (`pi/`) provides TypeScript extension integration.
    - Claude Code adapter (`claude/`) provides Monitor-backed listener and CLI commands.
+   - Integration assets for each host live under `integrations/<host>/`.
 
 3. **Spec (`spec/`)**
    - AsyncAPI contract in `spec/asyncapi.yaml`.
