@@ -1,6 +1,6 @@
 {
   "name": "inter-agent",
   "version": "0.1.0",
-  "description": "Inter-agent messaging for Claude Code sessions on the same machine.",
+  "description": "Cross-platform (Claude Code, Pi coding agent, etc.) inter-agent messaging system.",
   "monitors": "./monitors/monitors.json"
 }
