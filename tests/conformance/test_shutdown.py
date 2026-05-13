@@ -99,3 +99,49 @@ async def test_shutdown_requires_control_role(
     assert err["op"] == "error"
     assert err["code"] == ErrorCode.BAD_ROLE.value
     assert pong == {"op": "pong"}
+
+
+@pytest.mark.asyncio
+async def test_idle_timeout_shuts_down_after_last_disconnect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    token = load_or_create_token()
+    task = asyncio.create_task(run_server(HOST, unused_tcp_port, idle_timeout_s=0.1))
+    await wait_for_identity(unused_tcp_port)
+
+    async with websockets.connect(f"ws://{HOST}:{unused_tcp_port}") as ws:
+        welcome = await send_json(ws, agent_hello(token, session_id="a", name="agent-a"))
+        assert welcome["op"] == "welcome"
+
+    await asyncio.wait_for(task, timeout=1.0)
+    assert not identity_path(unused_tcp_port).exists()
+    assert not pid_path(unused_tcp_port).exists()
+
+
+@pytest.mark.asyncio
+async def test_idle_timeout_cancelled_by_new_connection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    token = load_or_create_token()
+    task = asyncio.create_task(run_server(HOST, unused_tcp_port, idle_timeout_s=0.3))
+    await wait_for_identity(unused_tcp_port)
+
+    async with websockets.connect(f"ws://{HOST}:{unused_tcp_port}") as ws:
+        welcome = await send_json(ws, agent_hello(token, session_id="a", name="agent-a"))
+        assert welcome["op"] == "welcome"
+
+    await asyncio.sleep(0.15)
+
+    async with websockets.connect(f"ws://{HOST}:{unused_tcp_port}") as ws2:
+        welcome2 = await send_json(ws2, agent_hello(token, session_id="b", name="agent-b"))
+        assert welcome2["op"] == "welcome"
+
+    await asyncio.sleep(0.25)
+
+    assert not task.done()
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task

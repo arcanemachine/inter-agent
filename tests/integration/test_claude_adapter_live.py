@@ -359,3 +359,29 @@ async def test_listener_truncates_long_messages(
     assert len(lines) == 2
     assert "truncated=" in lines[0]
     assert "[inter-agent msg=" in lines[1] and " cont]" in lines[1]
+
+
+@pytest.mark.asyncio
+async def test_listener_exits_on_name_taken(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    use_live_claude_defaults(monkeypatch, live_server)
+
+    out = io.StringIO()
+    async with websockets.connect(live_server.url) as first:
+        await connect_agent(first, live_server, "first", "duplicate-name")
+
+        listener = Listener(
+            host=live_server.host,
+            port=live_server.port,
+            name="duplicate-name",
+            output=out,
+        )
+        task = asyncio.create_task(listener.run())
+        result = await asyncio.wait_for(task, timeout=2.0)
+
+    assert result == 1
+    assert "NAME_TAKEN" in out.getvalue()
