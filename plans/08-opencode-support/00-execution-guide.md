@@ -103,6 +103,102 @@ Stop and ask the user, or update the plan and get acceptance, if any of these oc
 9. Interactive OpenCode behavior materially differs from the researched behavior.
 10. Tests cannot be made reliable without requiring an interactive OpenCode TUI in the required quality gate.
 
+## Contingency guidance
+
+The preferred path is direct WebSocket from an OpenCode plugin. The fallbacks below are not permission to silently change architecture. They are intended to help a worker agent make a good recommendation if a stop condition occurs.
+
+### If direct WebSocket fails
+
+First determine why it failed:
+
+1. If WebSocket is unavailable in the plugin runtime, re-check whether the failure is specific to the TUI plugin, the server plugin, or the test scaffold.
+2. If WebSocket works but filesystem/token access fails, see the token and metadata fallback below.
+3. If WebSocket works but protocol handshake fails, fix the TypeScript protocol client rather than changing architecture.
+
+Possible backup designs, in preferred order:
+
+1. **OpenCode sidecar bridge** — a separate local process owns the inter-agent WebSocket listener and exposes a small localhost API to the OpenCode plugin. This preserves OpenCode notifications/commands but adds another process. Prefer this over a per-command CLI bridge if OpenCode cannot keep a listener alive.
+2. **Pi-style subprocess bridge** — the plugin spawns existing inter-agent Python CLIs for control operations and a long-lived listener process for inbound messages. This is proven by Pi but less desirable because it requires Python/`uv`/project-path configuration and stdout parsing.
+3. **Command-only integration** — expose send, broadcast, list, and status commands/tools without live receiving. This is a major UX regression and should not be accepted as Phase 8 completion without user approval.
+4. **Defer OpenCode support** — if OpenCode cannot provide stable plugin networking or process integration, stop and report.
+
+### If token or metadata access fails
+
+Expected path: read `INTER_AGENT_DATA_DIR` or `~/.inter-agent` directly from the OpenCode plugin runtime.
+
+Possible backup designs:
+
+1. Add explicit OpenCode plugin config for `dataDir`, then retry direct file access.
+2. If sandboxing prevents file access entirely, use a sidecar bridge that reads token/metadata outside OpenCode and exposes only safe local operations to the plugin.
+3. If only token creation fails, require the server or an inter-agent CLI command to be run once before OpenCode connects.
+4. Do not ask users to paste the shared token into OpenCode config unless the security model is reviewed and accepted.
+
+### If server identity verification cannot be fully ported
+
+Expected path: port the Python metadata checks closely enough to preserve `SECURITY.md` behavior.
+
+Possible backup designs:
+
+1. Implement strict verification on Linux and fail closed on unsupported platforms for the first release.
+2. Document a user-enabled degraded mode only after explicit acceptance. The degraded mode must warn that server identity verification is weaker.
+3. Use a sidecar or Python bridge for identity verification if direct TypeScript verification is the only blocker.
+
+Do not silently skip identity verification before sending the token.
+
+### If TUI and server plugin state sharing is difficult
+
+Expected path: store active connection identity in a shared OpenCode/plugin-accessible state location so server tools can send with `from_name`.
+
+Possible backup designs, in preferred order:
+
+1. Persist active identity in OpenCode KV or another state file readable by both plugin targets.
+2. Add explicit plugin config for the default sender name, and require it to match the connected listener name.
+3. Make server tools fail with a clear message until a connected identity is available.
+4. Ship TUI commands first and defer LLM tools only if the user accepts a reduced first milestone.
+
+Do not let routine tool sends appear as `control`; that makes peer messages confusing and breaks the intended UX.
+
+### If OpenCode cannot keep a long-lived listener alive
+
+Possible backup designs:
+
+1. Use an external sidecar listener and let the TUI plugin display messages received through a localhost bridge.
+2. Use a Pi-style long-lived child process if OpenCode can spawn and supervise child processes but cannot keep an in-process WebSocket listener.
+3. Fall back to manual inbox polling only as a reduced, user-approved milestone.
+
+This is a high-severity issue because live receiving is part of the Phase 8 completion criteria.
+
+### If separate `./tui` and `./server` package targets fail
+
+Possible backup designs:
+
+1. Re-check OpenCode package resolution and install configuration; this may be a packaging bug rather than an API limitation.
+2. Split the integration into two packages, one TUI plugin and one server plugin.
+3. Ship TUI-only support first only if the user accepts deferring LLM tools.
+
+### If prompt injection is not viable
+
+This is not a blocker.
+
+The planned first release does not require prompt injection. Use notifications, toasts, and inbox entries for incoming messages. Add prompt insertion later only if OpenCode exposes a stable API and the behavior is safe.
+
+### If tests require an interactive OpenCode TUI
+
+Do not put interactive OpenCode tests in the required quality gate.
+
+Backup validation strategy:
+
+1. Keep pure TypeScript unit tests in the package gate.
+2. Keep live inter-agent protocol tests outside the interactive TUI.
+3. Use structural package tests for exports and metadata.
+4. Document manual OpenCode UAT separately and run it before declaring the phase complete.
+
+### If implementation would require forking OpenCode or changing the core protocol
+
+Stop.
+
+The accepted plan is no OpenCode fork and no OpenCode-specific core protocol changes. Recommend a reduced integration, sidecar bridge, or deferral instead.
+
 ## Commit boundaries
 
 Make commits at logical milestones:
