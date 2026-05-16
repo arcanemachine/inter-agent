@@ -36,6 +36,12 @@
 - Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
 - Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; active connections, custom types, and JSON-encoded custom payloads also have configurable limits.
 
+## Server lifecycle
+
+- The server can be started manually (`uv run inter-agent-server`) or auto-started by adapters when a client connects and the server is not running.
+- After startup, an idle timeout (default 300 seconds) starts. The timeout resets whenever a session connects. If no sessions are connected when the timeout expires, the server shuts down automatically. Set `--idle-timeout 0` to disable.
+- Adapters that auto-start the server (Claude Code `listen`) verify the server is reachable before proceeding, retrying for up to 15 seconds after launching the server process.
+
 ## Lifecycle state
 
 - Server state lives under `INTER_AGENT_DATA_DIR` or `~/.inter-agent` by default.

@@ -15,6 +15,7 @@
 5. Shutdown uses the same localhost shared-token authentication as other control operations and requires a control-role connection.
 6. Core validates operation shapes and rejects unauthenticated/invalid requests with documented protocol error codes.
 7. Resource limits bound incoming WebSocket frames, active authenticated connections, direct/broadcast text, and custom extension fields. Text limits are measured as UTF-8 encoded bytes after JSON decoding: `INTER_AGENT_DIRECT_MAX` defaults to 2 MiB and `INTER_AGENT_BROADCAST_MAX` defaults to 512 KiB. `INTER_AGENT_FRAME_MAX` defaults to 16 MiB, `INTER_AGENT_CONNECTION_MAX` defaults to 64, `INTER_AGENT_CUSTOM_TYPE_MAX` defaults to 128 bytes, and `INTER_AGENT_CUSTOM_PAYLOAD_MAX` defaults to 1 MiB of JSON-encoded UTF-8 bytes.
+8. The server automatically shuts down after an idle timeout (default 300 seconds with no connected sessions), configurable via `--idle-timeout`. Setting `--idle-timeout 0` disables the timeout. This limits the window of an idle server process on localhost.
 
 Custom extension payloads remain pass-through JSON after `custom_type` and payload-size validation.
 

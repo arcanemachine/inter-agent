@@ -1,6 +1,6 @@
 # Claude Code Support Planning Notes
 
-Claude Code support is planned as `AGENTS.PLAN.md` Extra Phase 7. It is not part of the core completion path, but it is the first planned follow-on host adapter after the Pi adapter and core release-readiness work.
+Claude Code support is a completed host integration (Phase 7). This document captures the design decisions and prior-art lessons that informed the implementation.
 
 ## Integration decision
 

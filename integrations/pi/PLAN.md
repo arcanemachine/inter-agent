@@ -32,7 +32,7 @@ Create a Pi coding agent extension that connects to the inter-agent message bus,
 ### Phase 3: Documentation
 - [x] Create `README.md` with installation, configuration, and usage
 - [x] Document commands and tools
-- [ ] Document settings.json configuration options (not applicable — no settings needed)
+- [x] Document settings.json configuration options (projectPath override)
 
 ### Phase 4: Quality Assurance
 - [x] Run `npm run typecheck`

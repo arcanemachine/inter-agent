@@ -5,22 +5,23 @@ This file holds promising work that is not required for project completion as de
 ## Misc. improvements
 
 - Discuss with user: Server lifecycle QoL improvements
-  - IDEA: The server should be able to be started by an agentic coding harness (e.g. Pi coding agent, Claude Code).
-    - When started this way, the server should be able to survive the coding harness being shutdown (separate process?)
-    - If started by a coding harness, perhaps the server should shut down automatically if no agents are connected to it for a given period of time? (e.g. 1 minute)
-    - Perhaps this feature could be gated by an opt-in flag used when starting the server? e.g. `STARTED_BY_CODING_AGENT=1` or `SHUTDOWN_IF_NO_CLIENTS_CONNECTED_FOR_SECONDS=60`
+  - ~~IDEA: The server should be able to be started by an agentic coding harness (e.g. Pi coding agent, Claude Code).~~ — **Implemented.** The Claude Code listener auto-starts the server.
+  - ~~IDEA: If started by a coding harness, perhaps the server should shut down automatically if no agents are connected to it for a given period of time? (e.g. 1 minute)~~ — **Implemented.** `--idle-timeout` with default 300 seconds.
+  - ~~IDEA: Perhaps this feature could be gated by an opt-in flag used when starting the server?~~ — **Implemented.** `--idle-timeout <seconds>` (default 300) and `--idle-timeout 0` to disable.
   - How would agents behave if the server connection was lost (e.g. due to a crash)? Would they be notified? Should they attempt to reconnect? This process should be guided.
+    — Partially implemented: the Claude Code listener reconnects with bounded backoff. Pi extension and direct clients do not yet reconnect.
   - IDEA: Perhaps the server could also be started externally (e.g. by the user), and would then run persistently until stopped by the user?
+    — The server can be started manually with `uv run inter-agent-server` and runs until shutdown or idle timeout.
 
 ## Host adapters
 
 ### Claude Code adapter
 
-Claude Code support is planned as `AGENTS.PLAN.md` Extra Phase 7. Durable research notes live in `docs/CLAUDE_CODE_SUPPORT.md`. Keep new Claude Code ideas here only when they are outside that phase.
+Claude Code support is a completed host integration (Phase 7). Durable design notes live in `docs/CLAUDE_CODE_SUPPORT.md`. Keep new Claude Code ideas here only when they are outside that completed scope.
 
 ### Claude Code MCP and Channels follow-up
 
-Monitor is the primary planned Claude Code integration surface. MCP tools, MCP Channels, hooks, and Agent Teams may become useful after the Monitor-backed adapter exists.
+Monitor is the primary Claude Code integration surface (now implemented). MCP tools, MCP Channels, hooks, and Agent Teams may become useful additions.
 
 Possible follow-up work:
 
@@ -33,6 +34,16 @@ Possible follow-up work:
 ### Additional host adapters
 
 Other coding-agent hosts can be added once the adapter boundary is stable. New adapters should use core APIs and must not redefine protocol semantics.
+
+### Pi extension: direct WebSocket client
+
+The current Pi extension (`integrations/pi/`) shells out to the Python CLI (`inter-agent-pi` for commands, `inter-agent-connect` for the listener). This requires Python/venv/uv to be available on the Pi side.
+
+A future refactor could replace the Python CLI bridge with a direct TypeScript WebSocket client, adding `ws` as a runtime dependency and implementing a small client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop. The protocol is simple JSON over WebSocket and token path, identity verification, and frame parsing already exist in the Python core and could be ported.
+
+### Pi extension: project path auto-discovery
+
+The current default for finding the inter-agent project is `~/.local/share/inter-agent` (hardcoded fallback) with optional `settings.json` override. Auto-discovery could check PATH first, then walk up from `process.cwd()` looking for `.venv/bin/inter-agent-pi`.
 
 ## Protocol extensions
 

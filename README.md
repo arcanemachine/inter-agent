@@ -39,6 +39,8 @@ The project has three layers:
 └─────────────────────────────────────────────────────────┘
 ```
 
+The server can be started manually with `uv run inter-agent-server`, or it will auto-start when the Claude Code listener connects and the server is not already running (the Pi extension requires the server to be started manually). After 300 seconds with no connected sessions, the server shuts down automatically. Use `--idle-timeout <seconds>` to change the idle timeout, or `--idle-timeout 0` to disable it.
+
 ## Setup the server
 
 ```bash
@@ -52,13 +54,20 @@ Pick the extension for the tool you use:
 
 ### Pi
 
-Install the Pi extension and start the server:
+Start the server (required — the Pi extension does not auto-start it):
+
+```bash
+cd /path/to/inter-agent
+uv run inter-agent-server
+```
+
+Then install the Pi extension:
 
 ```bash
 pi install https://github.com/arcanemachine/pi-inter-agent
 ```
 
-Then in Pi:
+In Pi:
 
 ```
 /inter-agent-connect my-agent
@@ -70,13 +79,13 @@ See [`integrations/pi/README.md`](integrations/pi/README.md) for full setup, con
 
 ### Claude Code
 
-Load the plugin in a Claude Code session:
+Load the plugin in a Claude Code session. The listener auto-starts the server if it is not running:
 
 ```bash
 claude --plugin-dir ./integrations/claude-code
 ```
 
-Then in Claude Code:
+In Claude Code:
 
 ```
 /inter-agent connect my-agent
