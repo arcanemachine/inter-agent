@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-START_SCRIPT = ROOT / "start.sh"
+START_SCRIPT = ROOT / "start"
 
 
 def test_start_script_delegates_to_package_entry_points() -> None:
@@ -40,4 +40,4 @@ def test_start_script_status_smoke(tmp_path: Path) -> None:
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["state"] == "unavailable"
-    assert payload["message"] == "server identity not found"
+    assert payload["message"] == "No server is running. Start one with inter-agent-server"

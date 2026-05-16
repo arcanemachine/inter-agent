@@ -59,7 +59,7 @@ async def test_send_does_not_load_token_without_identity(
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(core_send, "load_or_create_token", fail_if_loaded)
 
-    with pytest.raises(SystemExit, match="server identity check failed"):
+    with pytest.raises(SystemExit, match="No server is running"):
         await core_send.send_direct_message(HOST, unused_tcp_port, "agent-b", "hello")
 
 
@@ -70,7 +70,7 @@ async def test_list_does_not_load_token_without_identity(
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(core_list, "load_or_create_token", fail_if_loaded)
 
-    with pytest.raises(SystemExit, match="server identity check failed"):
+    with pytest.raises(SystemExit, match="No server is running"):
         await core_list.list_sessions(HOST, unused_tcp_port)
 
 
@@ -81,7 +81,7 @@ async def test_shutdown_does_not_load_token_without_identity(
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setattr(core_shutdown, "load_or_create_token", fail_if_loaded)
 
-    with pytest.raises(SystemExit, match="server identity check failed"):
+    with pytest.raises(SystemExit, match="No server is running"):
         await core_shutdown.shutdown_server(HOST, unused_tcp_port)
 
 
@@ -93,5 +93,5 @@ async def test_connect_does_not_load_token_without_identity(
     monkeypatch.setattr(core_client, "load_or_create_token", fail_if_loaded)
 
     frames = core_client.iter_client_frames(HOST, unused_tcp_port, "agent-a")
-    with pytest.raises(SystemExit, match="server identity check failed"):
+    with pytest.raises(SystemExit, match="No server is running"):
         await anext(frames)

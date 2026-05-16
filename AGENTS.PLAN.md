@@ -103,7 +103,7 @@ Completion criteria:
 - Pi commands are covered by live-server integration tests.
 - Adapter code calls reusable core APIs rather than relying on fragile script paths.
 - Command output and failure modes are predictable for humans and host tooling.
-- User docs present Pi as the primary workflow and `start.sh` as a development helper.
+- User docs present Pi as the primary workflow and `./start` as a development helper.
 - If a live agent is needed, use the 'local-llama/default' agent when experimenting with Pi adapter support. Keep tasks tightly scoped and do not the let the agent run amok.
 
 ## Phase 4: Lifecycle and Routing UX

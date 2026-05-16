@@ -225,7 +225,7 @@ def test_pi_cli_shutdown_unavailable_identity_returns_failure(
 
     assert result.code == 1
     assert result.stdout == ""
-    assert result.stderr == "server identity check failed\n"
+    assert result.stderr == "No server is running. Start one with inter-agent-server\n"
 
 
 @pytest.mark.parametrize(
@@ -249,7 +249,7 @@ def test_pi_cli_unavailable_identity_failures_use_stderr(
 
     assert result.code == 1
     assert result.stdout == ""
-    assert result.stderr == "server identity check failed\n"
+    assert result.stderr == "No server is running. Start one with inter-agent-server\n"
 
 
 def test_pi_cli_list_connection_failure_returns_error_without_traceback(

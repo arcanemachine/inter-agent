@@ -63,6 +63,21 @@ class IdentityVerification:
     identity: ServerIdentity | None
 
 
+IDENTITY_FAILURE_MESSAGES: dict[str, str] = {
+    "missing_metadata": "No server is running. Start one with inter-agent-server",
+    "process_not_running": "Server has stopped. Start a new one with inter-agent-server",
+    "invalid_metadata": "server identity metadata is invalid",
+    "endpoint_mismatch": "server identity metadata does not match requested endpoint",
+    "pid_metadata_mismatch": "server PID metadata does not match identity",
+    "process_marker_mismatch": "server process marker does not match identity",
+}
+
+
+def identity_failure_message(reason: str) -> str:
+    """Return a user-facing message for an identity verification failure reason."""
+    return IDENTITY_FAILURE_MESSAGES.get(reason, "server identity check failed")
+
+
 class ServerAlreadyRunningError(RuntimeError):
     """Raised when lifecycle metadata points at a live server."""
 

@@ -14,8 +14,9 @@ import websockets
 from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
+    identity_failure_message,
     load_or_create_token,
-    verify_server_identity,
+    verify_server_identity_details,
 )
 
 
@@ -52,8 +53,9 @@ async def iter_client_frames(
     The first yielded frame is the server welcome response. Subsequent frames are
     peer messages or protocol responses received for the connected session.
     """
-    if not verify_server_identity(host, port):
-        raise SystemExit("server identity check failed")
+    verification = verify_server_identity_details(host, port)
+    if not verification.ok:
+        raise SystemExit(identity_failure_message(verification.reason))
     token = load_or_create_token()
     session_id = os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4()))
     async with websockets.connect(f"ws://{host}:{port}") as ws:

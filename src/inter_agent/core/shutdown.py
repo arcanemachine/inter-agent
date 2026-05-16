@@ -13,8 +13,9 @@ from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     control_hello,
+    identity_failure_message,
     load_or_create_token,
-    verify_server_identity,
+    verify_server_identity_details,
 )
 
 
@@ -41,8 +42,9 @@ def _json_object(raw: str) -> dict[str, object]:
 
 async def shutdown_server(host: str, port: int) -> ShutdownResult:
     """Request authenticated shutdown through a control connection."""
-    if not verify_server_identity(host, port):
-        raise SystemExit("server identity check failed")
+    verification = verify_server_identity_details(host, port)
+    if not verification.ok:
+        raise SystemExit(identity_failure_message(verification.reason))
     token = load_or_create_token()
     async with websockets.connect(f"ws://{host}:{port}") as ws:
         await ws.send(json.dumps(control_hello(token, f"shutdown-{uuid.uuid4()}")))

@@ -59,4 +59,4 @@ Command output is JSON-oriented. Stdout is reserved for protocol or status paylo
 
 ## Development helper
 
-`start.sh` is a local development/demo helper that delegates to the package entry points.
+`./start` is a local development/demo helper that delegates to the package entry points.

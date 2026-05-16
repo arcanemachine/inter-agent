@@ -11,6 +11,7 @@ from websockets.exceptions import WebSocketException
 
 from inter_agent.core.shared import (
     control_hello,
+    identity_failure_message,
     load_or_create_token,
     verify_server_identity_details,
 )
@@ -72,38 +73,18 @@ def _identity_failure(host: str, port: int) -> ServerStatus | None:
     if verification.ok:
         return None
 
-    if verification.reason == "missing_metadata":
-        return _status(
-            "unavailable",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server identity not found",
-        )
-    if verification.reason == "process_not_running":
-        return _status(
-            "unavailable",
-            host,
-            port,
-            identity_verified=False,
-            reachable=False,
-            message="server process is not running",
-        )
-
-    messages = {
-        "invalid_metadata": "server identity metadata is invalid",
-        "endpoint_mismatch": "server identity metadata does not match requested endpoint",
-        "pid_metadata_mismatch": "server PID metadata does not match identity",
-        "process_marker_mismatch": "server process marker does not match identity",
-    }
+    state: StatusState = (
+        "unavailable"
+        if verification.reason in ("missing_metadata", "process_not_running")
+        else "identity_check_failed"
+    )
     return _status(
-        "identity_check_failed",
+        state,
         host,
         port,
         identity_verified=False,
         reachable=False,
-        message=messages.get(verification.reason, "server identity check failed"),
+        message=identity_failure_message(verification.reason),
     )
 
 

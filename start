@@ -4,13 +4,30 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: ./start.sh <server|connect|send|broadcast|list|status|shutdown> [args...]"
-  exit 2
-fi
+show_help() {
+  cat <<'EOF'
+Usage: ./start <command> [args...]
 
-CMD="$1"
-shift
+Commands:
+  server      Start the inter-agent server (default when no command given)
+  connect     Connect an agent session to the bus
+  send        Send a direct message
+  broadcast   Broadcast a message to all sessions
+  list        List connected sessions
+  status      Show server status
+  shutdown    Shut down the server
+EOF
+}
+
+case "${1:-}" in
+  -h|--help)
+    show_help
+    exit 0
+    ;;
+esac
+
+CMD="${1:-server}"
+[[ -n "$1" ]] && shift
 
 case "$CMD" in
   server)

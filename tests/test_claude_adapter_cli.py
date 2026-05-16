@@ -45,7 +45,7 @@ def test_status_outputs_json(
         "port": 9473,
         "server_reachable": False,
         "identity_verified": False,
-        "message": "server identity not found",
+        "message": "No server is running. Start one with inter-agent-server",
         "core_list_supported": True,
         "adapter_list_exposed": True,
     }
