@@ -2,6 +2,19 @@
 
 Extra Phase: 8 — OpenCode Support
 
+## Worker quick start
+
+1. Read this file first, then execute plan files `01` through `07` in order.
+
+2. Complete the required spikes before full implementation.
+
+3. Keep the architecture split:
+   - TUI plugin: listener, commands, notifications, state, inbox.
+   - Server plugin: LLM tools.
+   - Shared TypeScript client: inter-agent WebSocket protocol.
+
+4. Ask the user before changing architecture or changing the core protocol.
+
 ## Purpose
 
 This is the worker-facing guide for executing the OpenCode support plan.
