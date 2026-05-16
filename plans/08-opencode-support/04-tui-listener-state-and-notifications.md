@@ -37,40 +37,50 @@ Implement the OpenCode TUI plugin behavior that keeps a session connected to the
    - Stop on permanent protocol errors.
    - Stop immediately when `api.lifecycle.signal` is aborted.
 
-4. Persist connection state with OpenCode KV.
+4. Persist connection state with OpenCode KV or a plugin-owned state file.
    - Store configured host, port, name, label, connected flag, and last successful connection timestamp.
+   - Use namespaced keys such as `inter-agent:*`.
+   - Verify whether OpenCode KV is global, workspace-scoped, project-scoped, or session-scoped before relying on it for active listener state.
+   - If concurrent OpenCode sessions would collide in KV, use a generated session ID or plugin-owned state file for per-session listener state.
    - Do not store the shared token in OpenCode KV.
    - Keep inbox metadata small and bounded.
    - Recover defensively from malformed or stale KV entries.
 
-5. Add a recent-message inbox.
+5. Add duplicate listener protection.
+   - Prevent duplicate listeners inside one TUI plugin instance with a process-local controller.
+   - Handle cross-process duplicates through server `NAME_TAKEN` errors at minimum.
+   - Add a lock file only if OpenCode state scoping is insufficient or duplicate listener behavior is confusing in practice.
+   - Make duplicate-name errors actionable: tell the user whether to disconnect, choose another name, or clean stale state.
+
+6. Add a recent-message inbox.
    - Store recent inbound message metadata and full text up to a bounded count.
    - Include message ID, sender, direct/broadcast kind, target, timestamp, truncation status, and text.
    - Expose an inbox command for users to inspect recent messages.
    - Use the inbox as the continuation path when notifications are truncated.
 
-6. Surface incoming messages.
+7. Surface incoming messages.
    - Use `api.attention.notify()` for attention/desktop notification behavior.
    - Use `api.ui.toast()` for in-app visibility.
    - Truncate notification/toast bodies to a safe configured length.
    - Include sender and direct/broadcast metadata in the title.
    - Store full text in the inbox when truncated.
+   - Document whether this delivery is human-visible only or also model-visible.
 
-7. Add status display if OpenCode exposes a stable slot/status mechanism.
+8. Add status display if OpenCode exposes a stable slot/status mechanism.
    - Prefer a lightweight status-bar/sidebar slot if available and stable.
    - If status slots are too invasive, provide `/inter-agent-status` and toasts instead.
    - Do not block core listener work on status display polish.
 
-8. Avoid automatic prompt mutation in the first implementation.
+9. Avoid automatic prompt mutation in the first implementation.
    - OpenCode supports prompt append indirectly, but the TUI plugin API does not expose a simple `api.prompt.append()` method.
-   - Do not auto-submit prompts in response to peer messages.
+   - Do not auto-submit prompts in response to peer messages unless a safe, explicit OpenCode API is proven.
    - Consider a later explicit command such as `/inter-agent-reply` or `/inter-agent-use-last` if prompt insertion is accepted.
 
-9. Echo outgoing messages locally.
+10. Echo outgoing messages locally.
    - When a TUI command sends or broadcasts, add a non-triggering local toast or inbox entry so the user can see what was sent.
    - Keep outgoing echoes visually distinct from incoming messages.
 
-10. Clean up on plugin disposal.
+11. Clean up on plugin disposal.
    - Abort reconnect loops.
    - Close WebSocket connections.
    - Unregister commands and event handlers through OpenCode-provided disposers.

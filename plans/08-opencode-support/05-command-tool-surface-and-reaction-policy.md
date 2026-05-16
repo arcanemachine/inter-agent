@@ -47,11 +47,13 @@ Target tools from the server plugin:
 | `inter_agent_list` | none | List connected sessions. |
 | `inter_agent_status` | none | Report bus and listener state where available. |
 
-Optional later:
+Strongly recommended after the server-tool state spike:
 
 | Tool | Parameters | Purpose |
 |---|---|---|
 | `inter_agent_inbox` | optional count | Read recent inbound messages. |
+
+This tool may be the safest first model-visible path for incoming messages if OpenCode notifications/toasts are human-visible but not model-visible.
 
 Implementation notes:
 
@@ -96,13 +98,16 @@ The plugin and docs should state:
 8. Add local outgoing echo behavior for commands and tools when the TUI plugin can observe it.
 9. Add inbox access command.
 10. Add reaction policy documentation to the OpenCode README.
-11. Investigate whether OpenCode's chat/system transform hooks can add a short dynamic instruction when connected.
-12. Only add dynamic prompt/system injection if the API is stable and covered by tests or manual validation.
+11. Investigate whether OpenCode notifications/toasts are visible only to the human or can also influence model context. Document the answer.
+12. Implement `inter_agent_inbox` or another model-visible pending-message path if notifications/toasts are human-visible only.
+13. Investigate whether OpenCode's chat/system transform hooks can add a short dynamic instruction when connected.
+14. Only add dynamic prompt/system injection if the API is stable and covered by tests or manual validation.
 
 ## Acceptance criteria
 
 - OpenCode users can connect, disconnect, send, broadcast, list, check status, inspect inbox, and shut down through documented commands.
 - OpenCode agents can call inter-agent send, broadcast, list, and status tools.
+- If incoming notifications/toasts are human-visible only, OpenCode agents have a documented model-visible way to inspect pending inbound messages, such as `inter_agent_inbox`.
 - Sends and broadcasts preserve the active OpenCode sender name through `from_name`.
 - Command and tool failures are predictable and human-readable.
 - The reaction policy is documented and does not grant peer messages elevated authority.

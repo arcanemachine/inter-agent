@@ -75,7 +75,8 @@ Run these before marking OpenCode support complete:
 17. Reload or restart OpenCode and confirm persisted state behaves as designed.
 18. Ask the OpenCode agent to use `inter_agent_send` and confirm tool execution.
 19. Ask the OpenCode agent to use `inter_agent_list` and confirm structured output.
-20. Confirm peer messages do not bypass OpenCode permissions or policy.
+20. Confirm the documented model-visible path for inbound messages works, such as `inter_agent_inbox` or an accepted context-injection mechanism.
+21. Confirm peer messages do not bypass OpenCode permissions or policy.
 
 ## Work
 

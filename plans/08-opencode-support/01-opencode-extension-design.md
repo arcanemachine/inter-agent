@@ -48,34 +48,40 @@ Key OpenCode reference files from the local clone:
 
 ## Design decisions to confirm before implementation
 
-1. **Package shape**
+1. **Server lifecycle**
+   - First release should assume the inter-agent server is already running, matching the current README setup model, unless an explicit auto-start design is accepted.
+   - `status` should clearly report a missing or unreachable server.
+   - `connect` may provide setup guidance when the server is absent.
+   - Auto-start is optional future work because it reintroduces host-specific subprocess and Python/`uv` concerns.
+
+2. **Package shape**
    - One npm package in `integrations/opencode/`.
    - Separate exports for `./tui` and `./server`.
    - Shared implementation modules imported by both entry points.
 
-2. **Protocol strategy**
+3. **Protocol strategy**
    - Implement a direct TypeScript client for the inter-agent WebSocket protocol.
    - Port only the client-side pieces needed by OpenCode: token loading, server identity verification, hello handshake, control operations, listener loop, error handling, and message formatting.
    - Keep subprocess CLI fallback out of the first implementation unless a spike proves direct WebSocket is not viable.
 
-3. **Session identity**
+4. **Session identity**
    - Default name should be explicit and user-controllable.
    - Persist active connection state with OpenCode TUI KV.
    - Use the active listener name as `from_name` for outgoing tool and command messages.
    - Reject invalid names using the same name rules as the core server.
 
-4. **Inbound delivery**
+5. **Inbound delivery**
    - The TUI plugin owns the persistent listener.
    - Incoming messages produce bounded OpenCode attention notifications and toasts.
    - Full message content is stored in a plugin inbox when notification text is truncated.
    - Incoming messages do not override system, developer, user, tool, permission, or OpenCode safety rules.
 
-5. **Command and tool model**
+6. **Command and tool model**
    - TUI commands provide human-facing slash and palette actions.
    - Server plugin tools provide LLM-callable operations.
    - Tool calls use short-lived control connections unless a safe shared-connection bridge is designed and tested.
 
-6. **Security model**
+7. **Security model**
    - Stay within inter-agent's local, same-user, localhost threat model.
    - Verify server identity before sending the shared token.
    - Read tokens and state from the configured inter-agent data directory.

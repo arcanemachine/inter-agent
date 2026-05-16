@@ -55,6 +55,33 @@ The spike should prove the smallest useful path:
 
 If this spike fails, stop and report before implementing the rest of the OpenCode package. Do not silently fall back to a Python CLI bridge without an accepted design change.
 
+## Second required spike: server tools and shared state
+
+Before implementing the full LLM tool surface, prove that the OpenCode server plugin target can perform the required control operations and can determine the active OpenCode sender identity.
+
+The spike should prove:
+
+1. The `./server` plugin target loads separately from `./tui`.
+2. A server plugin tool can open a short-lived WebSocket control connection or can call a shared helper that does so.
+3. The server plugin can read the active connection identity written by the TUI plugin, or a documented fallback identity config exists.
+4. A tool send uses `from_name` and the recipient sees the OpenCode agent name, not `control`.
+5. If shared state is not available, tools fail clearly instead of sending as `control`.
+
+If this spike fails, stop before implementing the rest of the tool surface. The most likely acceptable fallback is TUI commands first plus documented tool deferral, but that requires user acceptance.
+
+## Agent-visible incoming message checkpoint
+
+OpenCode notifications and toasts make incoming messages visible to the human user. They may not automatically make those messages visible to the model.
+
+Before claiming Pi-like behavior, determine and document the best available model-visible path:
+
+1. Pending-message context injection through OpenCode server hooks or chat/system transforms.
+2. An `inter_agent_inbox` tool the model can call to inspect recent inbound messages.
+3. A TUI command that appends a selected inbox message to the prompt without auto-submitting.
+4. No model-visible path beyond user-visible notifications, if OpenCode does not expose a safe API.
+
+The first release may use notifications, toasts, and inbox entries without automatic prompt mutation, but the docs must state exactly what the agent can and cannot see without user action.
+
 ## Expected architecture
 
 Use this architecture unless a plan update is accepted:
@@ -149,6 +176,8 @@ Do not silently skip identity verification before sending the token.
 
 Expected path: store active connection identity in a shared OpenCode/plugin-accessible state location so server tools can send with `from_name`.
 
+Use namespaced keys such as `inter-agent:*` and avoid assuming OpenCode KV is session-local unless verified. If OpenCode exposes a stable session, workspace, or project identifier, include it in the state key. If it does not, prefer an explicit configured connection profile over a global unqualified `active` key.
+
 Possible backup designs, in preferred order:
 
 1. Persist active identity in OpenCode KV or another state file readable by both plugin targets.
@@ -167,6 +196,19 @@ Possible backup designs:
 3. Fall back to manual inbox polling only as a reduced, user-approved milestone.
 
 This is a high-severity issue because live receiving is part of the Phase 8 completion criteria.
+
+### If multiple OpenCode sessions collide
+
+Expected path: each OpenCode session can connect with its own name and listener without corrupting another session's state.
+
+Possible backup designs:
+
+1. Use a lock file keyed by OpenCode session/workspace identity plus inter-agent name.
+2. Use a process-local listener controller plus server-side `NAME_TAKEN` handling for cross-process duplicates.
+3. Require explicit unique names for concurrent OpenCode sessions.
+4. If OpenCode KV is global, keep per-session state in plugin-owned files keyed by a generated session ID rather than one global KV entry.
+
+Do not use one global unqualified state key for listener state if concurrent OpenCode windows or projects are supported.
 
 ### If separate `./tui` and `./server` package targets fail
 

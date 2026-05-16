@@ -37,7 +37,9 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Notification length.
    - Inbox length.
    - Auto-connect setting.
-   - Troubleshooting for token, identity metadata, server not running, duplicate names, and plugin load errors.
+   - Server lifecycle policy: whether the server must already be running or whether an accepted auto-start path exists.
+   - Whether inbound messages are human-visible only or also model-visible, and how the model can inspect pending messages.
+   - Troubleshooting for token, identity metadata, server not running, duplicate names, state collisions, and plugin load errors.
 
 4. Update root `README.md`.
    - List OpenCode as a supported or planned integration according to implementation status.
