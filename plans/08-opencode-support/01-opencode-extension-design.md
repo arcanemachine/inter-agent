@@ -6,6 +6,8 @@ Extra Phase: 8 — OpenCode Support
 
 Design OpenCode support as a first-class host-native extension before writing implementation code.
 
+Read `plans/08-opencode-support/00-execution-guide.md` before executing this plan item. Follow the execution guide's order, spike requirement, and stop conditions.
+
 The OpenCode integration should follow the successful Pi extension UX where OpenCode supports it: host-native commands, LLM-callable tools, a persistent listener, visible notifications, state persistence, and safe handling of incoming peer messages.
 
 ## Research basis

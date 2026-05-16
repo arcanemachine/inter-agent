@@ -31,6 +31,21 @@ Optional later:
 - `custom` for host-specific payloads.
 - `ping`/`pong` only if the current protocol or server behavior requires it.
 
+## Required spike before full implementation
+
+Before building the full client, prove direct WebSocket access from the OpenCode plugin runtime as described in `plans/08-opencode-support/00-execution-guide.md`.
+
+Minimum proof:
+
+1. Load a local OpenCode TUI plugin.
+2. Open a WebSocket from that plugin.
+3. Read the inter-agent token and server metadata from the configured data directory.
+4. Send a valid `hello` envelope to a live inter-agent server.
+5. Receive a `welcome` frame.
+6. Receive one `msg` frame if practical.
+
+If this proof fails, stop and report. Do not continue with a Python CLI bridge unless the design is explicitly updated and accepted.
+
 ## Work
 
 1. Read the canonical protocol references before implementation.

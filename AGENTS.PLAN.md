@@ -198,13 +198,14 @@ Goal: add OpenCode as a supported host-native integration using OpenCode's plugi
 
 Plan items:
 
-1. `plans/08-opencode-support/01-opencode-extension-design.md`
-2. `plans/08-opencode-support/02-package-scaffold-and-installation.md`
-3. `plans/08-opencode-support/03-direct-protocol-client.md`
-4. `plans/08-opencode-support/04-tui-listener-state-and-notifications.md`
-5. `plans/08-opencode-support/05-command-tool-surface-and-reaction-policy.md`
-6. `plans/08-opencode-support/06-live-tests-and-fixtures.md`
-7. `plans/08-opencode-support/07-packaging-docs-and-quality-gate.md`
+1. `plans/08-opencode-support/00-execution-guide.md`
+2. `plans/08-opencode-support/01-opencode-extension-design.md`
+3. `plans/08-opencode-support/02-package-scaffold-and-installation.md`
+4. `plans/08-opencode-support/03-direct-protocol-client.md`
+5. `plans/08-opencode-support/04-tui-listener-state-and-notifications.md`
+6. `plans/08-opencode-support/05-command-tool-surface-and-reaction-policy.md`
+7. `plans/08-opencode-support/06-live-tests-and-fixtures.md`
+8. `plans/08-opencode-support/07-packaging-docs-and-quality-gate.md`
 
 Completion criteria:
 
