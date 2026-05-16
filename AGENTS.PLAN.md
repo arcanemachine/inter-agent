@@ -163,6 +163,8 @@ Completion criteria:
 
 Extra notes:
 
+- Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
+
 ## Completion standard
 
 A phase is complete when its plan items meet their acceptance criteria and the repository checks pass:

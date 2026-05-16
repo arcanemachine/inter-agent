@@ -4,14 +4,12 @@ This file holds promising work that is not required for project completion as de
 
 ## Misc. improvements
 
-- Discuss with user: Server lifecycle QoL improvements
-  - ~~IDEA: The server should be able to be started by an agentic coding harness (e.g. Pi coding agent, Claude Code).~~ — **Implemented.** The Claude Code listener auto-starts the server.
-  - ~~IDEA: If started by a coding harness, perhaps the server should shut down automatically if no agents are connected to it for a given period of time? (e.g. 1 minute)~~ — **Implemented.** `--idle-timeout` with default 300 seconds.
-  - ~~IDEA: Perhaps this feature could be gated by an opt-in flag used when starting the server?~~ — **Implemented.** `--idle-timeout <seconds>` (default 300) and `--idle-timeout 0` to disable.
+- Server lifecycle QoL improvements
+  - The server can be started manually with `uv run inter-agent-server` and runs until shutdown or idle timeout.
+  - The Claude Code listener auto-starts the server when connecting.
+  - The server shuts down automatically after 300 seconds with no connected sessions (`--idle-timeout`).
   - How would agents behave if the server connection was lost (e.g. due to a crash)? Would they be notified? Should they attempt to reconnect? This process should be guided.
     — Partially implemented: the Claude Code listener reconnects with bounded backoff. Pi extension and direct clients do not yet reconnect.
-  - IDEA: Perhaps the server could also be started externally (e.g. by the user), and would then run persistently until stopped by the user?
-    — The server can be started manually with `uv run inter-agent-server` and runs until shutdown or idle timeout.
 
 ## Host adapters
 
@@ -35,29 +33,27 @@ Possible follow-up work:
 
 Other coding-agent hosts can be added once the adapter boundary is stable. New adapters should use core APIs and must not redefine protocol semantics.
 
-### Pi extension: direct WebSocket client
+### Pi extension:
+
+#### Direct WebSocket client
 
 The current Pi extension (`integrations/pi/`) shells out to the Python CLI (`inter-agent-pi` for commands, `inter-agent-connect` for the listener). This requires Python/venv/uv to be available on the Pi side.
 
 A future refactor could replace the Python CLI bridge with a direct TypeScript WebSocket client, adding `ws` as a runtime dependency and implementing a small client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop. The protocol is simple JSON over WebSocket and token path, identity verification, and frame parsing already exist in the Python core and could be ported.
 
-### Pi extension: auto-start server
+#### Auto-start server
 
 The Claude Code listener auto-starts the inter-agent server when it connects and the server is not running. The Pi extension currently requires the server to be started manually. Adding auto-start to the Pi extension would make setup simpler for Pi users.
 
-### Pi extension: project path auto-discovery
+#### Project path auto-discovery
 
 The current default for finding the inter-agent project is `~/.local/share/inter-agent` (hardcoded fallback) with optional `settings.json` override. Auto-discovery could check PATH first, then walk up from `process.cwd()` looking for `.venv/bin/inter-agent-pi`.
 
-### Pi extension: quality gate and testing
+#### Quality gate and testing
 
 - `run-checks.sh` currently only runs Python checks. Decision needed: should it also validate the Pi extension TypeScript?
 - The existing inter-agent test suite is entirely Python. Decision needed: what level of testing is acceptable for the TypeScript extension — structural Python tests, a smoke test, or manual validation only?
 - Full interactive testing inside Pi (running the full set of commands in a live session) has not been done.
-
-### Codex integration
-
-Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
 
 ## Protocol extensions
 
