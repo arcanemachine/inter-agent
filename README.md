@@ -144,7 +144,6 @@ inter-agent/
 | [`AGENTS.md`](AGENTS.md)                                                                 | Contributors        | Development workflow and conventions |
 | [`SECURITY.md`](SECURITY.md)                                                             | Contributors        | Security model and token rotation    |
 | [`ERROR_CODES.md`](ERROR_CODES.md)                                                       | Protocol developers | Canonical error codes                |
-| [`CHANGELOG.md`](CHANGELOG.md)                                                           | Users               | Release history                      |
 
 ## Development
 
@@ -163,7 +162,7 @@ uv run black --check .
 uv run mypy src tests
 ```
 
-The package version lives in `pyproject.toml`. Release preparation updates that version and `CHANGELOG.md` together.
+The package version lives in `pyproject.toml`.
 
 Build and validate release artifacts:
 

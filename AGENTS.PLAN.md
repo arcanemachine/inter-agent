@@ -1,14 +1,8 @@
 # ⚠️ AGENT CONCERNS — READ FIRST
 
-> **These concerns were raised during Phase 6a development.** Resolved concerns are marked accordingly.
+> **These concerns were raised during Phase 6a development.** Resolved concerns have been removed; follow-ups are tracked in `IDEAS.md`.
 
 ## Phase 6a: Pi Extension — Concerns
-
-### Resolved concerns
-
-1. ~~**Documentation polish**~~ — **Resolved.** The Pi extension README includes installation, commands, tools, configuration, and user acceptance test instructions. `settings.json` configuration is supported with project-level and global-level override for `interAgent.projectPath`.
-
-### Open concerns
 
 1. **TypeScript quality gate coverage**
    - `run-checks.sh` currently only runs Python checks.
@@ -23,10 +17,6 @@
 3. **Full interactive testing inside Pi**
    - The extension loads without errors and listener spawn and message delivery have been verified at the Node.js spawn level.
    - **Not yet done:** running the full set of commands (`/inter-agent-connect`, `/inter-agent-send`, etc.) inside an interactive Pi session.
-
-4. ~~**Eliminate the Python CLI bridge in the Pi extension**~~ — See IDEAS.md. Tracked as a follow-up refactor. The current Python CLI bridge approach is acceptable for Phase 6a completion.
-
-5. ~~**Project path auto-discovery**~~ — See IDEAS.md. Tracked as a follow-up. The current hardcoded fallback plus `settings.json` configuration is sufficient for Phase 6a.
 
 ---
 
