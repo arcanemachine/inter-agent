@@ -4,7 +4,7 @@ A lightweight messaging bus that allows AI coding harness sessions to talk to ea
 
 This tool can allow your Claude Code or Pi sessions to talk to each other, or even allow communication between different harnesses (e.g. Pi <-> Claude Code).
 
-This tool provides a platform that can be extended to work with other coding harnesses (e.g. OpenCode, Codex). The Claude Code and Pi extensions are intended to serve as reference clients.
+This tool provides a platform that can be extended to work with other coding harnesses. OpenCode is the next planned host-native extension target. A Codex extension is not planned because Codex's no-fork extension system does not expose the background message delivery and control surface needed for an inter-agent extension; any future Codex work should be treated as an App Server sidecar, not a Codex extension.
 
 ## What it does
 

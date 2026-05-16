@@ -192,6 +192,34 @@ Extra notes:
 
 - A local instance of Claude Code is available (`claude`) to ensure that the plugin works as expected.
 
+## Phase 8: OpenCode Support
+
+Goal: add OpenCode as a supported host-native integration using OpenCode's plugin system and the inter-agent WebSocket protocol directly.
+
+Plan items:
+
+1. `plans/08-opencode-support/01-opencode-extension-design.md`
+2. `plans/08-opencode-support/02-package-scaffold-and-installation.md`
+3. `plans/08-opencode-support/03-direct-protocol-client.md`
+4. `plans/08-opencode-support/04-tui-listener-state-and-notifications.md`
+5. `plans/08-opencode-support/05-command-tool-surface-and-reaction-policy.md`
+6. `plans/08-opencode-support/06-live-tests-and-fixtures.md`
+7. `plans/08-opencode-support/07-packaging-docs-and-quality-gate.md`
+
+Completion criteria:
+
+- OpenCode sessions can join the inter-agent bus through a TUI-plugin-owned listener.
+- OpenCode users can connect, disconnect, send, broadcast, list, check status, inspect recent inbound messages, and shut down through documented commands.
+- OpenCode agents can use documented LLM-callable tools for send, broadcast, list, and status.
+- Incoming bus messages are delivered as bounded OpenCode notifications/toasts with an inbox-based continuation path for long messages.
+- The OpenCode package uses separate `./tui` and `./server` plugin exports and does not require a forked OpenCode.
+- The OpenCode integration speaks the inter-agent WebSocket protocol directly unless a later accepted design changes this.
+- OpenCode support passes the project-local quality gate once its package checks are stable.
+
+Extra notes:
+
+- Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
+
 ## Completion standard
 
 A phase is complete when its plan items meet their acceptance criteria and the repository checks pass:
