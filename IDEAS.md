@@ -41,9 +41,23 @@ The current Pi extension (`integrations/pi/`) shells out to the Python CLI (`int
 
 A future refactor could replace the Python CLI bridge with a direct TypeScript WebSocket client, adding `ws` as a runtime dependency and implementing a small client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop. The protocol is simple JSON over WebSocket and token path, identity verification, and frame parsing already exist in the Python core and could be ported.
 
+### Pi extension: auto-start server
+
+The Claude Code listener auto-starts the inter-agent server when it connects and the server is not running. The Pi extension currently requires the server to be started manually. Adding auto-start to the Pi extension would make setup simpler for Pi users.
+
 ### Pi extension: project path auto-discovery
 
 The current default for finding the inter-agent project is `~/.local/share/inter-agent` (hardcoded fallback) with optional `settings.json` override. Auto-discovery could check PATH first, then walk up from `process.cwd()` looking for `.venv/bin/inter-agent-pi`.
+
+### Pi extension: quality gate and testing
+
+- `run-checks.sh` currently only runs Python checks. Decision needed: should it also validate the Pi extension TypeScript?
+- The existing inter-agent test suite is entirely Python. Decision needed: what level of testing is acceptable for the TypeScript extension — structural Python tests, a smoke test, or manual validation only?
+- Full interactive testing inside Pi (running the full set of commands in a live session) has not been done.
+
+### Codex integration
+
+Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
 
 ## Protocol extensions
 

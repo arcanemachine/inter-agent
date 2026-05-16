@@ -1,25 +1,3 @@
-# ⚠️ AGENT CONCERNS — READ FIRST
-
-> **These concerns were raised during Phase 6a development.** Resolved concerns have been removed; follow-ups are tracked in `IDEAS.md`.
-
-## Phase 6a: Pi Extension — Concerns
-
-1. **TypeScript quality gate coverage**
-   - `run-checks.sh` currently only runs Python checks.
-   - The Pi extension has its own `npm run typecheck` but this is not wired into the inter-agent project's quality gate.
-   - **Decision needed:** should `run-checks.sh` validate the extension too?
-
-2. **Testing strategy for the TypeScript extension**
-   - The existing inter-agent test suite is entirely Python.
-   - Live Pi extension tests require a running `pi` process.
-   - **Decision needed:** what level of testing is acceptable — structural Python tests, a smoke test, or manual validation only.
-
-3. **Full interactive testing inside Pi**
-   - The extension loads without errors and listener spawn and message delivery have been verified at the Node.js spawn level.
-   - **Not yet done:** running the full set of commands (`/inter-agent-connect`, `/inter-agent-send`, etc.) inside an interactive Pi session.
-
----
-
 # Roadmap
 
 `inter-agent` is complete when it provides a stable localhost message bus for coding agents, a reliable Pi adapter, reproducible packaging and checks, documented protocol semantics, and operational safeguards that match the security model.
@@ -136,7 +114,6 @@ Completion criteria:
 Extra notes:
 
 - A local instance of Pi coding agent is available (`claude`) to ensure that the plugin works as expected.
-- The Pi extension currently shells out to the Python CLI (`inter-agent-pi`, `inter-agent-connect`) for commands and the listener. A future refactor may replace this with a direct TypeScript WebSocket client (tracked in IDEAS.md).
 
 ## Phase 7: Claude Code Support
 
@@ -185,8 +162,6 @@ Completion criteria:
 - OpenCode support passes the project-local quality gate once its package checks are stable.
 
 Extra notes:
-
-- Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
 
 ## Completion standard
 
