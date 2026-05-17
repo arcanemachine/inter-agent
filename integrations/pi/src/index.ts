@@ -591,16 +591,34 @@ function startListener(
 
   proc.on("exit", (code) => {
     if (listenerProc === proc) {
+      const state = getConnectionState(ctx);
+      const previousName = currentConnection?.name || state?.name || name;
+      const wasConnected =
+        listenerReady ||
+        currentConnection !== null ||
+        state?.connected === true;
       listenerProc = null;
       listenerReady = false;
       currentConnection = null;
-      const state = getConnectionState(ctx);
       if (state) {
         persistState(pi, { ...state, connected: false });
         updateStatus(ctx, { ...state, connected: false });
       }
       if (code !== 0 && code !== null) {
-        notify("[inter-agent] listener exited", `code ${code}`, "warning");
+        const reconnectHint = wasConnected
+          ? `. Use /inter-agent-connect ${previousName} to reconnect.`
+          : "";
+        notify(
+          "[inter-agent] listener exited",
+          `code ${code}${reconnectHint}`,
+          "warning",
+        );
+      } else if (wasConnected) {
+        notify(
+          "[inter-agent] disconnected",
+          `server connection closed. Use '/inter-agent-connect ${previousName}' to reconnect.`,
+          "warning",
+        );
       }
     }
   });
@@ -639,7 +657,7 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 
 // ── Extension Export ────────────────────────────────────────────────────────
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   const config = loadConfig();
   const scripts = getScripts(config);
 
@@ -936,14 +954,14 @@ export default function (pi: ExtensionAPI) {
       const label = connected ? currentConnection.label : null;
       const lines = connected
         ? [
-            "Connected: true",
-            `Name: ${name}`,
-            ...(label ? [`Label: ${label}`] : []),
-          ]
+          "Connected: true",
+          `Name: ${name}`,
+          ...(label ? [`Label: ${label}`] : []),
+        ]
         : [
-            "Connected: false",
-            ...(state?.name ? [`Last name: ${state.name}`] : []),
-          ];
+          "Connected: false",
+          ...(state?.name ? [`Last name: ${state.name}`] : []),
+        ];
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
         details: {

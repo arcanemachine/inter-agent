@@ -125,7 +125,7 @@ When you're done using the inter-agent bus, disconnect this Pi session:
 /inter-agent-disconnect
 ```
 
-This stops your listener and removes you from the bus, but leaves the server running for other agents. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
+This stops your listener and removes you from the bus, but leaves the server running for other agents. If the server connection closes unexpectedly, Pi shows a user-facing disconnected notification with the exact `/inter-agent-connect ...` command the user can run to reconnect. The agent does not reconnect itself automatically. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
 
 ## User Acceptance Test
 

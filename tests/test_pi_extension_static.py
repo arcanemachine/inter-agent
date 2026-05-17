@@ -21,3 +21,11 @@ def test_pi_extension_disconnect_does_not_shutdown_server() -> None:
 
     assert 'pi.registerCommand("inter-agent-disconnect"' in content
     assert '["shutdown"]' not in content
+
+
+def test_pi_extension_notifies_when_server_connection_closes() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'notify(\n          "[inter-agent] disconnected"' in content
+    assert "server connection closed" in content
+    assert "Use /inter-agent-connect" in content
