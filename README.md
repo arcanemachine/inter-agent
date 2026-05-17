@@ -162,7 +162,7 @@ uv run black --check .
 uv run mypy src tests
 ```
 
-The package version lives in `pyproject.toml`.
+The package version lives in `pyproject.toml`. Release notes live in `CHANGELOG.md`.
 
 Build and validate release artifacts:
 

@@ -26,8 +26,8 @@ Create a Pi coding agent extension that connects to the inter-agent message bus,
   - Notification delivery with 1000-char truncation
   - Session state persistence via `pi.appendEntry()`
   - Cleanup on `session_shutdown`
-- [x] Register commands: `/inter-agent-connect`, `/inter-agent-disconnect`, `/inter-agent-send`, `/inter-agent-broadcast`, `/inter-agent-list`, `/inter-agent-status`, `/inter-agent-shutdown`
-- [x] Register tools: `inter_agent_send`, `inter_agent_broadcast`, `inter_agent_list`, `inter_agent_status`
+- [x] Register commands: `/inter-agent-connect`, `/inter-agent-disconnect`, `/inter-agent-send`, `/inter-agent-broadcast`, `/inter-agent-list`, `/inter-agent-status`
+- [x] Register tools: `inter_agent_send`, `inter_agent_broadcast`, `inter_agent_list`, `inter_agent_whoami`, `inter_agent_status`
 
 ### Phase 3: Documentation
 - [x] Create `README.md` with installation, configuration, and usage

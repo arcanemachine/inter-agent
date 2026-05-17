@@ -3,7 +3,7 @@
  * Pi extension for connecting to the inter-agent message bus
  *
  * Provides commands and tools to send, broadcast, list sessions, check status,
- * and receive incoming messages as Pi notifications.
+ * inspect local identity, and receive incoming messages as Pi notifications.
  *
  * Installation:
  * ```bash
@@ -100,6 +100,8 @@ interface ConnectionState {
 let listenerProc: ChildProcess | null = null;
 let currentCtx: ExtensionContext | null = null;
 let messageBuffer = "";
+let listenerReady = false;
+let currentConnection: ConnectionState | null = null;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -246,6 +248,8 @@ function startListener(
 
   listenerProc = proc;
   messageBuffer = "";
+  listenerReady = false;
+  currentConnection = null;
 
   proc.stdout?.on("data", (data: Buffer) => {
     messageBuffer += data.toString();
@@ -257,12 +261,19 @@ function startListener(
       try {
         const msg = JSON.parse(line);
         if (msg.op === "welcome") {
+          const state: ConnectionState = { name, label, connected: true };
+          listenerReady = true;
+          currentConnection = state;
+          persistState(pi, state);
+          updateStatus(ctx, state);
           continue;
         }
         if (msg.op === "error") {
           const code = String(msg.code || "unknown");
           const text = String(msg.message || "connection rejected");
           notify(`[inter-agent] connect failed`, `${code}: ${text}`, "error");
+          listenerReady = false;
+          currentConnection = null;
           stopListener();
           const state = getConnectionState(ctx);
           if (state) {
@@ -297,6 +308,13 @@ function startListener(
   proc.on("exit", (code) => {
     if (listenerProc === proc) {
       listenerProc = null;
+      listenerReady = false;
+      currentConnection = null;
+      const state = getConnectionState(ctx);
+      if (state) {
+        persistState(pi, { ...state, connected: false });
+        updateStatus(ctx, { ...state, connected: false });
+      }
       if (code !== 0 && code !== null) {
         notify("[inter-agent] listener exited", `code ${code}`, "warning");
       }
@@ -315,10 +333,6 @@ function startListener(
       notify("[inter-agent] listener error", String(err), "error");
     }
   });
-
-  const state: ConnectionState = { name, label, connected: true };
-  persistState(pi, state);
-  updateStatus(ctx, state);
 }
 
 function stopListener() {
@@ -326,6 +340,8 @@ function stopListener() {
     listenerProc.kill("SIGTERM");
     listenerProc = null;
     messageBuffer = "";
+    listenerReady = false;
+    currentConnection = null;
   }
 }
 
@@ -545,28 +561,6 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerCommand("inter-agent-shutdown", {
-    description: "Shut down the inter-agent server",
-    handler: async (_args, ctx) => {
-      const result = await execScript(scripts.pi, ["shutdown"]);
-      if (result.code !== 0) {
-        notify(
-          "[inter-agent] shutdown failed",
-          truncate(result.stderr || result.stdout, 200),
-          "error",
-        );
-        return;
-      }
-      stopListener();
-      const state = getConnectionState(ctx);
-      if (state) {
-        persistState(pi, { ...state, connected: false });
-        updateStatus(ctx, { ...state, connected: false });
-      }
-      notify("[inter-agent] shutdown", "server stopped");
-    },
-  });
-
   // ── Tools ─────────────────────────────────────────────────────────────────
 
   pi.registerTool({
@@ -651,6 +645,43 @@ export default function (pi: ExtensionAPI) {
       } catch {
         throw new Error("Invalid list response");
       }
+    },
+  });
+
+  pi.registerTool({
+    name: "inter_agent_whoami",
+    label: "Inter-agent local identity",
+    description:
+      "Report this Pi session's local inter-agent connection identity",
+    parameters: Type.Object({}),
+    async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+      const state = getConnectionState(ctx);
+      const listenerRunning = listenerProc !== null;
+      const connected =
+        listenerReady && listenerRunning && currentConnection !== null;
+      const name = connected ? currentConnection.name : null;
+      const label = connected ? currentConnection.label : null;
+      const lines = connected
+        ? [
+            "Connected: true",
+            `Name: ${name}`,
+            ...(label ? [`Label: ${label}`] : []),
+          ]
+        : [
+            "Connected: false",
+            ...(state?.name ? [`Last name: ${state.name}`] : []),
+          ];
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+        details: {
+          connected,
+          name,
+          label,
+          listener_running: listenerRunning,
+          saved_name: state?.name ?? null,
+          saved_connected: state?.connected ?? false,
+        },
+      };
     },
   });
 

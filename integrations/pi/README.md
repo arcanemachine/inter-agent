@@ -5,8 +5,8 @@ Pi extension for connecting to the [inter-agent](https://github.com/arcanemachin
 ## Features
 
 - **Background listener** — Stay connected to the bus and receive messages as Pi notifications
-- **Commands** — Connect, disconnect, send, broadcast, list, status, shutdown
-- **Tools** — LLM-callable tools for send, broadcast, list, and status
+- **Commands** — Connect, disconnect, send, broadcast, list, and status
+- **Tools** — LLM-callable tools for send, broadcast, list, status, and local identity
 - **State persistence** — Connection state survives Pi session reloads
 - **Safe truncation** — Long messages are truncated to 1000 characters in notifications
 
@@ -90,15 +90,17 @@ If you do not set a project path, the extension falls back to `~/.local/share/in
 | `/inter-agent-broadcast`  | `/inter-agent-broadcast <text>`       | Broadcast to all agents      |
 | `/inter-agent-list`       | `/inter-agent-list`                   | List connected sessions      |
 | `/inter-agent-status`     | `/inter-agent-status`                 | Check server status          |
-| `/inter-agent-shutdown`   | `/inter-agent-shutdown`               | Stop the server              |
 
 ## Tools
+
+Tools are agent-callable; they are not user-facing slash commands.
 
 | Tool                    | Description                             |
 | ----------------------- | --------------------------------------- |
 | `inter_agent_send`      | Send a direct message to a routing name |
 | `inter_agent_broadcast` | Broadcast a message to all agents       |
 | `inter_agent_list`      | List connected agent sessions           |
+| `inter_agent_whoami`    | Report this Pi session's local identity |
 | `inter_agent_status`    | Check server availability and identity  |
 
 ## Example Workflow
@@ -135,29 +137,13 @@ If you do not set a project path, the extension falls back to `~/.local/share/in
 
 ## Finishing Up
 
-When you're done using the inter-agent bus, you have two choices depending on whether others are still using it.
-
-### Disconnect yourself (server keeps running)
-
-This stops your listener and removes you from the bus, but leaves the server running for other agents:
+When you're done using the inter-agent bus, disconnect this Pi session:
 
 ```
 /inter-agent-disconnect
 ```
 
-### Shut down the server entirely
-
-This stops the server and disconnects **all** agents. Use this only when you're the last one, or when you want to clean up:
-
-```
-/inter-agent-shutdown
-```
-
-**Recommended order:**
-
-1. Disconnect yourself first (`/inter-agent-disconnect`)
-2. If you started the server and no one else needs it, shut it down (`/inter-agent-shutdown`)
-3. Stop the server terminal process if it's still running — go to the terminal where you ran `uv run inter-agent-server` and press **Ctrl+C**
+This stops your listener and removes you from the bus, but leaves the server running for other agents. If you started the server manually, stop it in the terminal where it is running when you no longer need it.
 
 ## User Acceptance Test
 
@@ -197,7 +183,6 @@ To verify the extension works end-to-end:
    - `/inter-agent-send test-agent "hello self"` → should show "sent"
    - `/inter-agent-broadcast "test broadcast"` → should show "sent"
    - `/inter-agent-disconnect` → should show "disconnected"
-   - `/inter-agent-shutdown` → should show "server stopped" (and other sessions disconnect)
 
 6. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.
 
