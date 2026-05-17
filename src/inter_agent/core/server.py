@@ -25,7 +25,7 @@ from inter_agent.core.shared import (
     validate_name,
 )
 
-DEFAULT_IDLE_TIMEOUT_S = 300
+DEFAULT_IDLE_TIMEOUT_S: float | None = None
 
 
 @dataclass
@@ -69,8 +69,14 @@ class BusServer:
             self._idle_timer.cancel()
             self._idle_timer = None
 
+    def _schedule_idle_timer(self) -> None:
+        if self._idle_timeout is None or self._idle_timeout <= 0:
+            return
+        self._cancel_idle_timer()
+        self._idle_timer = asyncio.create_task(self._start_idle_timer())
+
     async def _start_idle_timer(self) -> None:
-        """Shut down after idle_timeout seconds with no connections."""
+        """Shut down after idle_timeout seconds with no connections when configured."""
         timeout = self._idle_timeout
         if timeout is None or timeout <= 0:
             return
@@ -221,7 +227,7 @@ class BusServer:
             if session_id and session_id in self.registry:
                 self.registry.pop(session_id, None)
             if not self.registry:
-                self._idle_timer = asyncio.create_task(self._start_idle_timer())
+                self._schedule_idle_timer()
 
     async def _apply_middlewares(self, sender: Conn, msg: dict[str, object]) -> None:
         for middleware in self.middlewares:
@@ -393,7 +399,10 @@ async def run_server(
         async with websockets.serve(
             server.handle, host=host, port=port, max_size=server.limits.frame_max
         ):
+            if not server.registry:
+                server._schedule_idle_timer()
             await server.shutdown_event.wait()
+            server._cancel_idle_timer()
             await server.close_connections()
     finally:
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -412,7 +421,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--idle-timeout",
         type=int,
         default=None,
-        help="shut down after N seconds with no connections (default 300, 0 to disable)",
+        help="shut down after N seconds with no connections (default: disabled; 0 disables)",
     )
     return parser
 
@@ -420,9 +429,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    idle_timeout = DEFAULT_IDLE_TIMEOUT_S if args.idle_timeout is None else args.idle_timeout
     try:
-        asyncio.run(run_server(args.host, args.port, idle_timeout_s=idle_timeout))
+        asyncio.run(run_server(args.host, args.port, idle_timeout_s=args.idle_timeout))
     except ServerAlreadyRunningError as exc:
         raise SystemExit(str(exc)) from exc
     return 0

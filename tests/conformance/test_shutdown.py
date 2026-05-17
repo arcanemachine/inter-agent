@@ -102,6 +102,41 @@ async def test_shutdown_requires_control_role(
 
 
 @pytest.mark.asyncio
+async def test_idle_timeout_shuts_down_when_no_connections_arrive(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    task = asyncio.create_task(run_server(HOST, unused_tcp_port, idle_timeout_s=0.1))
+    await wait_for_identity(unused_tcp_port)
+
+    await asyncio.wait_for(task, timeout=1.0)
+    assert not identity_path(unused_tcp_port).exists()
+    assert not pid_path(unused_tcp_port).exists()
+
+
+@pytest.mark.asyncio
+async def test_default_idle_timeout_is_disabled_after_last_disconnect(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    token = load_or_create_token()
+    task = asyncio.create_task(run_server(HOST, unused_tcp_port))
+    await wait_for_identity(unused_tcp_port)
+
+    try:
+        async with websockets.connect(f"ws://{HOST}:{unused_tcp_port}") as ws:
+            welcome = await send_json(ws, agent_hello(token, session_id="a", name="agent-a"))
+            assert welcome["op"] == "welcome"
+
+        await asyncio.sleep(0.15)
+        assert not task.done()
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+
+@pytest.mark.asyncio
 async def test_idle_timeout_shuts_down_after_last_disconnect(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
 ) -> None:

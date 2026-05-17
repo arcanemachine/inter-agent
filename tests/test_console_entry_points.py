@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import inter_agent.core.server as core_server
 from inter_agent.adapters.pi.cli import main as pi_main
 from inter_agent.core.client import main as connect_main
 from inter_agent.core.list import main as list_main
@@ -14,6 +15,44 @@ from inter_agent.core.server import main as server_main
 from inter_agent.core.shutdown import main as shutdown_main
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_server_main_default_idle_timeout_is_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, int, float | None]] = []
+
+    async def fake_run_server(
+        host: str,
+        port: int,
+        limits: object | None = None,
+        idle_timeout_s: float | None = None,
+    ) -> None:
+        calls.append((host, port, idle_timeout_s))
+
+    monkeypatch.setattr(core_server, "run_server", fake_run_server)
+
+    assert server_main([]) == 0
+    assert calls == [("127.0.0.1", 9473, None)]
+
+
+def test_server_main_passes_explicit_idle_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, int, float | None]] = []
+
+    async def fake_run_server(
+        host: str,
+        port: int,
+        limits: object | None = None,
+        idle_timeout_s: float | None = None,
+    ) -> None:
+        calls.append((host, port, idle_timeout_s))
+
+    monkeypatch.setattr(core_server, "run_server", fake_run_server)
+
+    assert server_main(["--idle-timeout", "300"]) == 0
+    assert calls == [("127.0.0.1", 9473, 300)]
 
 
 def test_project_scripts_are_declared() -> None:

@@ -81,13 +81,19 @@ function getScripts(config: InterAgentConfig) {
   return {
     pi: join(binDir, "inter-agent-pi"),
     connect: join(binDir, "inter-agent-connect"),
+    server: join(binDir, "inter-agent-server"),
   };
 }
+
+type InterAgentScripts = ReturnType<typeof getScripts>;
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const NOTIFY_MAX_LEN = 1000;
 const DEFAULT_NAME = "pi";
+const AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300;
+const SERVER_START_WAIT_ATTEMPTS = 30;
+const SERVER_START_WAIT_MS = 500;
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -95,6 +101,16 @@ interface ConnectionState {
   name: string;
   label: string | null;
   connected: boolean;
+}
+
+interface ScriptResult {
+  stdout: string;
+  stderr: string;
+  code: number | null;
+}
+
+interface ListenerOptions {
+  notifyOnReady?: boolean;
 }
 
 let listenerProc: ChildProcess | null = null;
@@ -191,10 +207,7 @@ ${text}`,
   );
 }
 
-function execScript(
-  script: string,
-  args: string[],
-): Promise<{ stdout: string; stderr: string; code: number | null }> {
+function execScript(script: string, args: string[]): Promise<ScriptResult> {
   return new Promise((resolve) => {
     const env = { ...process.env, PYTHONUNBUFFERED: "1" };
     const proc = spawn(script, args, {
@@ -216,13 +229,273 @@ function execScript(
     proc.on("error", (err) => {
       const nodeErr = err as NodeJS.ErrnoException;
       if (nodeErr.code === "ENOENT") {
-        stderr += `inter-agent not found at ${script}. Ensure the server is installed and available at the expected path. See Configuration in the README.`;
+        stderr +=
+          "inter-agent command was not found. Check that inter-agent is installed and configured, then try again.";
       } else {
         stderr += String(err);
       }
       resolve({ stdout, stderr, code: null });
     });
   });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function scriptFailureMessage(result: ScriptResult, operation: string): string {
+  const output = (result.stderr || result.stdout).trim();
+  if (result.code === null || output.includes("not found")) {
+    return `inter-agent ${operation} command was not found. Check that inter-agent is installed and configured, then try again.`;
+  }
+  return truncate(output || `inter-agent ${operation} command failed`, 200);
+}
+
+async function readServerStatus(
+  scripts: InterAgentScripts,
+): Promise<
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; message: string }
+> {
+  const result = await execScript(scripts.pi, ["status", "--json"]);
+  if (result.code !== 0) {
+    return { ok: false, message: scriptFailureMessage(result, "status") };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(result.stdout);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return { ok: true, payload: parsed as Record<string, unknown> };
+    }
+  } catch {
+    // Fall through to the user-facing error below.
+  }
+
+  return {
+    ok: false,
+    message:
+      "inter-agent status returned an invalid response. Try /inter-agent-status; if this continues, check the inter-agent installation.",
+  };
+}
+
+function statusState(payload: Record<string, unknown>): string {
+  return typeof payload.state === "string" ? payload.state : "unknown";
+}
+
+function statusMessage(payload: Record<string, unknown>): string {
+  return typeof payload.message === "string"
+    ? payload.message
+    : statusState(payload);
+}
+
+function shouldAutoStartServer(payload: Record<string, unknown>): boolean {
+  return (
+    statusState(payload) === "unavailable" && payload.identity_verified !== true
+  );
+}
+
+function statusFailureGuidance(payload: Record<string, unknown>): string {
+  const message = statusMessage(payload);
+  switch (statusState(payload)) {
+    case "identity_check_failed":
+      return `${message}. Try restarting the inter-agent server, then run /inter-agent-status if this continues.`;
+    case "auth_failed":
+      return `${message}. Try restarting the inter-agent server so clients share the same token.`;
+    case "protocol_mismatch":
+      return `${message}. Another process may be using the inter-agent port; try /inter-agent-status or restart the server.`;
+    case "unavailable":
+      return `${message}. Try /inter-agent-status, or start inter-agent-server manually.`;
+    default:
+      return message;
+  }
+}
+
+function startServerProcess(
+  scripts: InterAgentScripts,
+): Promise<{ ok: true; pid?: number } | { ok: false; message: string }> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (
+      result: { ok: true; pid?: number } | { ok: false; message: string },
+    ) => {
+      if (!settled) {
+        settled = true;
+        resolve(result);
+      }
+    };
+
+    const proc = spawn(
+      scripts.server,
+      ["--idle-timeout", String(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S)],
+      {
+        stdio: "ignore",
+        shell: false,
+        detached: true,
+        env: { ...process.env, PYTHONUNBUFFERED: "1" },
+      },
+    );
+
+    proc.once("spawn", () => {
+      proc.unref();
+      finish({ ok: true, pid: proc.pid });
+    });
+
+    proc.once("error", (err) => {
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code === "ENOENT") {
+        finish({
+          ok: false,
+          message:
+            "inter-agent server command was not found. Check that inter-agent is installed and configured, then try again.",
+        });
+      } else {
+        finish({
+          ok: false,
+          message: `could not start inter-agent server: ${String(err)}`,
+        });
+      }
+    });
+
+    proc.once("exit", (code, signal) => {
+      finish({
+        ok: false,
+        message: `inter-agent server exited before it was ready (code ${code ?? "none"}, signal ${signal ?? "none"}). Try /inter-agent-status or start inter-agent-server manually.`,
+      });
+    });
+  });
+}
+
+async function waitForServerAvailable(
+  scripts: InterAgentScripts,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  let lastMessage = "server unavailable";
+  for (let i = 0; i < SERVER_START_WAIT_ATTEMPTS; i++) {
+    const status = await readServerStatus(scripts);
+    if (status.ok === false) {
+      lastMessage = status.message;
+    } else if (statusState(status.payload) === "available") {
+      return { ok: true };
+    } else {
+      lastMessage = statusFailureGuidance(status.payload);
+    }
+    await sleep(SERVER_START_WAIT_MS);
+  }
+
+  return {
+    ok: false,
+    message: `Started the inter-agent server, but it did not become available. ${lastMessage}`,
+  };
+}
+
+async function ensureServerAvailable(
+  scripts: InterAgentScripts,
+): Promise<boolean> {
+  const initial = await readServerStatus(scripts);
+  if (initial.ok === false) {
+    notify("[inter-agent] connect failed", initial.message, "error");
+    return false;
+  }
+
+  if (statusState(initial.payload) === "available") {
+    notify("[inter-agent] server detected", "connecting now");
+    return true;
+  }
+
+  if (!shouldAutoStartServer(initial.payload)) {
+    notify(
+      "[inter-agent] connect failed",
+      statusFailureGuidance(initial.payload),
+      "error",
+    );
+    return false;
+  }
+
+  notify("[inter-agent] server not detected", "starting now");
+  const started = await startServerProcess(scripts);
+  if (started.ok === false) {
+    notify("[inter-agent] connect failed", started.message, "error");
+    return false;
+  }
+
+  const ready = await waitForServerAvailable(scripts);
+  if (ready.ok === false) {
+    notify("[inter-agent] connect failed", ready.message, "error");
+    return false;
+  }
+
+  notify("[inter-agent] server ready", "connecting now");
+  return true;
+}
+
+function splitCommandArgs(input: string): string[] {
+  const matches = input.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+/g) || [];
+  return matches.map((part) => {
+    if (
+      (part.startsWith('"') && part.endsWith('"')) ||
+      (part.startsWith("'") && part.endsWith("'"))
+    ) {
+      return part.slice(1, -1).replace(/\\(["'\\])/g, "$1");
+    }
+    return part;
+  });
+}
+
+function parseConnectArgs(
+  args: string,
+):
+  | { ok: true; name: string; label: string | null }
+  | { ok: false; message: string } {
+  const parts = splitCommandArgs(args.trim());
+  let name = DEFAULT_NAME;
+  let label: string | null = null;
+  let index = 0;
+
+  if (parts[0] && parts[0] !== "--label") {
+    name = parts[0];
+    index = 1;
+  }
+
+  while (index < parts.length) {
+    const part = parts[index];
+    if (part === "--label") {
+      const value = parts[index + 1];
+      if (!value) {
+        return {
+          ok: false,
+          message: "usage: /inter-agent-connect <name> [--label <label>]",
+        };
+      }
+      label = value;
+      index += 2;
+      continue;
+    }
+    if (label === null) {
+      label = part;
+      index += 1;
+      continue;
+    }
+    return {
+      ok: false,
+      message: "usage: /inter-agent-connect <name> [--label <label>]",
+    };
+  }
+
+  return { ok: true, name, label };
+}
+
+function formatConnectError(code: string, text: string): string {
+  switch (code) {
+    case "NAME_TAKEN":
+      return `${code}: ${text}. Choose a different name, or disconnect the existing session and try again.`;
+    case "BAD_NAME":
+      return `${code}: ${text}. Use lowercase letters, numbers, and hyphens; start with a letter or number; max 40 characters.`;
+    case "AUTH_FAILED":
+      return `${code}: ${text}. Restart the inter-agent server and reconnect clients if tokens changed.`;
+    case "TOO_MANY_CONNECTIONS":
+      return `${code}: ${text}. Disconnect another session, then try again.`;
+    default:
+      return `${code}: ${text}`;
+  }
 }
 
 // ── Listener Management ─────────────────────────────────────────────────────
@@ -233,6 +506,7 @@ function startListener(
   config: InterAgentConfig,
   name: string,
   label: string | null,
+  options: ListenerOptions = {},
 ) {
   stopListener();
 
@@ -266,12 +540,22 @@ function startListener(
           currentConnection = state;
           persistState(pi, state);
           updateStatus(ctx, state);
+          if (options.notifyOnReady) {
+            notify(
+              "[inter-agent] connected",
+              `as ${name}${label ? ` (${label})` : ""}`,
+            );
+          }
           continue;
         }
         if (msg.op === "error") {
           const code = String(msg.code || "unknown");
           const text = String(msg.message || "connection rejected");
-          notify(`[inter-agent] connect failed`, `${code}: ${text}`, "error");
+          notify(
+            `[inter-agent] connect failed`,
+            formatConnectError(code, text),
+            "error",
+          );
           listenerReady = false;
           currentConnection = null;
           stopListener();
@@ -326,7 +610,7 @@ function startListener(
     if (nodeErr.code === "ENOENT") {
       notify(
         "[inter-agent] listener error",
-        `inter-agent-connect not found at ${scripts.connect}. Ensure the server is installed and available at the expected path. See Configuration in the README.`,
+        "inter-agent connect command was not found. Check that inter-agent is installed and configured, then try again.",
         "error",
       );
     } else {
@@ -365,8 +649,16 @@ export default function (pi: ExtensionAPI) {
     currentCtx = ctx;
     const state = getConnectionState(ctx);
     if (state?.connected) {
-      startListener(pi, ctx, config, state.name, state.label);
-      notify("[inter-agent] reconnected", `as ${state.name}`);
+      const ready = await ensureServerAvailable(scripts);
+      if (!ready) {
+        persistState(pi, { ...state, connected: false });
+        updateStatus(ctx, { ...state, connected: false });
+        return;
+      }
+      startListener(pi, ctx, config, state.name, state.label, {
+        notifyOnReady: true,
+      });
+      notify("[inter-agent] reconnecting", `as ${state.name}`);
     }
   });
 
@@ -393,42 +685,21 @@ export default function (pi: ExtensionAPI) {
     description:
       "Connect to the inter-agent bus (usage: /inter-agent-connect <name> [--label <label>])",
     handler: async (args, ctx) => {
-      const parts = args.trim().split(/\s+/);
-      const name = parts[0] || DEFAULT_NAME;
-      const label = parts[1] || null;
-
-      // Check if server is running
-      const status = await execScript(scripts.pi, ["status", "--json"]);
-      if (status.code !== 0) {
-        notify("[inter-agent] connect failed", "server not reachable", "error");
+      const parsed = parseConnectArgs(args);
+      if (parsed.ok === false) {
+        notify("[inter-agent] connect failed", parsed.message, "error");
         return;
       }
 
-      let payload: Record<string, unknown> = {};
-      try {
-        payload = JSON.parse(status.stdout);
-      } catch {
-        notify(
-          "[inter-agent] connect failed",
-          "invalid status response",
-          "error",
-        );
-        return;
-      }
+      const ready = await ensureServerAvailable(scripts);
+      if (!ready) return;
 
-      if (payload.state !== "available") {
-        notify(
-          "[inter-agent] connect failed",
-          String(payload.message || "server unavailable"),
-          "error",
-        );
-        return;
-      }
-
-      startListener(pi, ctx, config, name, label);
+      startListener(pi, ctx, config, parsed.name, parsed.label, {
+        notifyOnReady: true,
+      });
       notify(
-        "[inter-agent] connected",
-        `as ${name}${label ? ` (${label})` : ""}`,
+        "[inter-agent] connecting",
+        `as ${parsed.name}${parsed.label ? ` (${parsed.label})` : ""}`,
       );
     },
   });
@@ -466,7 +737,7 @@ export default function (pi: ExtensionAPI) {
       if (result.code !== 0) {
         notify(
           "[inter-agent] send failed",
-          truncate(result.stderr || result.stdout, 200),
+          scriptFailureMessage(result, "send"),
           "error",
         );
         return;
@@ -491,7 +762,7 @@ export default function (pi: ExtensionAPI) {
       if (result.code !== 0) {
         notify(
           "[inter-agent] broadcast failed",
-          truncate(result.stderr || result.stdout, 200),
+          scriptFailureMessage(result, "broadcast"),
           "error",
         );
         return;
@@ -508,7 +779,7 @@ export default function (pi: ExtensionAPI) {
       if (result.code !== 0) {
         notify(
           "[inter-agent] list failed",
-          truncate(result.stderr || result.stdout, 200),
+          scriptFailureMessage(result, "list"),
           "error",
         );
         return;
@@ -541,7 +812,7 @@ export default function (pi: ExtensionAPI) {
       if (result.code !== 0) {
         notify(
           "[inter-agent] status failed",
-          truncate(result.stderr || result.stdout, 200),
+          scriptFailureMessage(result, "status"),
           "error",
         );
         return;
@@ -579,7 +850,7 @@ export default function (pi: ExtensionAPI) {
       const formattedText = formatOutgoing(text, name);
       const result = await execScript(scripts.pi, ["send", to, formattedText]);
       if (result.code !== 0) {
-        throw new Error(`Send failed: ${result.stderr || result.stdout}`);
+        throw new Error(`Send failed: ${scriptFailureMessage(result, "send")}`);
       }
       showOutgoingInContext(pi, name, text, `→ ${to}`);
       return {
@@ -603,7 +874,9 @@ export default function (pi: ExtensionAPI) {
       const formattedText = formatOutgoing(text, name);
       const result = await execScript(scripts.pi, ["broadcast", formattedText]);
       if (result.code !== 0) {
-        throw new Error(`Broadcast failed: ${result.stderr || result.stdout}`);
+        throw new Error(
+          `Broadcast failed: ${scriptFailureMessage(result, "broadcast")}`,
+        );
       }
       showOutgoingInContext(pi, name, text, "broadcast");
       return {
@@ -621,7 +894,7 @@ export default function (pi: ExtensionAPI) {
     async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
       const result = await execScript(scripts.pi, ["list", "--json"]);
       if (result.code !== 0) {
-        throw new Error(`List failed: ${result.stderr || result.stdout}`);
+        throw new Error(`List failed: ${scriptFailureMessage(result, "list")}`);
       }
       try {
         const payload = JSON.parse(result.stdout);
@@ -694,7 +967,7 @@ export default function (pi: ExtensionAPI) {
       const result = await execScript(scripts.pi, ["status", "--json"]);
       if (result.code !== 0) {
         throw new Error(
-          `Status check failed: ${result.stderr || result.stdout}`,
+          `Status check failed: ${scriptFailureMessage(result, "status")}`,
         );
       }
       try {

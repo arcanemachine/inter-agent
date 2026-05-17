@@ -5,9 +5,8 @@ This file holds promising work that is not required for project completion as de
 ## Misc. improvements
 
 - Server lifecycle QoL improvements
-  - The server can be started manually with `uv run inter-agent-server` and runs until shutdown or idle timeout.
-  - The Claude Code listener auto-starts the server when connecting.
-  - The server shuts down automatically after 300 seconds with no connected sessions (`--idle-timeout`).
+  - Manual server starts run until explicit shutdown by default, with `--idle-timeout <seconds>` available when an idle timeout is wanted.
+  - Pi and Claude Code auto-start server paths use an explicit 300-second idle timeout.
   - How would agents behave if the server connection was lost (e.g. due to a crash)? Would they be notified? Should they attempt to reconnect? This process should be guided.
     — Partially implemented: the Claude Code listener reconnects with bounded backoff. Pi extension and direct clients do not yet reconnect.
 
@@ -40,10 +39,6 @@ Other coding-agent hosts can be added once the adapter boundary is stable. New a
 The current Pi extension (`integrations/pi/`) shells out to the Python CLI (`inter-agent-pi` for commands, `inter-agent-connect` for the listener). This requires Python/venv/uv to be available on the Pi side.
 
 A future refactor could replace the Python CLI bridge with a direct TypeScript WebSocket client, adding `ws` as a runtime dependency and implementing a small client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop. The protocol is simple JSON over WebSocket and token path, identity verification, and frame parsing already exist in the Python core and could be ported.
-
-#### Auto-start server
-
-The Claude Code listener auto-starts the inter-agent server when it connects and the server is not running. The Pi extension currently requires the server to be started manually. Adding auto-start to the Pi extension would make setup simpler for Pi users.
 
 #### Project path auto-discovery
 

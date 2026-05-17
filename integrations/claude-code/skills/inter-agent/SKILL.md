@@ -95,10 +95,11 @@ Monitor(
 ```
 
 The listener auto-names from the current working directory if no name is given.
-The server starts automatically if it is not already running, and stops itself
-after 300 seconds of idle time (no connected sessions). Use
-`--idle-timeout <seconds>` with `inter-agent-server` to change this, or
-`--idle-timeout 0` to disable it.
+The server starts automatically if it is not already running. Listener-started
+servers use an explicit 300-second idle timeout and stop themselves after that
+period with no connected sessions. A manually started `inter-agent-server` runs
+until explicit shutdown by default unless it is started with `--idle-timeout
+<seconds>`.
 
 ## send / broadcast / list / status / disconnect
 

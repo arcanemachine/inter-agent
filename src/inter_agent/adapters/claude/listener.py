@@ -31,6 +31,7 @@ RECONNECT_BACKOFF_MIN_S = 0.25
 RECONNECT_BACKOFF_MAX_S = 4.0
 RECONNECT_JITTER_FRAC = 0.2
 PING_INTERVAL_S = 15
+AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300
 
 # Server error codes that won't resolve by reconnecting.
 # When the server returns one of these, the listener exits instead of retrying.
@@ -97,19 +98,25 @@ class Listener:
         t = self._connect_task
         if t is not None and not t.done():
             t.cancel()
-        # Do not kill self._server_proc here — the server's idle timeout
-        # handles automatic shutdown when no connections remain.
+        # Do not kill self._server_proc here — the auto-started server's
+        # idle timeout handles shutdown when no connections remain.
 
     def _start_server(self) -> subprocess.Popen[bytes] | None:
         """Start inter-agent-server as a child process.
 
-        The server will shut itself down via its idle timeout once
-        all connections are gone. The listener never sends this
-        process a signal — it owns its own lifecycle.
+        The auto-started server receives an explicit idle timeout and
+        shuts itself down once all connections are gone. The listener
+        never sends this process a signal — it owns its own lifecycle.
         """
         try:
             return subprocess.Popen(
-                [sys.executable, "-m", "inter_agent.core.server"],
+                [
+                    sys.executable,
+                    "-m",
+                    "inter_agent.core.server",
+                    "--idle-timeout",
+                    str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
+                ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )

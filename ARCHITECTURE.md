@@ -39,8 +39,8 @@
 ## Server lifecycle
 
 - The server can be started manually (`uv run inter-agent-server`) or auto-started by adapters when a client connects and the server is not running.
-- After startup, an idle timeout (default 300 seconds) starts. The timeout resets whenever a session connects. If no sessions are connected when the timeout expires, the server shuts down automatically. Set `--idle-timeout 0` to disable.
-- Adapters that auto-start the server (Claude Code `listen`) verify the server is reachable before proceeding, retrying for up to 15 seconds after launching the server process.
+- Manual starts run until explicit shutdown by default. Passing `--idle-timeout <seconds>` opts in to automatic shutdown after that idle period; `--idle-timeout 0` also leaves the timeout disabled.
+- Adapters that auto-start the server, including Pi `/inter-agent-connect` and Claude Code `listen`, pass an explicit 300-second idle timeout, verify the server is reachable before proceeding, and retry for up to 15 seconds after launching the server process.
 
 ## Lifecycle state
 

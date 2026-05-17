@@ -13,9 +13,7 @@ Run Pi adapter commands through the installed package entry point:
 - `uv run inter-agent-pi status [--json]`
 - `uv run inter-agent-pi shutdown`
 
-Start the server in another terminal before connecting sessions:
-
-- `uv run inter-agent-server`
+The Pi extension auto-starts the server when `/inter-agent-connect` runs and no healthy server is available. Auto-started servers use an explicit 300-second idle timeout and shut down after that period with no connected sessions. Manual server starts remain supported with `uv run inter-agent-server` and run until explicit shutdown unless you pass `--idle-timeout <seconds>`.
 
 ## Example workflow
 

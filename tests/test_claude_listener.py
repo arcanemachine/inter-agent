@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import sys
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -11,6 +12,7 @@ import pytest
 from inter_agent.adapters.claude import formatting, state
 from inter_agent.adapters.claude.listener import (
     _PERMANENT_ERROR_CODES,
+    AUTO_STARTED_SERVER_IDLE_TIMEOUT_S,
     Listener,
     PermanentError,
 )
@@ -155,6 +157,34 @@ class TestPermanentErrors:
 
 
 class TestAutoStart:
+    def test_start_server_uses_explicit_adapter_idle_timeout(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[list[str]] = []
+
+        class FakeProc:
+            pid = 12345
+
+        def fake_popen(args: list[str], stdout: object, stderr: object) -> FakeProc:
+            calls.append(args)
+            return FakeProc()
+
+        monkeypatch.setattr("inter_agent.adapters.claude.listener.subprocess.Popen", fake_popen)
+
+        listener = Listener(host="127.0.0.1", port=12345, name="test")
+        proc = listener._start_server()
+
+        assert isinstance(proc, FakeProc)
+        assert calls == [
+            [
+                sys.executable,
+                "-m",
+                "inter_agent.core.server",
+                "--idle-timeout",
+                str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
+            ]
+        ]
+
     @pytest.mark.asyncio
     async def test_start_server_called_when_not_running(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

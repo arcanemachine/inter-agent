@@ -18,7 +18,7 @@ When sending on behalf of a connected agent, pass `--from <name>` so recipients 
 
 ## Server auto-start and idle timeout
 
-The `listen` command auto-starts the server if it is not already running. The server shuts down automatically after 300 seconds with no connected sessions (configurable via `--idle-timeout` with `inter-agent-server`, or `--idle-timeout 0` to disable). You do not need to start the server manually before using the listener.
+The `listen` command auto-starts the server if it is not already running. Listener-started servers use an explicit 300-second idle timeout and shut down after that period with no connected sessions. You do not need to start the server manually before using the listener; if you do start `inter-agent-server` manually, it runs until explicit shutdown unless you pass `--idle-timeout <seconds>`.
 
 ## Example workflow
 
