@@ -22,7 +22,7 @@ cd ~/.local/share/inter-agent
 uv sync
 ```
 
-You do not need to keep a server terminal open for normal Pi usage. `/inter-agent-connect` auto-starts the server when no healthy server is available.
+If you clone to a different location, set `interAgent.projectPath` in your Pi settings (see Configuration below).
 
 ### 2. Install the Pi extension
 
@@ -51,7 +51,7 @@ The inter-agent package must be installed on your machine. The extension calls t
 1. `interAgent.projectPath` from `.pi/settings.json` or `~/.pi/agent/settings.json`
 2. `~/.local/share/inter-agent` (default fallback)
 
-If neither location works, the extension reports a generic setup message and you must set `interAgent.projectPath`.
+If you cloned inter-agent to a location other than `~/.local/share/inter-agent`, you must set `interAgent.projectPath` in your Pi settings. Otherwise the extension will fail with a generic setup message.
 
 ## Configuration
 
@@ -94,7 +94,7 @@ Tools are agent-callable; they are not user-facing slash commands.
 
 ## Example Workflow
 
-1. In Pi, connect to the bus. If no healthy server is available, the extension starts one and then connects:
+1. In Pi, connect to the bus. The extension auto-starts the server if needed:
 
    ```
    /inter-agent-connect my-pi-session --label "Pi Agent"
@@ -125,7 +125,9 @@ When you're done using the inter-agent bus, disconnect this Pi session:
 /inter-agent-disconnect
 ```
 
-This stops your listener and removes you from the bus, but leaves the server running for other agents. If the server connection closes unexpectedly, Pi shows a user-facing disconnected notification with the exact `/inter-agent-connect ...` command the user can run to reconnect. The agent does not reconnect itself automatically. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
+This stops your listener and removes you from the bus. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
+
+If the server connection closes unexpectedly, Pi shows a notification with the exact `/inter-agent-connect ...` command to reconnect. The extension does not reconnect automatically.
 
 ## User Acceptance Test
 
@@ -152,7 +154,7 @@ To verify the extension works end-to-end:
    ```
 
 4. **Run these commands in Pi** and confirm each works:
-   - `/inter-agent-connect test-agent` → should start the server if needed, then show "connected"
+   - `/inter-agent-connect test-agent` → should auto-start the server if needed, then show "connected"
    - `/inter-agent-status` → should show "State: available"
    - `/inter-agent-list` → should show "no agents connected" (or your own session)
    - `/inter-agent-send test-agent "hello self"` → should show "sent"
