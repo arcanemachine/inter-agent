@@ -4,6 +4,8 @@ This file holds promising work that is not required for project completion as de
 
 ## User-suggested improvements (do not edit these; remove when completed)
 
+- Ensure that the inter-agent server automatically disconnects after the configured timeout.
+
 - In Pi, when connecting to the inter-agent session, add a message to the context so that the agent knows that it has been connected to the session and doesn't need to use the `whoami` command. (This should not prompt a reply from the agent... It should just be part of the "next turn" when the user prompts again).
   - *May* also be able to tweak the user's personal inter-agent handoff sub-skill so that the "whoami" check is no longer *required* to perform a handoff.
     - Make sure the user tests this behavior manually if any changes are made!
