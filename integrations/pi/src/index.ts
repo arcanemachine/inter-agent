@@ -176,7 +176,7 @@ function sendToContext(
   pi.sendMessage(
     {
       customType: "inter-agent-message",
-      content: `[inter-agent message from ${from} ${toInfo}]
+      content: `[inter-agent message from agent ${from} ${toInfo}]
 
 ${text}
 
@@ -197,7 +197,7 @@ function showOutgoingInContext(
   pi.sendMessage(
     {
       customType: "inter-agent-message",
-      content: `[inter-agent message sent by you (${from}) ${toInfo}]
+      content: `[inter-agent message sent by the current agent (${from}) ${toInfo}]
 
 ${text}`,
       display: true,
@@ -569,7 +569,7 @@ function startListener(
         if (msg.op === "msg") {
           const fromRaw = msg.from_name || msg.from || "unknown";
           const textRaw = msg.text || "";
-          const toInfo = msg.to ? `→ ${msg.to}` : "broadcast";
+          const toInfo = msg.to ? `to ${msg.to}` : "broadcast";
           const parsed = parseIncoming(textRaw);
           const from = parsed.from || fromRaw;
           const text = parsed.text;
@@ -761,7 +761,7 @@ export default function(pi: ExtensionAPI) {
         return;
       }
       notify("[inter-agent] sent", `to ${to}`);
-      showOutgoingInContext(pi, name, text, `→ ${to}`);
+      showOutgoingInContext(pi, name, text, `to ${to}`);
     },
   });
 
@@ -870,9 +870,9 @@ export default function(pi: ExtensionAPI) {
       if (result.code !== 0) {
         throw new Error(`Send failed: ${scriptFailureMessage(result, "send")}`);
       }
-      showOutgoingInContext(pi, name, text, `→ ${to}`);
+      showOutgoingInContext(pi, name, text, `to ${to}`);
       return {
-        content: [{ type: "text" as const, text: `Message sent to ${to}` }],
+        content: [{ type: "text" as const, text: `Message sent from the current agent to ${to}` }],
         details: { to, text },
       };
     },
@@ -898,7 +898,7 @@ export default function(pi: ExtensionAPI) {
       }
       showOutgoingInContext(pi, name, text, "broadcast");
       return {
-        content: [{ type: "text" as const, text: "Broadcast sent" }],
+        content: [{ type: "text" as const, text: "Broadcast sent to all other agents" }],
         details: { text },
       };
     },
