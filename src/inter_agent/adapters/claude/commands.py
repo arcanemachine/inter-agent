@@ -46,10 +46,42 @@ def connect(name: str, label: str | None = None) -> int:
     return 0
 
 
+def _connected_from_name() -> str | None:
+    found_state, path = state.find_listener_state()
+    if found_state is None or path is None:
+        return None
+
+    try:
+        fd = state.acquire_lock(int(path.stem))
+    except (OSError, ValueError):
+        return None
+    if fd is not None:
+        state.release_lock(fd)
+        state.unlink_if_matches(path, found_state)
+        return None
+
+    name = found_state.get("name")
+    if not isinstance(name, str) or not name:
+        return None
+    return name
+
+
+def _require_connected_from_name() -> str | None:
+    from_name = _connected_from_name()
+    if from_name is None:
+        print("not connected. Run '/inter-agent connect' first.", file=sys.stderr)
+        return None
+    return from_name
+
+
 def send(to: str, text: str, from_name: str | None = None) -> int:
+    del from_name
+    connected_name = _require_connected_from_name()
+    if connected_name is None:
+        return 1
     try:
         result = asyncio.run(
-            core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text, from_name)
+            core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text, connected_name)
         )
     except SystemExit as exc:
         return _system_exit_code(exc)
@@ -59,9 +91,13 @@ def send(to: str, text: str, from_name: str | None = None) -> int:
 
 
 def broadcast(text: str, from_name: str | None = None) -> int:
+    del from_name
+    connected_name = _require_connected_from_name()
+    if connected_name is None:
+        return 1
     try:
         result = asyncio.run(
-            core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text, from_name)
+            core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text, connected_name)
         )
     except SystemExit as exc:
         return _system_exit_code(exc)

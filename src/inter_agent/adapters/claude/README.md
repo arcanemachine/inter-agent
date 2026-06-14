@@ -7,14 +7,14 @@ Claude Code adapter for the inter-agent message bus.
 Run Claude adapter commands through the installed package entry point:
 
 - `uv run inter-agent-claude listen --name <name> [--label <label>]`
-- `uv run inter-agent-claude send <to> <text> [--from <name>]`
-- `uv run inter-agent-claude broadcast <text> [--from <name>]`
+- `uv run inter-agent-claude send <to> <text>`
+- `uv run inter-agent-claude broadcast <text>`
 - `uv run inter-agent-claude list [--json]`
 - `uv run inter-agent-claude status [--json]`
 - `uv run inter-agent-claude shutdown`
 - `uv run inter-agent-claude disconnect`
 
-When sending on behalf of a connected agent, pass `--from <name>` so recipients see the correct sender name instead of "control".
+`send` and `broadcast` require an active listener for the current Claude Code session. The adapter uses that listener's connected routing name as the sender name.
 
 ## Server auto-start and idle timeout
 

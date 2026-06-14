@@ -113,13 +113,9 @@ inter-agent-claude status
 inter-agent-claude disconnect
 ```
 
-When sending on behalf of a connected agent, pass the agent's name with
-`--from` so recipients see the correct sender instead of "control":
-
-```bash
-inter-agent-claude send <to> <text> --from <name>
-inter-agent-claude broadcast <text> --from <name>
-```
+Send and broadcast require an active listener for the current Claude Code
+session. The adapter uses that listener's connected routing name as the sender
+name.
 
 ## Truncated messages
 

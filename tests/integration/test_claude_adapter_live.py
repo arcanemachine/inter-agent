@@ -140,6 +140,7 @@ async def test_claude_python_send_delivers_to_live_agent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     use_live_claude_defaults(monkeypatch, live_server)
+    monkeypatch.setattr(claude_commands, "_connected_from_name", lambda: "agent-a")
     async with websockets.connect(live_server.url) as target:
         await connect_agent(target, live_server, "b", "agent-b")
 
@@ -154,6 +155,7 @@ async def test_claude_python_send_delivers_to_live_agent(
     assert delivered["op"] == "msg"
     assert delivered["to"] == "agent-b"
     assert delivered["text"] == "hello"
+    assert delivered["from_name"] == "agent-a"
 
 
 @pytest.mark.asyncio
@@ -162,6 +164,7 @@ async def test_claude_python_broadcast_delivers_to_agents_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     use_live_claude_defaults(monkeypatch, live_server)
+    monkeypatch.setattr(claude_commands, "_connected_from_name", lambda: "agent-a")
     async with (
         websockets.connect(live_server.url) as agent_a,
         websockets.connect(live_server.url) as agent_b,
@@ -182,7 +185,9 @@ async def test_claude_python_broadcast_delivers_to_agents_only(
     assert result.stderr == ""
     assert result.stdout == ""
     assert delivered_a["text"] == "hello all"
+    assert delivered_a["from_name"] == "agent-a"
     assert delivered_b["text"] == "hello all"
+    assert delivered_b["from_name"] == "agent-a"
 
 
 @pytest.mark.asyncio
@@ -191,6 +196,7 @@ async def test_claude_cli_send_unknown_target_returns_protocol_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     use_live_claude_defaults(monkeypatch, live_server)
+    monkeypatch.setattr(claude_commands, "_connected_from_name", lambda: "agent-a")
 
     result = await asyncio.to_thread(run_claude, ["send", "missing-agent", "hello"])
 

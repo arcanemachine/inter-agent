@@ -86,11 +86,12 @@ def test_send_uses_core_api(
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
     monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
 
     code = commands.send("agent-b", "hello")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", None)]
+    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-a")]
     assert capsys.readouterr().out == ""
 
 
@@ -114,6 +115,7 @@ def test_send_protocol_error_returns_failure(
         )
 
     monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
 
     code = commands.send("missing", "hello")
 
@@ -135,12 +137,51 @@ def test_broadcast_uses_core_api(
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
     monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
 
     code = commands.broadcast("hello all")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "hello all", None)]
+    assert calls == [("127.0.0.1", 9473, "hello all", "agent-a")]
     assert capsys.readouterr().out == ""
+
+
+def test_send_requires_connected_listener(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_send(
+        host: str, port: int, to: str, text: str, from_name: str | None = None
+    ) -> SendResult:
+        raise AssertionError("send should not be called")
+
+    monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: None)
+
+    code = commands.send("agent-b", "hello")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "not connected. Run '/inter-agent connect' first.\n"
+
+
+def test_broadcast_requires_connected_listener(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_broadcast(
+        host: str, port: int, text: str, from_name: str | None = None
+    ) -> SendResult:
+        raise AssertionError("broadcast should not be called")
+
+    monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: None)
+
+    code = commands.broadcast("hello all")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "not connected. Run '/inter-agent connect' first.\n"
 
 
 def test_list_uses_core_api(
@@ -165,7 +206,7 @@ def test_list_uses_core_api(
     assert capsys.readouterr().out == '{"op": "list_ok", "sessions": []}\n'
 
 
-def test_send_with_from_name_passes_through(
+def test_send_uses_connected_name_instead_of_from_argument(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     calls: list[tuple[str, int, str, str, str | None]] = []
@@ -177,14 +218,15 @@ def test_send_with_from_name_passes_through(
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
     monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-connected")
 
     code = main(["send", "agent-b", "hello", "--from", "agent-a"])
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-a")]
+    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-connected")]
 
 
-def test_broadcast_with_from_name_passes_through(
+def test_broadcast_uses_connected_name_instead_of_from_argument(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     calls: list[tuple[str, int, str, str | None]] = []
@@ -196,11 +238,12 @@ def test_broadcast_with_from_name_passes_through(
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
     monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-connected")
 
     code = main(["broadcast", "hello all", "--from", "agent-a"])
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "hello all", "agent-a")]
+    assert calls == [("127.0.0.1", 9473, "hello all", "agent-connected")]
 
 
 def test_shutdown_uses_core_api(
