@@ -748,8 +748,15 @@ export default function(pi: ExtensionAPI) {
         return;
       }
       const [, to, text] = match;
-      const state = getConnectionState(ctx);
-      const name = state?.name || DEFAULT_NAME;
+      if (!listenerReady || !currentConnection) {
+        notify(
+          "[inter-agent] send failed",
+          "Not connected to the inter-agent bus. Use /inter-agent-connect first.",
+          "error",
+        );
+        return;
+      }
+      const name = currentConnection.name;
       const formattedText = formatOutgoing(text, name);
       const result = await execScript(scripts.pi, ["send", to, formattedText]);
       if (result.code !== 0) {
@@ -773,8 +780,15 @@ export default function(pi: ExtensionAPI) {
         notify("[inter-agent] broadcast failed", "message required", "error");
         return;
       }
-      const state = getConnectionState(ctx);
-      const name = state?.name || DEFAULT_NAME;
+      if (!listenerReady || !currentConnection) {
+        notify(
+          "[inter-agent] broadcast failed",
+          "Not connected to the inter-agent bus. Use /inter-agent-connect first.",
+          "error",
+        );
+        return;
+      }
+      const name = currentConnection.name;
       const formattedText = formatOutgoing(text, name);
       const result = await execScript(scripts.pi, ["broadcast", formattedText]);
       if (result.code !== 0) {
@@ -863,8 +877,10 @@ export default function(pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const { to, text } = params as { to: string; text: string };
-      const state = getConnectionState(ctx);
-      const name = state?.name || DEFAULT_NAME;
+      if (!listenerReady || !currentConnection) {
+        throw new Error("Not connected to the inter-agent bus. Use /inter-agent-connect first.");
+      }
+      const name = currentConnection.name;
       const formattedText = formatOutgoing(text, name);
       const result = await execScript(scripts.pi, ["send", to, formattedText]);
       if (result.code !== 0) {
@@ -887,8 +903,10 @@ export default function(pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const { text } = params as { text: string };
-      const state = getConnectionState(ctx);
-      const name = state?.name || DEFAULT_NAME;
+      if (!listenerReady || !currentConnection) {
+        throw new Error("Not connected to the inter-agent bus. Use /inter-agent-connect first.");
+      }
+      const name = currentConnection.name;
       const formattedText = formatOutgoing(text, name);
       const result = await execScript(scripts.pi, ["broadcast", formattedText]);
       if (result.code !== 0) {

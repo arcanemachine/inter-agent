@@ -29,3 +29,40 @@ def test_pi_extension_notifies_when_server_connection_closes() -> None:
     assert 'notify(\n          "[inter-agent] disconnected"' in content
     assert "server connection closed" in content
     assert "Use /inter-agent-connect" in content
+
+
+def test_pi_extension_send_command_gates_on_connection() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert '"--name"' not in content
+    assert 'pi.registerCommand("inter-agent-send"' in content
+    assert "!listenerReady || !currentConnection" in content
+    assert "Not connected to the inter-agent bus" in content
+    assert '["send", to, formattedText]' in content
+
+
+def test_pi_extension_broadcast_command_gates_on_connection() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'pi.registerCommand("inter-agent-broadcast"' in content
+    assert "!listenerReady || !currentConnection" in content
+    assert "Not connected to the inter-agent bus" in content
+    assert '["broadcast", formattedText]' in content
+
+
+def test_pi_extension_send_tool_gates_on_connection() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'name: "inter_agent_send"' in content
+    assert "!listenerReady || !currentConnection" in content
+    assert "Not connected to the inter-agent bus" in content
+    assert '["send", to, formattedText]' in content
+
+
+def test_pi_extension_broadcast_tool_gates_on_connection() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'name: "inter_agent_broadcast"' in content
+    assert "!listenerReady || !currentConnection" in content
+    assert "Not connected to the inter-agent bus" in content
+    assert '["broadcast", formattedText]' in content
