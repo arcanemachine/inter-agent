@@ -68,7 +68,7 @@ In Pi:
 /inter-agent-broadcast "build is green"
 ```
 
-See [`integrations/pi/README.md`](integrations/pi/README.md) for full setup, configuration, and commands.
+See [`integrations/pi/README.md`](integrations/pi/README.md) for full setup, configuration, commands, and troubleshooting.
 
 ### Claude Code
 
@@ -111,6 +111,34 @@ uv run inter-agent-list
 # Shut down the server
 uv run inter-agent-shutdown
 ```
+
+## Troubleshooting
+
+### Pi: command not found during connect or status
+
+Pi extension setup problems often appear as a harness notification like:
+
+```text
+[inter-agent] connect failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
+```
+
+or:
+
+```text
+[inter-agent] status failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
+```
+
+The Pi extension runs helper scripts from the inter-agent virtual environment under `interAgent.projectPath`. If that path is wrong, the virtual environment has not been created, or the virtual environment was created in a different filesystem path, Pi may report the helper as missing.
+
+Check the configured project path, then recreate the helper scripts:
+
+```bash
+cd /path/to/inter-agent
+uv sync --locked
+.venv/bin/inter-agent-pi status --json
+```
+
+If `interAgent.projectPath` is not configured, Pi uses `~/.local/share/inter-agent`. If you cloned inter-agent somewhere else, set `interAgent.projectPath` in `.pi/settings.json` or `~/.pi/agent/settings.json`.
 
 ## Project layout
 

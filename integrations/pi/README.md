@@ -92,6 +92,46 @@ Tools are agent-callable; they are not user-facing slash commands.
 | `inter_agent_whoami`    | Report this Pi session's local identity |
 | `inter_agent_status`    | Check server availability and identity  |
 
+## Troubleshooting
+
+### `inter-agent status command was not found`
+
+Pi may show this during connect or status checks:
+
+```text
+[inter-agent] connect failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
+```
+
+or:
+
+```text
+[inter-agent] status failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
+```
+
+The extension runs helper scripts from `<interAgent.projectPath>/.venv/bin`. This error means Pi could not run the helper script. Common causes are:
+
+- `interAgent.projectPath` points to the wrong clone.
+- The inter-agent virtual environment has not been created.
+- The virtual environment was created at another filesystem path, leaving stale script shebangs.
+
+Repair the local install and verify the helper directly:
+
+```bash
+cd /path/to/inter-agent
+uv sync --locked
+.venv/bin/inter-agent-pi status --json
+```
+
+If you use a non-default clone location, make sure Pi settings contain the matching path:
+
+```json
+{
+  "interAgent": {
+    "projectPath": "/path/to/inter-agent"
+  }
+}
+```
+
 ## Example Workflow
 
 1. In Pi, connect to the bus. The extension auto-starts the server if needed:
