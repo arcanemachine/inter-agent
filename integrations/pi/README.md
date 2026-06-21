@@ -71,14 +71,16 @@ If you do not set a project path, the extension falls back to `~/.local/share/in
 
 ## Commands
 
-| Command                   | Usage                                           | Description                  |
-| ------------------------- | ----------------------------------------------- | ---------------------------- |
-| `/inter-agent-connect`    | `/inter-agent-connect <name> [--label <label>]` | Connect to the bus as `name` |
-| `/inter-agent-disconnect` | `/inter-agent-disconnect`                       | Disconnect from the bus      |
-| `/inter-agent-send`       | `/inter-agent-send <to> <text>`                 | Send a direct message (requires connection)        |
-| `/inter-agent-broadcast`  | `/inter-agent-broadcast <text>`                 | Broadcast to all agents (requires connection)      |
-| `/inter-agent-list`       | `/inter-agent-list`                             | List connected sessions      |
-| `/inter-agent-status`     | `/inter-agent-status`                           | Check server status          |
+All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` and Pi will autocomplete the subcommand.
+
+| Subcommand   | Usage                                           | Description                                   |
+| ------------ | ----------------------------------------------- | --------------------------------------------- |
+| `connect`    | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                  |
+| `disconnect` | `/inter-agent disconnect`                       | Disconnect from the bus                       |
+| `send`       | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)   |
+| `broadcast`  | `/inter-agent broadcast <text>`                 | Broadcast to all agents (requires connection) |
+| `list`       | `/inter-agent list`                             | List connected sessions                       |
+| `status`     | `/inter-agent status`                           | Check server status                           |
 
 ## Tools
 
@@ -137,24 +139,24 @@ If you use a non-default clone location, make sure Pi settings contain the match
 1. In Pi, connect to the bus. The extension auto-starts the server if needed:
 
    ```
-   /inter-agent-connect my-pi-session --label "Pi Agent"
+   /inter-agent connect my-pi-session --label "Pi Agent"
    ```
 
 2. Send a message to another agent (requires an active connection):
 
    ```
-   /inter-agent-send agent-b "run tests"
+   /inter-agent send agent-b "run tests"
    ```
 
 3. Or broadcast to everyone (requires an active connection):
 
    ```
-   /inter-agent-broadcast "build is green"
+   /inter-agent broadcast "build is green"
    ```
 
 4. Check who's connected:
    ```
-   /inter-agent-list
+   /inter-agent list
    ```
 
 ## Finishing Up
@@ -162,12 +164,12 @@ If you use a non-default clone location, make sure Pi settings contain the match
 When you're done using the inter-agent bus, disconnect this Pi session:
 
 ```
-/inter-agent-disconnect
+/inter-agent disconnect
 ```
 
 This stops your listener and removes you from the bus. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
 
-If the server connection closes unexpectedly, Pi shows a notification with the exact `/inter-agent-connect ...` command to reconnect. The extension does not reconnect automatically.
+If the server connection closes unexpectedly, Pi shows a notification with the exact `/inter-agent connect ...` command to reconnect. The extension does not reconnect automatically.
 
 ## User Acceptance Test
 
@@ -194,12 +196,12 @@ To verify the extension works end-to-end:
    ```
 
 4. **Run these commands in Pi** and confirm each works:
-   - `/inter-agent-connect test-agent` → should auto-start the server if needed, then show "connected"
-   - `/inter-agent-status` → should show "State: available"
-   - `/inter-agent-list` → should show "no agents connected" (or your own session)
-   - `/inter-agent-send test-agent "hello self"` → should show "sent" (only works when connected)
-   - `/inter-agent-broadcast "test broadcast"` → should show "sent" (only works when connected)
-   - `/inter-agent-disconnect` → should show "disconnected"
+   - `/inter-agent connect test-agent` → should auto-start the server if needed, then show "connected"
+   - `/inter-agent status` → should show "State: available"
+   - `/inter-agent list` → should show "no agents connected" (or your own session)
+   - `/inter-agent send test-agent "hello self"` → should show "sent" (only works when connected)
+   - `/inter-agent broadcast "test broadcast"` → should show "sent" (only works when connected)
+   - `/inter-agent disconnect` → should show "disconnected"
 
 5. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.
 

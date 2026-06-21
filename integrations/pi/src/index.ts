@@ -20,6 +20,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import type { AutocompleteItem } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -274,7 +275,7 @@ async function readServerStatus(
   return {
     ok: false,
     message:
-      "inter-agent status returned an invalid response. Try /inter-agent-status; if this continues, check the inter-agent installation.",
+      "inter-agent status returned an invalid response. Try /inter-agent status; if this continues, check the inter-agent installation.",
   };
 }
 
@@ -298,13 +299,13 @@ function statusFailureGuidance(payload: Record<string, unknown>): string {
   const message = statusMessage(payload);
   switch (statusState(payload)) {
     case "identity_check_failed":
-      return `${message}. Try restarting the inter-agent server, then run /inter-agent-status if this continues.`;
+      return `${message}. Try restarting the inter-agent server, then run /inter-agent status if this continues.`;
     case "auth_failed":
       return `${message}. Try restarting the inter-agent server so clients share the same token.`;
     case "protocol_mismatch":
-      return `${message}. Another process may be using the inter-agent port; try /inter-agent-status or restart the server.`;
+      return `${message}. Another process may be using the inter-agent port; try /inter-agent status or restart the server.`;
     case "unavailable":
-      return `${message}. Try /inter-agent-status, or start inter-agent-server manually.`;
+      return `${message}. Try /inter-agent status, or start inter-agent-server manually.`;
     default:
       return message;
   }
@@ -359,7 +360,7 @@ function startServerProcess(
     proc.once("exit", (code, signal) => {
       finish({
         ok: false,
-        message: `inter-agent server exited before it was ready (code ${code ?? "none"}, signal ${signal ?? "none"}). Try /inter-agent-status or start inter-agent-server manually.`,
+        message: `inter-agent server exited before it was ready (code ${code ?? "none"}, signal ${signal ?? "none"}). Try /inter-agent status or start inter-agent-server manually.`,
       });
     });
   });
@@ -462,7 +463,7 @@ function parseConnectArgs(
       if (!value) {
         return {
           ok: false,
-          message: "usage: /inter-agent-connect <name> [--label <label>]",
+          message: "usage: /inter-agent connect <name> [--label <label>]",
         };
       }
       label = value;
@@ -476,7 +477,7 @@ function parseConnectArgs(
     }
     return {
       ok: false,
-      message: "usage: /inter-agent-connect <name> [--label <label>]",
+      message: "usage: /inter-agent connect <name> [--label <label>]",
     };
   }
 
@@ -606,7 +607,7 @@ function startListener(
       }
       if (code !== 0 && code !== null) {
         const reconnectHint = wasConnected
-          ? `. Use /inter-agent-connect ${previousName} to reconnect.`
+          ? `. Use /inter-agent connect ${previousName} to reconnect.`
           : "";
         notify(
           "[inter-agent] listener exited",
@@ -616,7 +617,7 @@ function startListener(
       } else if (wasConnected) {
         notify(
           "[inter-agent] disconnected",
-          `server connection closed. Use '/inter-agent-connect ${previousName}' to reconnect.`,
+          `server connection closed. Use '/inter-agent connect ${previousName}' to reconnect.`,
           "warning",
         );
       }
@@ -657,7 +658,7 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 
 // ── Extension Export ────────────────────────────────────────────────────────
 
-export default function(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
   const config = loadConfig();
   const scripts = getScripts(config);
 
@@ -699,167 +700,218 @@ export default function(pi: ExtensionAPI) {
 
   // ── Commands ──────────────────────────────────────────────────────────────
 
-  pi.registerCommand("inter-agent-connect", {
-    description:
-      "Connect to the inter-agent bus (usage: /inter-agent-connect <name> [--label <label>])",
-    handler: async (args, ctx) => {
-      const parsed = parseConnectArgs(args);
-      if (parsed.ok === false) {
-        notify("[inter-agent] connect failed", parsed.message, "error");
-        return;
-      }
+  const INTER_AGENT_SUBCOMMANDS: AutocompleteItem[] = [
+    { value: "connect", label: "connect", description: "Connect to the bus" },
+    {
+      value: "disconnect",
+      label: "disconnect",
+      description: "Disconnect from the bus",
+    },
+    { value: "send", label: "send", description: "Send a direct message" },
+    {
+      value: "broadcast",
+      label: "broadcast",
+      description: "Broadcast a message",
+    },
+    { value: "list", label: "list", description: "List connected sessions" },
+    {
+      value: "status",
+      label: "status",
+      description: "Check server status",
+    },
+  ];
 
-      const ready = await ensureServerAvailable(scripts);
-      if (!ready) return;
+  async function handleConnect(args: string, ctx: ExtensionContext) {
+    const parsed = parseConnectArgs(args);
+    if (parsed.ok === false) {
+      notify("[inter-agent] connect failed", parsed.message, "error");
+      return;
+    }
 
-      startListener(pi, ctx, config, parsed.name, parsed.label, {
-        notifyOnReady: true,
-      });
+    const ready = await ensureServerAvailable(scripts);
+    if (!ready) return;
+
+    startListener(pi, ctx, config, parsed.name, parsed.label, {
+      notifyOnReady: true,
+    });
+    notify(
+      "[inter-agent] connecting",
+      `as ${parsed.name}${parsed.label ? ` (${parsed.label})` : ""}`,
+    );
+  }
+
+  async function handleDisconnect(_args: string, ctx: ExtensionContext) {
+    stopListener();
+    const state = getConnectionState(ctx);
+    if (state) {
+      persistState(pi, { ...state, connected: false });
+      updateStatus(ctx, { ...state, connected: false });
+    }
+    notify("[inter-agent] disconnected", "listener stopped");
+  }
+
+  async function handleSend(args: string, _ctx: ExtensionContext) {
+    const match = args.trim().match(/^(\S+)\s+(.+)$/s);
+    if (!match) {
       notify(
-        "[inter-agent] connecting",
-        `as ${parsed.name}${parsed.label ? ` (${parsed.label})` : ""}`,
+        "[inter-agent] send failed",
+        "usage: /inter-agent send <to> <text>",
+        "error",
       );
-    },
-  });
+      return;
+    }
+    const [, to, text] = match;
+    if (!listenerReady || !currentConnection) {
+      notify(
+        "[inter-agent] send failed",
+        "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        "error",
+      );
+      return;
+    }
+    const name = currentConnection.name;
+    const formattedText = formatOutgoing(text, name);
+    const result = await execScript(scripts.pi, ["send", to, formattedText]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] send failed",
+        scriptFailureMessage(result, "send"),
+        "error",
+      );
+      return;
+    }
+    notify("[inter-agent] sent", `to ${to}`);
+    showOutgoingInContext(pi, name, text, `to ${to}`);
+  }
 
-  pi.registerCommand("inter-agent-disconnect", {
-    description: "Disconnect from the inter-agent bus",
-    handler: async (_args, ctx) => {
-      stopListener();
-      const state = getConnectionState(ctx);
-      if (state) {
-        persistState(pi, { ...state, connected: false });
-        updateStatus(ctx, { ...state, connected: false });
+  async function handleBroadcast(args: string, _ctx: ExtensionContext) {
+    const text = args.trim();
+    if (!text) {
+      notify("[inter-agent] broadcast failed", "message required", "error");
+      return;
+    }
+    if (!listenerReady || !currentConnection) {
+      notify(
+        "[inter-agent] broadcast failed",
+        "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        "error",
+      );
+      return;
+    }
+    const name = currentConnection.name;
+    const formattedText = formatOutgoing(text, name);
+    const result = await execScript(scripts.pi, ["broadcast", formattedText]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] broadcast failed",
+        scriptFailureMessage(result, "broadcast"),
+        "error",
+      );
+      return;
+    }
+    notify("[inter-agent] broadcast", "sent");
+    showOutgoingInContext(pi, name, text, "broadcast");
+  }
+
+  async function handleList(_args: string, _ctx: ExtensionContext) {
+    const result = await execScript(scripts.pi, ["list", "--json"]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] list failed",
+        scriptFailureMessage(result, "list"),
+        "error",
+      );
+      return;
+    }
+    try {
+      const payload = JSON.parse(result.stdout);
+      const sessions =
+        (payload.sessions as Array<{
+          name: string;
+          label?: string | null;
+        }>) || [];
+      const lines = sessions.map(
+        (s) => `• ${s.name}${s.label ? ` (${s.label})` : ""}`,
+      );
+      if (lines.length === 0) {
+        notify("[inter-agent] list", "no agents connected");
+      } else {
+        notify("[inter-agent] list", lines.join(", "));
       }
-      notify("[inter-agent] disconnected", "listener stopped");
-    },
-  });
+    } catch {
+      notify("[inter-agent] list failed", "invalid response", "error");
+    }
+  }
 
-  pi.registerCommand("inter-agent-send", {
-    description: "Send a direct message (usage: /inter-agent-send <to> <text>)",
+  async function handleStatus(_args: string, _ctx: ExtensionContext) {
+    const result = await execScript(scripts.pi, ["status", "--json"]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] status failed",
+        scriptFailureMessage(result, "status"),
+        "error",
+      );
+      return;
+    }
+    try {
+      const payload = JSON.parse(result.stdout);
+      const state = String(payload.state || "unknown");
+      const msg = String(payload.message || state);
+      notify(
+        "[inter-agent] status",
+        msg,
+        state === "available" ? "info" : "warning",
+      );
+    } catch {
+      notify("[inter-agent] status failed", "invalid response", "error");
+    }
+  }
+
+  function showInterAgentUsage() {
+    notify(
+      "[inter-agent] usage",
+      "usage: /inter-agent <connect|disconnect|send|broadcast|list|status> [args]",
+      "warning",
+    );
+  }
+
+  pi.registerCommand("inter-agent", {
+    description: "Inter-agent bus commands",
+    getArgumentCompletions: (prefix: string): AutocompleteItem[] | null => {
+      const filtered = INTER_AGENT_SUBCOMMANDS.filter((s) =>
+        s.value.startsWith(prefix),
+      );
+      return filtered.length > 0 ? filtered : null;
+    },
     handler: async (args, ctx) => {
-      const match = args.trim().match(/^(\S+)\s+(.+)$/s);
-      if (!match) {
-        notify(
-          "[inter-agent] send failed",
-          "usage: /inter-agent-send <to> <text>",
-          "error",
-        );
+      const trimmed = args.trim();
+      if (!trimmed) {
+        showInterAgentUsage();
         return;
       }
-      const [, to, text] = match;
-      if (!listenerReady || !currentConnection) {
-        notify(
-          "[inter-agent] send failed",
-          "Not connected to the inter-agent bus. Use /inter-agent-connect first.",
-          "error",
-        );
-        return;
-      }
-      const name = currentConnection.name;
-      const formattedText = formatOutgoing(text, name);
-      const result = await execScript(scripts.pi, ["send", to, formattedText]);
-      if (result.code !== 0) {
-        notify(
-          "[inter-agent] send failed",
-          scriptFailureMessage(result, "send"),
-          "error",
-        );
-        return;
-      }
-      notify("[inter-agent] sent", `to ${to}`);
-      showOutgoingInContext(pi, name, text, `to ${to}`);
-    },
-  });
-
-  pi.registerCommand("inter-agent-broadcast", {
-    description: "Broadcast a message (usage: /inter-agent-broadcast <text>)",
-    handler: async (args, ctx) => {
-      const text = args.trim();
-      if (!text) {
-        notify("[inter-agent] broadcast failed", "message required", "error");
-        return;
-      }
-      if (!listenerReady || !currentConnection) {
-        notify(
-          "[inter-agent] broadcast failed",
-          "Not connected to the inter-agent bus. Use /inter-agent-connect first.",
-          "error",
-        );
-        return;
-      }
-      const name = currentConnection.name;
-      const formattedText = formatOutgoing(text, name);
-      const result = await execScript(scripts.pi, ["broadcast", formattedText]);
-      if (result.code !== 0) {
-        notify(
-          "[inter-agent] broadcast failed",
-          scriptFailureMessage(result, "broadcast"),
-          "error",
-        );
-        return;
-      }
-      notify("[inter-agent] broadcast", "sent");
-      showOutgoingInContext(pi, name, text, "broadcast");
-    },
-  });
-
-  pi.registerCommand("inter-agent-list", {
-    description: "List connected agent sessions",
-    handler: async (_args, _ctx) => {
-      const result = await execScript(scripts.pi, ["list", "--json"]);
-      if (result.code !== 0) {
-        notify(
-          "[inter-agent] list failed",
-          scriptFailureMessage(result, "list"),
-          "error",
-        );
-        return;
-      }
-      try {
-        const payload = JSON.parse(result.stdout);
-        const sessions =
-          (payload.sessions as Array<{
-            name: string;
-            label?: string | null;
-          }>) || [];
-        const lines = sessions.map(
-          (s) => `• ${s.name}${s.label ? ` (${s.label})` : ""}`,
-        );
-        if (lines.length === 0) {
-          notify("[inter-agent] list", "no agents connected");
-        } else {
-          notify("[inter-agent] list", lines.join(", "));
-        }
-      } catch {
-        notify("[inter-agent] list failed", "invalid response", "error");
-      }
-    },
-  });
-
-  pi.registerCommand("inter-agent-status", {
-    description: "Check inter-agent server status",
-    handler: async (_args, _ctx) => {
-      const result = await execScript(scripts.pi, ["status", "--json"]);
-      if (result.code !== 0) {
-        notify(
-          "[inter-agent] status failed",
-          scriptFailureMessage(result, "status"),
-          "error",
-        );
-        return;
-      }
-      try {
-        const payload = JSON.parse(result.stdout);
-        const state = String(payload.state || "unknown");
-        const msg = String(payload.message || state);
-        notify(
-          "[inter-agent] status",
-          msg,
-          state === "available" ? "info" : "warning",
-        );
-      } catch {
-        notify("[inter-agent] status failed", "invalid response", "error");
+      const subcommand = trimmed.split(/\s+/, 1)[0];
+      const rest = trimmed.slice(subcommand.length).trimStart();
+      switch (subcommand) {
+        case "connect":
+          await handleConnect(rest, ctx);
+          break;
+        case "disconnect":
+          await handleDisconnect(rest, ctx);
+          break;
+        case "send":
+          await handleSend(rest, ctx);
+          break;
+        case "broadcast":
+          await handleBroadcast(rest, ctx);
+          break;
+        case "list":
+          await handleList(rest, ctx);
+          break;
+        case "status":
+          await handleStatus(rest, ctx);
+          break;
+        default:
+          showInterAgentUsage();
       }
     },
   });
@@ -878,7 +930,9 @@ export default function(pi: ExtensionAPI) {
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const { to, text } = params as { to: string; text: string };
       if (!listenerReady || !currentConnection) {
-        throw new Error("Not connected to the inter-agent bus. Use /inter-agent-connect first.");
+        throw new Error(
+          "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        );
       }
       const name = currentConnection.name;
       const formattedText = formatOutgoing(text, name);
@@ -888,7 +942,12 @@ export default function(pi: ExtensionAPI) {
       }
       showOutgoingInContext(pi, name, text, `to ${to}`);
       return {
-        content: [{ type: "text" as const, text: `Message sent from the current agent to ${to}` }],
+        content: [
+          {
+            type: "text" as const,
+            text: `Message sent from the current agent to ${to}`,
+          },
+        ],
         details: { to, text },
       };
     },
@@ -904,7 +963,9 @@ export default function(pi: ExtensionAPI) {
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const { text } = params as { text: string };
       if (!listenerReady || !currentConnection) {
-        throw new Error("Not connected to the inter-agent bus. Use /inter-agent-connect first.");
+        throw new Error(
+          "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        );
       }
       const name = currentConnection.name;
       const formattedText = formatOutgoing(text, name);
@@ -916,7 +977,9 @@ export default function(pi: ExtensionAPI) {
       }
       showOutgoingInContext(pi, name, text, "broadcast");
       return {
-        content: [{ type: "text" as const, text: "Broadcast sent to all other agents" }],
+        content: [
+          { type: "text" as const, text: "Broadcast sent to all other agents" },
+        ],
         details: { text },
       };
     },
@@ -972,14 +1035,14 @@ export default function(pi: ExtensionAPI) {
       const label = connected ? currentConnection.label : null;
       const lines = connected
         ? [
-          "Connected: true",
-          `Name: ${name}`,
-          ...(label ? [`Label: ${label}`] : []),
-        ]
+            "Connected: true",
+            `Name: ${name}`,
+            ...(label ? [`Label: ${label}`] : []),
+          ]
         : [
-          "Connected: false",
-          ...(state?.name ? [`Last name: ${state.name}`] : []),
-        ];
+            "Connected: false",
+            ...(state?.name ? [`Last name: ${state.name}`] : []),
+          ];
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
         details: {
