@@ -155,6 +155,41 @@ class TestPermanentErrors:
         listener = Listener(host="127.0.0.1", port=12345, name="test")
         await listener._connect_and_serve(1)
 
+    @pytest.mark.asyncio
+    async def test_name_taken_emits_actionable_message(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
+            yield json.dumps(
+                {"op": "error", "code": "NAME_TAKEN", "message": "name already in use"}
+            )
+
+        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        listener = Listener(host="127.0.0.1", port=12345, name="y")
+        with pytest.raises(PermanentError, match="NAME_TAKEN"):
+            await listener._connect_and_serve(1)
+
+        out = capsys.readouterr().out
+        assert '"y"' in out
+        assert "unique name" in out
+        assert "Listener stopped" in out
+
+    @pytest.mark.asyncio
+    async def test_name_taken_does_not_emit_generic_permanent_line(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
+            yield json.dumps(
+                {"op": "error", "code": "NAME_TAKEN", "message": "name already in use"}
+            )
+
+        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        listener = Listener(host="127.0.0.1", port=12345, name="y")
+        with pytest.raises(PermanentError):
+            await listener._connect_and_serve(1)
+
+        assert "permanent error — giving up" not in capsys.readouterr().out
+
 
 class TestAutoStart:
     def test_start_server_uses_explicit_adapter_idle_timeout(

@@ -131,6 +131,7 @@ def shutdown() -> int:
 def status() -> dict[str, object]:
     command = core_status.command_status()
     server = asyncio.run(core_status.check_server_status(DEFAULT_HOST, DEFAULT_PORT))
+    connected_name = _connected_from_name()
     return {
         "state": server.state,
         "host": server.host,
@@ -140,6 +141,8 @@ def status() -> dict[str, object]:
         "message": server.message,
         "core_list_supported": command.list_supported,
         "adapter_list_exposed": True,
+        "connected": connected_name is not None,
+        "connected_name": connected_name,
     }
 
 

@@ -54,6 +54,10 @@ log = logging.getLogger("inter-agent.claude.listener")
 class PermanentError(Exception):
     """Raised when the server returns an error that reconnecting cannot resolve."""
 
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(f"{code}: {message}")
+        self.code = code
+
 
 def _print_line(line: str, out: TextIO) -> None:
     """Emit a single notification line to stdout, flushed."""
@@ -187,10 +191,11 @@ class Listener:
                     )
                     return 1
                 except PermanentError as exc:
-                    _print_line(
-                        f"[inter-agent] permanent error — giving up: {exc}",
-                        self.output,
-                    )
+                    if exc.code != "NAME_TAKEN":
+                        _print_line(
+                            f"[inter-agent] permanent error — giving up: {exc}",
+                            self.output,
+                        )
                     return 1
                 except websockets.ConnectionClosed:
                     pass
@@ -242,12 +247,20 @@ class Listener:
             if op == "error":
                 code = payload.get("code", "")
                 message = payload.get("message", "")
+                if isinstance(code, str) and code == "NAME_TAKEN":
+                    _print_line(
+                        f'[inter-agent] name "{self.name}" is already in use by another '
+                        "session. Run 'inter-agent-claude list' and reconnect with a "
+                        "unique name. Listener stopped.",
+                        self.output,
+                    )
+                    raise PermanentError(code, message)
                 _print_line(
                     f"[inter-agent] connection error: {code}: {message}",
                     self.output,
                 )
                 if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
-                    raise PermanentError(f"{code}: {message}")
+                    raise PermanentError(code, message)
                 continue
 
             if op == "msg":

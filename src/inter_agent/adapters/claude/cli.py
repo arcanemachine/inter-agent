@@ -77,6 +77,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"reachable={payload['server_reachable']}")
             print(f"identity_verified={payload['identity_verified']}")
             print(f"message={payload['message']}")
+            connected_name = payload.get("connected_name")
+            print(f"connected={payload['connected']}")
+            print(f"connected_name={connected_name if connected_name is not None else ''}")
         return 0
     if args.command == "shutdown":
         return commands.shutdown()

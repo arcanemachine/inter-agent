@@ -48,6 +48,8 @@ def test_status_outputs_json(
         "message": "No server is running. Start one with inter-agent-server",
         "core_list_supported": True,
         "adapter_list_exposed": True,
+        "connected": False,
+        "connected_name": None,
     }
 
 

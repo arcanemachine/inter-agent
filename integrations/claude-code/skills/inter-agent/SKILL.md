@@ -76,7 +76,7 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 | `/inter-agent send <name-or-prefix> <text>` | Send a direct message. |
 | `/inter-agent broadcast <text>` | Broadcast to all other sessions. |
 | `/inter-agent list` | List connected sessions. |
-| `/inter-agent status` | Check server status. |
+| `/inter-agent status` | Check server status and whether this session is connected. |
 | `/inter-agent disconnect` | Stop the listener. |
 | `/inter-agent shutdown` | Stop the inter-agent server. |
 
@@ -101,6 +101,17 @@ period with no connected sessions. A manually started `inter-agent-server` runs
 until explicit shutdown by default unless it is started with `--idle-timeout
 <seconds>`.
 
+After connecting, verify your session is registered:
+
+```bash
+inter-agent-claude status   # connected=true and connected_name=<your-name>
+inter-agent-claude list      # your name appears in the session list
+```
+
+"a Monitor process exists" does not mean you are connected. If the listener
+emitted `[inter-agent] connection error: NAME_TAKEN`, you are not connected;
+see the Name conflicts section below.
+
 ## send / broadcast / list / status / disconnect
 
 These are short-lived Bash commands that delegate to `inter-agent-claude`:
@@ -116,6 +127,29 @@ inter-agent-claude disconnect
 Send and broadcast require an active listener for the current Claude Code
 session. The adapter uses that listener's connected routing name as the sender
 name.
+
+## Name conflicts (NAME_TAKEN)
+
+`NAME_TAKEN` means another **live** session currently holds the name you
+requested. It is a permanent error: retrying the same name will never succeed,
+and the listener stops immediately.
+
+Recovery:
+
+1. Run `inter-agent-claude list` to see which names are already taken.
+2. Pick a name that is **not** in that list.
+3. Connect once with the unique name: `/inter-agent connect <unique-name>`.
+
+Do not manually run `inter-agent-claude listen` in Bash. `/inter-agent connect`
+already starts the single Monitor listener for your session; running your own
+`listen` creates racing duplicate listeners that steal the name from each other.
+
+If you killed a listener with `kill -9` instead of `/inter-agent disconnect`, the
+server may keep the old name registered for a short grace period (up to ~40s).
+Wait, then reconnect with a fresh unique name.
+
+A NAME_TAKEN from the listener prints an actionable line naming the conflicting
+name and reminding you to pick a unique one.
 
 ## Truncated messages
 

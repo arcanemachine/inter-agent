@@ -390,4 +390,8 @@ async def test_listener_exits_on_name_taken(
         result = await asyncio.wait_for(task, timeout=2.0)
 
     assert result == 1
-    assert "NAME_TAKEN" in out.getvalue()
+    output = out.getvalue()
+    assert "NAME_TAKEN" not in output
+    assert '"duplicate-name"' in output
+    assert "unique name" in output
+    assert "Listener stopped" in output
