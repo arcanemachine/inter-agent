@@ -338,6 +338,58 @@ class TestPermanentErrors:
         assert "permanent error — giving up" not in capsys.readouterr().out
 
 
+class TestDuplicateListener:
+    @pytest.mark.asyncio
+    async def test_same_name_reports_already_connected(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(state, "_resolve_listener_key", lambda: 123)
+        monkeypatch.setattr(state, "acquire_lock", lambda ppid: None)
+        monkeypatch.setattr(
+            state,
+            "read_session_state",
+            lambda ppid: {"name": "agent-c", "listener_pid": 456, "session_id": "sid"},
+        )
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-c", output=out)
+
+        assert await listener.run() == 0
+        assert 'already connected as "agent-c"' in out.getvalue()
+        assert "no new listener started" in out.getvalue()
+
+    @pytest.mark.asyncio
+    async def test_different_name_reports_existing_listener(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(state, "_resolve_listener_key", lambda: 123)
+        monkeypatch.setattr(state, "acquire_lock", lambda ppid: None)
+        monkeypatch.setattr(
+            state,
+            "read_session_state",
+            lambda ppid: {"name": "agent-b", "listener_pid": 456, "session_id": "sid"},
+        )
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-c", output=out)
+
+        assert await listener.run() == 0
+        assert 'already running as "agent-b"' in out.getvalue()
+        assert 'connecting as "agent-c"' in out.getvalue()
+
+    @pytest.mark.asyncio
+    async def test_duplicate_start_before_state_exists_is_clear(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(state, "_resolve_listener_key", lambda: 123)
+        monkeypatch.setattr(state, "acquire_lock", lambda ppid: None)
+        monkeypatch.setattr(state, "read_session_state", lambda ppid: None)
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-c", output=out)
+
+        assert await listener.run() == 0
+        assert "already starting or running" in out.getvalue()
+        assert "no new listener started" in out.getvalue()
+
+
 class TestAutoStart:
     def test_start_server_uses_explicit_adapter_idle_timeout(
         self, monkeypatch: pytest.MonkeyPatch

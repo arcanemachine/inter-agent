@@ -141,16 +141,24 @@ class Listener:
         if self._lock_fd is None:
             existing = state.read_session_state(ppid)
             if existing:
-                _print_line(
-                    "[inter-agent] another monitor for this session is already running "
-                    f"— name={existing.get('name', '')!r}, "
-                    f"listener_pid={existing.get('listener_pid', '')}, "
-                    f"session_id={existing.get('session_id', '')}; exiting",
-                    self.output,
-                )
+                existing_name = str(existing.get("name", ""))
+                if existing_name == self.name:
+                    _print_line(
+                        f'[inter-agent] already connected as "{existing_name}"; '
+                        "no new listener started.",
+                        self.output,
+                    )
+                else:
+                    _print_line(
+                        "[inter-agent] another listener is already running "
+                        f'as "{existing_name}"; disconnect before connecting as '
+                        f'"{self.name}". No new listener started.',
+                        self.output,
+                    )
             else:
                 _print_line(
-                    "[inter-agent] another monitor for this session is already running — exiting",
+                    "[inter-agent] another listener is already starting or running; "
+                    "no new listener started.",
                     self.output,
                 )
             return 0
