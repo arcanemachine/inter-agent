@@ -131,15 +131,21 @@ period with no connected sessions. A manually started `inter-agent-server` runs
 until explicit shutdown by default unless it is started with `--idle-timeout
 <seconds>`.
 
-After connecting, verify your session with the authoritative status command:
+After connecting, the Monitor's connected line is authoritative:
+
+```text
+[inter-agent] connected as "<your-name>"
+```
+
+If you see that line, you are connected; stop there. Do not run extra
+verification commands, disconnect, restart, or relaunch just to make the
+listener a Monitor. The connected listener is already the real connection.
+
+If the Monitor output is unclear, run one fallback status check:
 
 ```bash
 inter-agent-claude status   # connected=true and connected_name=<your-name>
 ```
-
-If status reports `connected=true` and `connected_name=<your-name>`, you are
-connected; stop there. Do not disconnect, restart, or relaunch just to make the
-listener a Monitor. The connected listener is already the real connection.
 
 `inter-agent-claude list` is for optional peer discovery, not connection
 verification. It may briefly lag behind listener startup.
@@ -165,7 +171,8 @@ Send and broadcast require an active listener for the current Claude Code
 session. The adapter uses that listener's connected routing name as the sender
 name. Use `send` for normal peer-to-peer replies. Use `broadcast` only when
 the user explicitly asks to broadcast, notify all sessions, or send to everyone.
-After sending, do not poll for a reply; replies appear as incoming notifications.
+After sending, do not retry just because the command is silent on success, and
+do not poll for a reply; replies appear as incoming notifications.
 `messages <msg_id>` reads the full text of a truncated inbound message from
 the adapter log (see the Reaction policy section for when to use it).
 
