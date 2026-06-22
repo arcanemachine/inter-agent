@@ -202,6 +202,8 @@ class BusServer:
                     return
                 elif op == "shutdown":
                     await self._handle_shutdown(conn)
+                elif op == "kick":
+                    await self._handle_kick(conn, msg)
                 elif op == "list":
                     sessions = [
                         {
@@ -239,6 +241,54 @@ class BusServer:
             return
         await sender.ws.send(json.dumps({"op": "shutdown_ok"}))
         self.shutdown_event.set()
+
+    async def _handle_kick(self, sender: Conn, msg: dict[str, object]) -> None:
+        """Force-disconnect a registered session by name or session_id.
+
+        Control-only. Used to clear ghost or unwanted sessions without
+        restarting the whole server. Not exposed through host extension tools.
+        """
+        if sender.role != "control":
+            await self.send_error(sender.ws, ErrorCode.BAD_ROLE, "kick requires control role")
+            return
+
+        target_name = msg.get("name")
+        target_session_id = msg.get("session_id")
+        target: Conn | None = None
+        async with self._lock:
+            if isinstance(target_session_id, str) and target_session_id:
+                target = self.registry.get(target_session_id)
+            elif isinstance(target_name, str) and target_name:
+                target = next(
+                    (c for c in self.registry.values() if c.name == target_name),
+                    None,
+                )
+            else:
+                await self.send_error(
+                    sender.ws, ErrorCode.PROTOCOL_ERROR, "kick requires name or session_id"
+                )
+                return
+
+            if target is None:
+                await self.send_error(sender.ws, ErrorCode.UNKNOWN_TARGET, "unknown target")
+                return
+
+            # Remove before closing so the target's own handler finally block
+            # sees the session already gone and does not double-remove.
+            self.registry.pop(target.session_id, None)
+            await sender.ws.send(
+                json.dumps(
+                    {
+                        "op": "kick_ok",
+                        "name": target.name,
+                        "session_id": target.session_id,
+                    }
+                )
+            )
+
+        await target.ws.close(code=1000, reason="kicked")
+        if not self.registry:
+            self._schedule_idle_timer()
 
     async def close_connections(self) -> None:
         for conn in list(self.registry.values()):

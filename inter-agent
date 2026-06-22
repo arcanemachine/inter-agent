@@ -13,6 +13,7 @@ Generic commands:
   list        List connected sessions
   status      Show server status
   shutdown    Shut down the server
+  kick <name> Force-disconnect a registered session by name
 
 Harness commands:
   pi send <to> <text>        Send a direct message from a Pi session
@@ -44,6 +45,9 @@ case "$HARN" in
     ;;
   shutdown)
     exec uv run inter-agent-shutdown "$@"
+    ;;
+  kick)
+    exec uv run inter-agent-kick "$@"
     ;;
   pi)
     exec uv run inter-agent-pi "$@"

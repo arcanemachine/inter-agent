@@ -19,6 +19,7 @@ channels:
           - $ref: '#/components/messages/Bye'
           - $ref: '#/components/messages/List'
           - $ref: '#/components/messages/Shutdown'
+          - $ref: '#/components/messages/Kick'
           - $ref: '#/components/messages/Custom'
     subscribe:
       message:
@@ -29,6 +30,7 @@ channels:
           - $ref: '#/components/messages/Error'
           - $ref: '#/components/messages/ListOk'
           - $ref: '#/components/messages/ShutdownOk'
+          - $ref: '#/components/messages/KickOk'
 components:
   schemas:
     Envelope:
@@ -59,6 +61,10 @@ components:
       $ref: './schemas/shutdown.json'
     ShutdownOk:
       $ref: './schemas/shutdown_ok.json'
+    Kick:
+      $ref: './schemas/kick.json'
+    KickOk:
+      $ref: './schemas/kick_ok.json'
     Custom:
       $ref: './schemas/custom.json'
   messages:
@@ -101,6 +107,12 @@ components:
     ShutdownOk:
       payload:
         $ref: '#/components/schemas/ShutdownOk'
+    Kick:
+      payload:
+        $ref: '#/components/schemas/Kick'
+    KickOk:
+      payload:
+        $ref: '#/components/schemas/KickOk'
     Custom:
       payload:
         $ref: '#/components/schemas/Custom'

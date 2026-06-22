@@ -12,6 +12,7 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.client import build_hello, iter_client_frames
+from inter_agent.core.kick import kick_session
 from inter_agent.core.list import SessionInfo, list_sessions
 from inter_agent.core.send import broadcast_message, send_direct_message
 from inter_agent.core.server import run_server
@@ -180,3 +181,36 @@ async def test_broadcast_message_with_from_name_override(
     assert isinstance(delivered_b, dict)
     assert delivered_a["from_name"] == "agent-a"
     assert delivered_b["from_name"] == "agent-a"
+
+
+@pytest.mark.asyncio
+async def test_kick_session_by_name_disconnects_target(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as target:
+            await connect_agent(target, context, "b", "agent-b")
+
+            result = await kick_session(context.host, context.port, name="agent-b")
+
+            with pytest.raises(websockets.ConnectionClosed):
+                await target.recv()
+
+    assert result.response_payload["op"] == "kick_ok"
+    assert result.response_payload["name"] == "agent-b"
+
+
+@pytest.mark.asyncio
+async def test_kick_session_unknown_target_returns_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        result = await kick_session(context.host, context.port, name="ghost")
+
+    assert result.response_payload["op"] == "error"
+    assert result.response_payload["code"] == "UNKNOWN_TARGET"
+
+
+def test_kick_session_requires_name_or_session_id() -> None:
+    with pytest.raises(ValueError, match="name or session_id"):
+        asyncio.run(kick_session(HOST, 9473))

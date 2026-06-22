@@ -9,6 +9,7 @@
    - Presence and identity (`session_id`, routing `name`, display-only `label`)
    - Routing (`send`, `broadcast`, `custom` pass-through)
    - Health and lifecycle (`ping` / `pong`, `bye`, authenticated `shutdown`)
+   - Session management (control-only `kick` to force-disconnect a registered session by name or session_id)
    - Introspection (`list` capability)
    - Importable command APIs for server start, connect, send, broadcast, list, and status checks.
 
