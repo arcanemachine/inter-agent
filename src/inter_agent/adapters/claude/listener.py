@@ -27,9 +27,10 @@ from inter_agent.core.shared import (
     verify_server_identity,
 )
 
-RECONNECT_BACKOFF_MIN_S = 0.25
+RECONNECT_BACKOFF_MIN_S = 0.5
 RECONNECT_BACKOFF_MAX_S = 4.0
 RECONNECT_JITTER_FRAC = 0.2
+RECONNECT_DEADLINE_S = 60.0
 PING_INTERVAL_S = 15
 AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300
 
@@ -175,11 +176,13 @@ class Listener:
                     return 1
 
             backoff = RECONNECT_BACKOFF_MIN_S
+            deadline: float | None = None
             while not self._stop.is_set():
                 self._connect_task = asyncio.create_task(self._connect_and_serve(ppid))
                 try:
                     await self._connect_task
                     backoff = RECONNECT_BACKOFF_MIN_S
+                    deadline = None
                 except asyncio.CancelledError:
                     pass
                 except (ConnectionRefusedError, OSError) as exc:
@@ -204,6 +207,16 @@ class Listener:
 
                 if self._stop.is_set():
                     break
+
+                if deadline is None:
+                    deadline = asyncio.get_running_loop().time() + RECONNECT_DEADLINE_S
+                if asyncio.get_running_loop().time() >= deadline:
+                    _print_line(
+                        "[inter-agent] could not reconnect within "
+                        f"{RECONNECT_DEADLINE_S:.0f}s; giving up",
+                        self.output,
+                    )
+                    return 1
 
                 jitter = backoff * RECONNECT_JITTER_FRAC
                 delay = backoff + random.uniform(-jitter, jitter)

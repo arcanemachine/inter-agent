@@ -32,10 +32,10 @@ from inter_agent.core.shared import (
     verify_server_identity,
 )
 
-RECONNECT_BACKOFF_MIN_S = 0.25
+RECONNECT_BACKOFF_MIN_S = 0.5
 RECONNECT_BACKOFF_MAX_S = 4.0
 RECONNECT_JITTER_FRAC = 0.2
-RECONNECT_MAX_ATTEMPTS = 20
+RECONNECT_DEADLINE_S = 60.0
 AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300
 
 # Server error codes that won't resolve by reconnecting.
@@ -133,24 +133,34 @@ async def _connect_and_stream(
                     return  # non-permanent error; let caller reconnect
 
 
+def _jittered_delay(backoff: float) -> float:
+    jitter = backoff * RECONNECT_JITTER_FRAC
+    return max(0.0, backoff + random.uniform(-jitter, jitter))
+
+
 async def run_listener(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
     name: str = "",
     label: str | None = None,
     output: TextIO | None = None,
-    max_attempts: int = RECONNECT_MAX_ATTEMPTS,
+    deadline_s: float = RECONNECT_DEADLINE_S,
 ) -> int:
     """Run the listener with automatic reconnection and eventual give-up.
+
+    Reconnects with bounded backoff while the connection is down. Gives up if
+    a reconnection would land at or past ``deadline_s`` seconds from the first
+    failure. Each successful connection resets the deadline, so a flapping
+    server that connects intermittently does not give up.
 
     Returns 0 on clean shutdown, 1 on permanent error or give-up.
     """
     stream = output or sys.stdout
     backoff = RECONNECT_BACKOFF_MIN_S
-    attempts = 0
+    deadline: float | None = None
     server_started = False
 
-    while attempts < max_attempts:
+    while True:
         # Ensure the server is running, auto-starting if needed.
         if not verify_server_identity(host, port):
             if not server_started:
@@ -171,45 +181,39 @@ async def run_listener(
                     break
                 await asyncio.sleep(0.5)
             if not ready:
-                attempts += 1
-                if attempts >= max_attempts:
+                if deadline is None:
+                    deadline = asyncio.get_running_loop().time() + deadline_s
+                if asyncio.get_running_loop().time() >= deadline:
                     print(
                         "[inter-agent] server did not become available; giving up",
                         file=sys.stderr,
                     )
                     return 1
-                await _backoff_sleep(backoff)
+                await asyncio.sleep(_jittered_delay(backoff))
                 backoff = min(backoff * 2, RECONNECT_BACKOFF_MAX_S)
                 continue
 
         try:
             await _connect_and_stream(host, port, name, label, stream)
-            # Connection closed normally — reset backoff and reconnect.
+            # Connection closed normally — reset and reconnect.
             backoff = RECONNECT_BACKOFF_MIN_S
-            attempts = 0
+            deadline = None
         except PermanentError:
             return 1
         except (ConnectionRefusedError, OSError, websockets.ConnectionClosed):
             pass
 
-        attempts += 1
-        if attempts >= max_attempts:
+        if deadline is None:
+            deadline = asyncio.get_running_loop().time() + deadline_s
+        if asyncio.get_running_loop().time() >= deadline:
             print(
-                f"[inter-agent] giving up after {attempts} reconnect attempts",
+                "[inter-agent] giving up; could not reconnect within " f"{deadline_s:.0f}s",
                 file=sys.stderr,
             )
             return 1
 
-        await _backoff_sleep(backoff)
+        await asyncio.sleep(_jittered_delay(backoff))
         backoff = min(backoff * 2, RECONNECT_BACKOFF_MAX_S)
-
-    return 1
-
-
-async def _backoff_sleep(backoff: float) -> None:
-    jitter = backoff * RECONNECT_JITTER_FRAC
-    delay = backoff + random.uniform(-jitter, jitter)
-    await asyncio.sleep(max(0.0, delay))
 
 
 def build_parser() -> argparse.ArgumentParser:

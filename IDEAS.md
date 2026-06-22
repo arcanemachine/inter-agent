@@ -19,7 +19,7 @@ This file holds promising work that is not required for project completion as de
   - Manual server starts run until explicit shutdown by default, with `--idle-timeout <seconds>` available when an idle timeout is wanted.
   - Pi and Claude Code auto-start server paths use an explicit 300-second idle timeout.
   - How would agents behave if the server connection was lost (e.g. due to a crash)? Would they be notified? Should they attempt to reconnect? This process should be guided.
-    — Partially implemented: the Claude Code listener reconnects with bounded backoff. Pi extension and direct clients do not yet reconnect.
+    — Implemented: both the Claude Code and Pi listeners now reconnect with bounded backoff and eventual give-up.
 
 ## Host adapters
 
@@ -62,6 +62,19 @@ The current default for finding the inter-agent project is `~/.local/share/inter
 - Full interactive testing inside Pi (running the full set of commands in a live session) has not been done.
 
 ## Protocol extensions
+
+### Kick reconnect block
+
+The `kick` op force-disconnects a session, but auto-reconnecting listeners (Pi, Claude Code) will reclaim their name within a fraction of a second, making kick ineffective for stale-session reaping. A server-side blocklist would make kick useful for that use case.
+
+Considerations:
+
+1. Keep an in-memory `kicked_names` map (name → expiry timestamp) populated on kick.
+2. Reject `hello` for a blocked name with a dedicated `KICKED` error until the block expires.
+3. Default block duration (e.g. 60s), optionally configurable via `INTER_AGENT_KICK_BLOCK_S`.
+4. Block by name only (agent names are unique) or also by session_id.
+5. Listeners should treat `KICKED` as non-permanent and retry with normal backoff so they recover automatically once the block lifts.
+6. The block is in-memory only and does not survive a server restart.
 
 ### Channel pub/sub
 

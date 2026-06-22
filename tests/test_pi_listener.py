@@ -35,10 +35,10 @@ class TestPermanentErrorCodes:
 
 class TestRunListenerReconnect:
     @pytest.mark.asyncio
-    async def test_gives_up_after_max_attempts(
+    async def test_gives_up_after_deadline(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """The listener exits non-zero after exhausting reconnect attempts."""
+        """The listener exits non-zero once the reconnect deadline is reached."""
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
 
         # Server never available and auto-start fails.
@@ -52,7 +52,17 @@ class TestRunListenerReconnect:
 
         monkeypatch.setattr(asyncio, "sleep", fast_sleep)
 
-        result = await run_listener(host="127.0.0.1", port=12345, name="test", max_attempts=3)
+        # Advance the loop clock so the deadline is immediately exceeded.
+        fake_time = 100.0
+        loop = asyncio.get_running_loop()
+
+        class FakeLoop:
+            def time(self) -> float:
+                return fake_time
+
+        monkeypatch.setattr(loop, "time", FakeLoop().time)
+
+        result = await run_listener(host="127.0.0.1", port=12345, name="test", deadline_s=0.0)
         assert result == 1
 
     @pytest.mark.asyncio
