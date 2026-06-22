@@ -6,6 +6,7 @@ cd "$ROOT"
 
 show_help() {
   cat <<'EOF'
+An inter-agent wrapper quickstart script.
 Usage: ./inter-agent <command> [args...]
 
 Generic commands:
