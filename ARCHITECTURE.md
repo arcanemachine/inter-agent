@@ -43,14 +43,18 @@
 - Manual starts run until explicit shutdown by default. Passing `--idle-timeout <seconds>` opts in to automatic shutdown after that idle period; `--idle-timeout 0` also leaves the timeout disabled.
 - Adapters that auto-start the server, including Pi `/inter-agent-connect` and Claude Code `listen`, pass an explicit 300-second idle timeout, verify the server is reachable before proceeding, and retry for up to 15 seconds after launching the server process.
 
-## Lifecycle state
+## Configuration and lifecycle state
 
-- Server state lives under `INTER_AGENT_DATA_DIR` or `~/.inter-agent` by default.
+- The default endpoint is `127.0.0.1:16837`.
+- Endpoint resolution uses explicit CLI options first, then `INTER_AGENT_HOST` / `INTER_AGENT_PORT`, then the inter-agent JSON config file, then built-in defaults.
+- The config file is `INTER_AGENT_CONFIG` when set, otherwise `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux and `~/Library/Application Support/inter-agent/config.json` on macOS.
+- Server state lives under `INTER_AGENT_DATA_DIR`, then the config file `dataDir`, then `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS.
 - The token file, server identity metadata, PID metadata, and reserved shutdown-control metadata are per-user local files with restrictive permissions.
 - Server identity metadata is written atomically and includes host, port, PID, state schema version, startup timestamp, instance nonce, and a platform process start marker when available.
 - Startup refuses to replace live metadata for the same port and removes stale metadata for dead server processes when safe.
 - Authenticated shutdown stops accepting new connections, closes active sessions, and removes server lifecycle metadata during normal shutdown.
-- Status checks report available, unavailable, identity-check-failed, auth-failed, and protocol-mismatch states for host tooling.
+- Status checks report available, unavailable, identity-check-failed, auth-failed, and protocol-mismatch states for host tooling, along with the resolved configuration, discovered live server metadata, and endpoint hints.
+- When client/control commands target an unavailable configured endpoint and exactly one live server is discovered in lifecycle metadata, they use the discovered endpoint. Server startup always binds the resolved configured endpoint and does not use discovery fallback.
 
 ## Capability exchange
 

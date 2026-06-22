@@ -31,6 +31,9 @@ import { join } from "node:path";
 
 interface InterAgentConfig {
   projectPath?: string;
+  host?: string;
+  port?: number | string;
+  dataDir?: string;
 }
 
 interface Settings {
@@ -87,6 +90,16 @@ function getScripts(config: InterAgentConfig) {
 }
 
 type InterAgentScripts = ReturnType<typeof getScripts>;
+
+function interAgentEnv(config: InterAgentConfig = loadConfig()): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, PYTHONUNBUFFERED: "1" };
+  if (config.host) env.INTER_AGENT_HOST = String(config.host);
+  if (config.port !== undefined && config.port !== null) {
+    env.INTER_AGENT_PORT = String(config.port);
+  }
+  if (config.dataDir) env.INTER_AGENT_DATA_DIR = config.dataDir;
+  return env;
+}
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -211,7 +224,7 @@ ${text}`,
 
 function execScript(script: string, args: string[]): Promise<ScriptResult> {
   return new Promise((resolve) => {
-    const env = { ...process.env, PYTHONUNBUFFERED: "1" };
+    const env = interAgentEnv();
     const proc = spawn(script, args, {
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
@@ -333,7 +346,7 @@ function startServerProcess(
         stdio: "ignore",
         shell: false,
         detached: true,
-        env: { ...process.env, PYTHONUNBUFFERED: "1" },
+        env: interAgentEnv(loadConfig()),
       },
     );
 
@@ -519,7 +532,7 @@ function startListener(
   const proc = spawn(scripts.connect, args, {
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
-    env: { ...process.env, PYTHONUNBUFFERED: "1" },
+    env: interAgentEnv(config),
   });
 
   listenerProc = proc;

@@ -10,11 +10,10 @@ from dataclasses import dataclass
 import websockets
 
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     control_hello,
     identity_failure_message,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity_details,
 )
 
@@ -56,15 +55,16 @@ async def shutdown_server(host: str, port: int) -> ShutdownResult:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-shutdown")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    result = asyncio.run(shutdown_server(args.host, args.port))
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    result = asyncio.run(shutdown_server(endpoint.host, endpoint.port))
     print(result.response)
     return 0 if result.response_payload.get("op") == "shutdown_ok" else 1
 

@@ -465,6 +465,10 @@ class TestAutoStart:
                 sys.executable,
                 "-m",
                 "inter_agent.core.server",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "12345",
                 "--idle-timeout",
                 str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
             ]

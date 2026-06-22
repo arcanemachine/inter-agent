@@ -44,8 +44,8 @@ def run_pi_function(function: Callable[..., int], *args: object) -> CommandCaptu
 
 
 def use_live_pi_defaults(monkeypatch: pytest.MonkeyPatch, server: LiveServer) -> None:
-    monkeypatch.setattr(pi_commands, "DEFAULT_HOST", server.host)
-    monkeypatch.setattr(pi_commands, "DEFAULT_PORT", server.port)
+    monkeypatch.setenv("INTER_AGENT_HOST", server.host)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(server.port))
 
 
 async def wait_for_pi_status_state(state: str) -> dict[str, object]:
@@ -219,7 +219,7 @@ def test_pi_cli_shutdown_unavailable_identity_returns_failure(
     unused_tcp_port: int,
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(pi_commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
 
     result = run_pi(["shutdown"])
 
@@ -243,7 +243,7 @@ def test_pi_cli_unavailable_identity_failures_use_stderr(
     args: list[str],
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(pi_commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
 
     result = run_pi(args)
 
@@ -258,7 +258,7 @@ def test_pi_cli_list_connection_failure_returns_error_without_traceback(
     unused_tcp_port: int,
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(pi_commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
     write_server_identity("127.0.0.1", unused_tcp_port)
 
     result = run_pi(["list"])

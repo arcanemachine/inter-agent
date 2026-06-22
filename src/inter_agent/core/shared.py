@@ -7,8 +7,18 @@ import socket
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 9473
+from inter_agent.core.config import (
+    BUILTIN_DEFAULT_HOST,
+    BUILTIN_DEFAULT_PORT,
+    ConfigError,
+    EndpointResolution,
+    resolve_data_dir_path,
+    resolve_endpoint_config,
+    with_discovered_endpoint,
+)
+
+DEFAULT_HOST = BUILTIN_DEFAULT_HOST
+DEFAULT_PORT = BUILTIN_DEFAULT_PORT
 DEFAULT_DIRECT_CAP = 2 * 1024 * 1024
 DEFAULT_BROADCAST_CAP = 512 * 1024
 DEFAULT_FRAME_CAP = 16 * 1024 * 1024
@@ -83,7 +93,7 @@ class ServerAlreadyRunningError(RuntimeError):
 
 
 def data_dir() -> Path:
-    path = Path(os.getenv("INTER_AGENT_DATA_DIR", str(Path.home() / ".inter-agent")))
+    path = resolve_data_dir_path()
     path.mkdir(parents=True, exist_ok=True)
     os.chmod(path, 0o700)
     return path
@@ -333,6 +343,56 @@ def verify_server_identity_details(host: str, port: int) -> IdentityVerification
 
 def verify_server_identity(host: str, port: int) -> bool:
     return verify_server_identity_details(host, port).ok
+
+
+def discover_live_server_identities() -> tuple[ServerIdentity, ...]:
+    """Return live inter-agent servers described by lifecycle metadata."""
+    root = data_dir()
+    identities: list[ServerIdentity] = []
+    for path in root.glob("server.*.meta"):
+        try:
+            port = int(path.stem.split(".", maxsplit=2)[1])
+        except (IndexError, ValueError):
+            continue
+        identity = read_server_identity(port)
+        if identity is None:
+            continue
+        if server_process_matches_identity(identity):
+            identities.append(identity)
+    return tuple(identities)
+
+
+def resolve_endpoint(
+    host: str | None = None,
+    port: int | None = None,
+    *,
+    allow_discovery: bool = False,
+) -> EndpointResolution:
+    """Resolve the endpoint, optionally redirecting to one discovered live server."""
+    try:
+        resolution = resolve_endpoint_config(host, port)
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+    if not allow_discovery:
+        return resolution
+    verification = verify_server_identity_details(resolution.host, resolution.port)
+    if verification.ok:
+        return resolution
+    discovered = discover_live_server_identities()
+    if len(discovered) != 1:
+        return resolution
+    identity = discovered[0]
+    if identity.host == resolution.host and identity.port == resolution.port:
+        return resolution
+    return with_discovered_endpoint(
+        resolution,
+        host=identity.host,
+        port=identity.port,
+        message=(
+            f"configured endpoint {resolution.host}:{resolution.port} is unavailable; "
+            f"using discovered live server {identity.host}:{identity.port}"
+        ),
+    )
 
 
 def utc_now() -> str:

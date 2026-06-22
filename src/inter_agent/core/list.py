@@ -10,11 +10,10 @@ from dataclasses import dataclass
 import websockets
 
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     control_hello,
     identity_failure_message,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity_details,
 )
 
@@ -91,15 +90,16 @@ async def list_sessions(host: str, port: int) -> ListResult:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-list")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    result = asyncio.run(list_sessions(args.host, args.port))
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    result = asyncio.run(list_sessions(endpoint.host, endpoint.port))
     print(result.raw_response)
     return 0
 

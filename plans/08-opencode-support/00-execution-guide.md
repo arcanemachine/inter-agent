@@ -164,7 +164,7 @@ Possible backup designs, in preferred order:
 
 ### If token or metadata access fails
 
-Expected path: read `INTER_AGENT_DATA_DIR` or `~/.inter-agent` directly from the OpenCode plugin runtime.
+Expected path: read `INTER_AGENT_DATA_DIR`, config `dataDir`, or the platform default state directory directly from the OpenCode plugin runtime.
 
 Possible backup designs:
 

@@ -13,14 +13,13 @@ from websockets.asyncio.server import ServerConnection
 from inter_agent.core.errors import ErrorCode
 from inter_agent.core.router import RouterMiddleware
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     Limits,
     ServerAlreadyRunningError,
     claim_server_state,
     load_or_create_token,
     next_msg_id,
     remove_server_state,
+    resolve_endpoint,
     utc_now,
     validate_name,
 )
@@ -465,8 +464,8 @@ async def run_server(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-server")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     parser.add_argument(
         "--idle-timeout",
         type=int,
@@ -479,8 +478,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    endpoint = resolve_endpoint(args.host, args.port)
     try:
-        asyncio.run(run_server(args.host, args.port, idle_timeout_s=args.idle_timeout))
+        asyncio.run(run_server(endpoint.host, endpoint.port, idle_timeout_s=args.idle_timeout))
     except ServerAlreadyRunningError as exc:
         raise SystemExit(str(exc)) from exc
     return 0

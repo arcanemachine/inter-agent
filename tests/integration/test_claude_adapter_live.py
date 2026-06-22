@@ -46,8 +46,8 @@ def run_claude_function(function: Callable[..., int], *args: object) -> CommandC
 
 
 def use_live_claude_defaults(monkeypatch: pytest.MonkeyPatch, server: LiveServer) -> None:
-    monkeypatch.setattr(claude_commands, "DEFAULT_HOST", server.host)
-    monkeypatch.setattr(claude_commands, "DEFAULT_PORT", server.port)
+    monkeypatch.setenv("INTER_AGENT_HOST", server.host)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(server.port))
 
 
 async def wait_for_claude_status_state(state: str) -> dict[str, object]:
@@ -231,7 +231,7 @@ def test_claude_cli_shutdown_unavailable_identity_returns_failure(
     unused_tcp_port: int,
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(claude_commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
 
     result = run_claude(["shutdown"])
 
@@ -255,7 +255,7 @@ def test_claude_cli_unavailable_identity_failures_use_stderr(
     args: list[str],
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(claude_commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
 
     result = run_claude(args)
 

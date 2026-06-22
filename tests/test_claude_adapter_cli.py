@@ -49,7 +49,17 @@ def test_status_outputs_json(
     assert json.loads(captured.out) == {
         "state": "unavailable",
         "host": "127.0.0.1",
-        "port": 9473,
+        "port": 16837,
+        "configured_host": "127.0.0.1",
+        "configured_port": 16837,
+        "host_source": "default",
+        "port_source": "default",
+        "data_dir": str(tmp_path),
+        "data_dir_source": "env",
+        "config_path": None,
+        "discovered": False,
+        "discovered_servers": [],
+        "hints": [],
         "server_reachable": False,
         "identity_verified": False,
         "message": "No server is running. Start one with inter-agent-server",
@@ -67,7 +77,7 @@ def test_status_reports_identity_check_failure(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
     write_server_identity("127.0.0.1", unused_tcp_port)
     identity_payload = json.loads(identity_path(unused_tcp_port).read_text(encoding="utf-8"))
     identity_payload["port"] = unused_tcp_port + 1
@@ -101,7 +111,7 @@ def test_send_suppresses_duplicate_within_window(
     assert commands.send("agent-b", "hello") == 0
 
     # Only the first invocation reaches the bus.
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-a")]
+    assert calls == [("127.0.0.1", 16837, "agent-b", "hello", "agent-a")]
 
 
 def test_broadcast_suppresses_duplicate_within_window(
@@ -121,7 +131,7 @@ def test_broadcast_suppresses_duplicate_within_window(
     assert commands.broadcast("hello all") == 0
     assert commands.broadcast("hello all") == 0
 
-    assert calls == [("127.0.0.1", 9473, "hello all", "agent-a")]
+    assert calls == [("127.0.0.1", 16837, "hello all", "agent-a")]
 
 
 def test_send_uses_core_api(
@@ -141,7 +151,7 @@ def test_send_uses_core_api(
     code = commands.send("agent-b", "hello")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-a")]
+    assert calls == [("127.0.0.1", 16837, "agent-b", "hello", "agent-a")]
     assert capsys.readouterr().out == ""
 
 
@@ -192,7 +202,7 @@ def test_broadcast_uses_core_api(
     code = commands.broadcast("hello all")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "hello all", "agent-a")]
+    assert calls == [("127.0.0.1", 16837, "hello all", "agent-a")]
     assert capsys.readouterr().out == ""
 
 
@@ -252,7 +262,7 @@ def test_list_uses_core_api(
     code = commands.list_sessions()
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473)]
+    assert calls == [("127.0.0.1", 16837)]
     assert capsys.readouterr().out == '{"op": "list_ok", "sessions": []}\n'
 
 
@@ -273,7 +283,7 @@ def test_send_uses_connected_name_instead_of_from_argument(
     code = main(["send", "agent-b", "hello", "--from", "agent-a"])
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-connected")]
+    assert calls == [("127.0.0.1", 16837, "agent-b", "hello", "agent-connected")]
 
 
 def test_broadcast_uses_connected_name_instead_of_from_argument(
@@ -293,7 +303,7 @@ def test_broadcast_uses_connected_name_instead_of_from_argument(
     code = main(["broadcast", "hello all", "--from", "agent-a"])
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "hello all", "agent-connected")]
+    assert calls == [("127.0.0.1", 16837, "hello all", "agent-connected")]
 
 
 def test_message_prints_full_text(
@@ -370,5 +380,5 @@ def test_shutdown_uses_core_api(
     code = commands.shutdown()
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473)]
+    assert calls == [("127.0.0.1", 16837)]
     assert capsys.readouterr().out == '{"op": "shutdown_ok"}\n'

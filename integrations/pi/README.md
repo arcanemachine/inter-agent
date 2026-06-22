@@ -55,17 +55,20 @@ If you cloned inter-agent to a location other than `~/.local/share/inter-agent`,
 
 ## Configuration
 
-You can override the default inter-agent project path in your Pi `settings.json`:
+You can override the inter-agent project path and endpoint in your Pi `settings.json`:
 
 ```json
 {
   "interAgent": {
-    "projectPath": "/path/to/inter-agent"
+    "projectPath": "/path/to/inter-agent",
+    "host": "127.0.0.1",
+    "port": 16837,
+    "dataDir": "/path/to/inter-agent-state"
   }
 }
 ```
 
-Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`).
+Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, or `dataDir` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
 If you do not set a project path, the extension falls back to `~/.local/share/inter-agent`.
 

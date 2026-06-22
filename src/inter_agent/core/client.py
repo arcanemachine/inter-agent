@@ -12,10 +12,9 @@ from typing import TextIO
 import websockets
 
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     identity_failure_message,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity_details,
 )
 
@@ -83,8 +82,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("name", nargs="?")
     parser.add_argument("--name", dest="name_option")
     parser.add_argument("--label")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     return parser
 
 
@@ -94,7 +93,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     name = args.name_option or args.name
     if not name:
         parser.error("name is required")
-    asyncio.run(run_client(args.host, args.port, name, args.label))
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    asyncio.run(run_client(endpoint.host, endpoint.port, name, args.label))
     return 0
 
 

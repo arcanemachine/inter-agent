@@ -13,4 +13,4 @@
 - Protection against malicious code already running as the same OS user.
 - Cross-machine trust, PKI, TLS termination, or mTLS.
 - Multi-tenant permission isolation or enterprise RBAC.
-- Protection from a local process that can read or modify the user's `INTER_AGENT_DATA_DIR` contents.
+- Protection from a local process that can read or modify the user's inter-agent state directory contents.

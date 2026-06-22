@@ -30,6 +30,7 @@ from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity,
 )
 
@@ -72,7 +73,7 @@ def _text_frame(frame: str | bytes) -> str:
     return frame
 
 
-def _start_server() -> subprocess.Popen[bytes] | None:
+def _start_server(host: str, port: int) -> subprocess.Popen[bytes] | None:
     """Start inter-agent-server as a child process with an explicit idle timeout."""
     try:
         return subprocess.Popen(
@@ -80,6 +81,10 @@ def _start_server() -> subprocess.Popen[bytes] | None:
                 sys.executable,
                 "-m",
                 "inter_agent.core.server",
+                "--host",
+                host,
+                "--port",
+                str(port),
                 "--idle-timeout",
                 str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
             ],
@@ -165,7 +170,7 @@ async def run_listener(
         # Ensure the server is running, auto-starting if needed.
         if not verify_server_identity(host, port):
             if not server_started:
-                proc = _start_server()
+                proc = _start_server(host, port)
                 if proc is None:
                     print(
                         "[inter-agent] failed to auto-start server; giving up",
@@ -222,8 +227,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("name", nargs="?")
     parser.add_argument("--name", dest="name_option")
     parser.add_argument("--label")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     return parser
 
 
@@ -233,7 +238,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     name = args.name_option or args.name
     if not name:
         parser.error("name is required")
-    return asyncio.run(run_listener(args.host, args.port, name, args.label))
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    return asyncio.run(run_listener(endpoint.host, endpoint.port, name, args.label))
 
 
 if __name__ == "__main__":

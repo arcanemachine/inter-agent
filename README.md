@@ -130,6 +130,31 @@ uv run inter-agent-shutdown
 uv run inter-agent-kick my-agent
 ```
 
+## Configuration
+
+By default, inter-agent uses `127.0.0.1:16837`. Core commands, Pi helpers, and Claude Code helpers resolve the endpoint in this order:
+
+1. explicit `--host` / `--port` options where available
+2. `INTER_AGENT_HOST` / `INTER_AGENT_PORT`
+3. the inter-agent config file
+4. built-in defaults
+
+The config file is JSON:
+
+```json
+{
+  "host": "127.0.0.1",
+  "port": 16837,
+  "dataDir": "/path/to/inter-agent-state"
+}
+```
+
+Config file discovery uses `INTER_AGENT_CONFIG` when set. Otherwise it uses the platform config location: `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux and `~/Library/Application Support/inter-agent/config.json` on macOS.
+
+State files, including the shared token and server lifecycle metadata, use `INTER_AGENT_DATA_DIR`, then `dataDir` from config, then the platform state location: `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux and `~/Library/Application Support/inter-agent` on macOS.
+
+If the configured endpoint is unavailable and exactly one live server is found in the configured data directory, client commands use that discovered server. If multiple live servers are found, status output lists them so the endpoint can be set explicitly.
+
 ## Troubleshooting
 
 ### Pi reports that an inter-agent command was not found

@@ -9,7 +9,7 @@
 ## Security controls
 
 1. Server binds to localhost (`127.0.0.1`).
-2. Shared bearer token is required in `hello`; invalid tokens receive canonical `AUTH_FAILED` errors. The token is stored as plaintext in `INTER_AGENT_DATA_DIR/token`, or `~/.inter-agent/token` by default, and is sent over plaintext localhost WebSocket connections after server identity verification succeeds.
+2. Shared bearer token is required in `hello`; invalid tokens receive canonical `AUTH_FAILED` errors. The token is stored as plaintext under `INTER_AGENT_DATA_DIR`, the config file `dataDir`, or the platform default state directory (`${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux and `~/Library/Application Support/inter-agent` on macOS), and is sent over plaintext localhost WebSocket connections after server identity verification succeeds.
 3. Token/state files use restrictive permissions (`0600`), state directory (`0700`) on POSIX-compatible filesystems. Existing token files with broader POSIX permissions are tightened to `0600` when loaded. Server-owned lifecycle files include the token, server identity metadata, PID metadata, and reserved shutdown-control metadata. On platforms without POSIX mode semantics, file permission controls are best-effort and the localhost single-user assumptions still apply.
 4. Clients verify server identity before sending the shared token. Verification checks host, port, PID liveness, matching identity/PID metadata nonce, and a process start marker when the platform exposes one. Server identity metadata is written atomically, includes a startup timestamp, state schema version, instance nonce, and process start marker, and is removed by the server during normal shutdown. On platforms without a process start marker, verification falls back to PID liveness plus matching local metadata.
 5. Shutdown uses the same localhost shared-token authentication as other control operations and requires a control-role connection. The control-only `kick` op uses the same authentication and role gate; it lets an operator force-disconnect a registered session by name or session_id without restarting the server. It is not exposed through host extension tools and is intended for clearing ghost or unwanted sessions.
@@ -22,7 +22,7 @@ Custom extension payloads remain pass-through JSON after `custom_type` and paylo
 ## Token rotation
 
 1. Stop the local server with `uv run inter-agent-pi shutdown` when it is reachable, or terminate the server process if it is not reachable.
-2. Remove the token file from `INTER_AGENT_DATA_DIR/token`, or from `~/.inter-agent/token` when `INTER_AGENT_DATA_DIR` is unset.
+2. Remove the token file from `INTER_AGENT_DATA_DIR/token`, from the config file `dataDir`, or from the platform default state directory when `INTER_AGENT_DATA_DIR` is unset.
 3. Start the server again with `uv run inter-agent-server`; a new token is created with `0600` permissions.
 4. Reconnect clients and adapters. Connections using the old token fail with `AUTH_FAILED`.
 

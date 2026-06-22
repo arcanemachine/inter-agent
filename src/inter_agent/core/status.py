@@ -5,18 +5,19 @@ import asyncio
 import json
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 import websockets
 from websockets.exceptions import WebSocketException
 
+from inter_agent.core.config import EndpointResolution
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     control_hello,
+    discover_live_server_identities,
     identity_failure_message,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity_details,
 )
 
@@ -46,6 +47,16 @@ class ServerStatus:
     identity_verified: bool
     reachable: bool
     message: str
+    configured_host: str | None = None
+    configured_port: int | None = None
+    host_source: str | None = None
+    port_source: str | None = None
+    data_dir: str | None = None
+    data_dir_source: str | None = None
+    config_path: str | None = None
+    discovered: bool = False
+    discovered_servers: tuple[dict[str, object], ...] = ()
+    hints: tuple[str, ...] = ()
 
 
 def command_status() -> CoreCommandStatus:
@@ -158,10 +169,59 @@ async def check_server_status(host: str, port: int, timeout: float = 0.5) -> Ser
         )
 
 
+def _discovered_server_payloads() -> tuple[dict[str, object], ...]:
+    return tuple(
+        {
+            "host": identity.host,
+            "port": identity.port,
+            "pid": identity.pid,
+        }
+        for identity in discover_live_server_identities()
+    )
+
+
+def _hints(status: ServerStatus, resolution: EndpointResolution) -> tuple[str, ...]:
+    hints: list[str] = []
+    if resolution.discovered and resolution.discovery_message:
+        hints.append(resolution.discovery_message)
+    elif status.state == "unavailable" and len(status.discovered_servers) == 1:
+        server = status.discovered_servers[0]
+        hints.append(
+            "set INTER_AGENT_HOST and INTER_AGENT_PORT or update the inter-agent config "
+            f"to use {server['host']}:{server['port']}"
+        )
+    elif status.state == "unavailable" and len(status.discovered_servers) > 1:
+        hints.append(
+            "multiple live inter-agent servers were found; set INTER_AGENT_PORT explicitly"
+        )
+    return tuple(hints)
+
+
+async def check_resolved_server_status(
+    resolution: EndpointResolution, timeout: float = 0.5
+) -> ServerStatus:
+    """Check status and attach endpoint/config diagnostics."""
+    status = await check_server_status(resolution.host, resolution.port, timeout=timeout)
+    discovered_servers = _discovered_server_payloads()
+    status = replace(
+        status,
+        configured_host=resolution.configured_host,
+        configured_port=resolution.configured_port,
+        host_source=resolution.host_source,
+        port_source=resolution.port_source,
+        data_dir=str(resolution.data_dir),
+        data_dir_source=resolution.data_dir_source,
+        config_path=str(resolution.config_path) if resolution.config_path is not None else None,
+        discovered=resolution.discovered,
+        discovered_servers=discovered_servers,
+    )
+    return replace(status, hints=_hints(status, resolution))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-status")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     parser.add_argument("--json", action="store_true", help="emit JSON status output")
     return parser
 
@@ -171,6 +231,16 @@ def _status_payload(status: ServerStatus) -> dict[str, object]:
         "state": status.state,
         "host": status.host,
         "port": status.port,
+        "configured_host": status.configured_host,
+        "configured_port": status.configured_port,
+        "host_source": status.host_source,
+        "port_source": status.port_source,
+        "data_dir": status.data_dir,
+        "data_dir_source": status.data_dir_source,
+        "config_path": status.config_path,
+        "discovered": status.discovered,
+        "discovered_servers": list(status.discovered_servers),
+        "hints": list(status.hints),
         "identity_verified": status.identity_verified,
         "reachable": status.reachable,
         "message": status.message,
@@ -180,7 +250,8 @@ def _status_payload(status: ServerStatus) -> dict[str, object]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    status = asyncio.run(check_server_status(args.host, args.port))
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    status = asyncio.run(check_resolved_server_status(endpoint))
     if args.json:
         print(json.dumps(_status_payload(status)))
     else:
@@ -188,8 +259,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"host={status.host}")
         print(f"port={status.port}")
         print(f"reachable={status.reachable}")
+        print(f"configured_host={status.configured_host}")
+        print(f"configured_port={status.configured_port}")
+        print(f"host_source={status.host_source}")
+        print(f"port_source={status.port_source}")
+        print(f"data_dir={status.data_dir}")
+        print(f"data_dir_source={status.data_dir_source}")
+        print(f"config_path={status.config_path or ''}")
+        print(f"discovered={status.discovered}")
         print(f"identity_verified={status.identity_verified}")
         print(f"message={status.message}")
+        for server in status.discovered_servers:
+            print(f"discovered_server={server['host']}:{server['port']} pid={server['pid']}")
+        for hint in status.hints:
+            print(f"hint={hint}")
     return 0
 
 

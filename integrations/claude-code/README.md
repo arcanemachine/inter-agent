@@ -30,6 +30,8 @@ Then connect from inside Claude Code:
 
 The listener auto-starts the local server when needed. Auto-started servers use a 300-second idle timeout. Manually started servers run until explicit shutdown unless started with `--idle-timeout <seconds>`.
 
+The plugin monitor runs the normal `inter-agent-claude` CLI. It uses the same endpoint and state discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
+
 ## Commands
 
 ```text

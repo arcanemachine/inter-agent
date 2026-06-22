@@ -17,7 +17,7 @@ from inter_agent.core import send as core_send
 from inter_agent.core import shutdown as core_shutdown
 from inter_agent.core import status as core_status
 from inter_agent.core.send import SendResult
-from inter_agent.core.shared import DEFAULT_HOST, DEFAULT_PORT
+from inter_agent.core.shared import resolve_endpoint
 
 
 def _system_exit_code(exc: SystemExit) -> int:
@@ -43,7 +43,8 @@ def _send_result_code(result: SendResult) -> int:
 
 def connect(name: str, label: str | None = None) -> int:
     try:
-        return asyncio.run(listener.run_listener(DEFAULT_HOST, DEFAULT_PORT, name, label))
+        endpoint = resolve_endpoint(allow_discovery=True)
+        return asyncio.run(listener.run_listener(endpoint.host, endpoint.port, name, label))
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -52,7 +53,8 @@ def connect(name: str, label: str | None = None) -> int:
 
 def send(to: str, text: str) -> int:
     try:
-        result = asyncio.run(core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text))
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(core_send.send_direct_message(endpoint.host, endpoint.port, to, text))
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -62,7 +64,8 @@ def send(to: str, text: str) -> int:
 
 def broadcast(text: str) -> int:
     try:
-        result = asyncio.run(core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text))
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(core_send.broadcast_message(endpoint.host, endpoint.port, text))
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -72,7 +75,8 @@ def broadcast(text: str) -> int:
 
 def list_sessions() -> int:
     try:
-        result = asyncio.run(core_list.list_sessions(DEFAULT_HOST, DEFAULT_PORT))
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(core_list.list_sessions(endpoint.host, endpoint.port))
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -83,7 +87,8 @@ def list_sessions() -> int:
 
 def shutdown() -> int:
     try:
-        result = asyncio.run(core_shutdown.shutdown_server(DEFAULT_HOST, DEFAULT_PORT))
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(core_shutdown.shutdown_server(endpoint.host, endpoint.port))
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -94,11 +99,22 @@ def shutdown() -> int:
 
 def status() -> dict[str, object]:
     command = core_status.command_status()
-    server = asyncio.run(core_status.check_server_status(DEFAULT_HOST, DEFAULT_PORT))
+    endpoint = resolve_endpoint(allow_discovery=True)
+    server = asyncio.run(core_status.check_resolved_server_status(endpoint))
     return {
         "state": server.state,
         "host": server.host,
         "port": server.port,
+        "configured_host": server.configured_host,
+        "configured_port": server.configured_port,
+        "host_source": server.host_source,
+        "port_source": server.port_source,
+        "data_dir": server.data_dir,
+        "data_dir_source": server.data_dir_source,
+        "config_path": server.config_path,
+        "discovered": server.discovered,
+        "discovered_servers": list(server.discovered_servers),
+        "hints": list(server.hints),
         "server_reachable": server.reachable,
         "identity_verified": server.identity_verified,
         "message": server.message,

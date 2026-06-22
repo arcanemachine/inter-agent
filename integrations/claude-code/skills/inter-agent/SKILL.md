@@ -129,7 +129,9 @@ The server starts automatically if it is not already running. Listener-started
 servers use an explicit 300-second idle timeout and stop themselves after that
 period with no connected sessions. A manually started `inter-agent-server` runs
 until explicit shutdown by default unless it is started with `--idle-timeout
-<seconds>`.
+<seconds>`. `inter-agent-claude` uses the standard inter-agent endpoint and
+state discovery: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`,
+`INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform config file.
 
 After connecting, the Monitor's connected line is authoritative:
 

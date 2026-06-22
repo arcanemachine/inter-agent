@@ -33,7 +33,7 @@ def test_server_main_default_idle_timeout_is_disabled(
     monkeypatch.setattr(core_server, "run_server", fake_run_server)
 
     assert server_main([]) == 0
-    assert calls == [("127.0.0.1", 9473, None)]
+    assert calls == [("127.0.0.1", 16837, None)]
 
 
 def test_server_main_passes_explicit_idle_timeout(
@@ -52,7 +52,7 @@ def test_server_main_passes_explicit_idle_timeout(
     monkeypatch.setattr(core_server, "run_server", fake_run_server)
 
     assert server_main(["--idle-timeout", "300"]) == 0
-    assert calls == [("127.0.0.1", 9473, 300)]
+    assert calls == [("127.0.0.1", 16837, 300)]
 
 
 def test_project_scripts_are_declared() -> None:

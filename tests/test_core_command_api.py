@@ -213,4 +213,4 @@ async def test_kick_session_unknown_target_returns_error(
 
 def test_kick_session_requires_name_or_session_id() -> None:
     with pytest.raises(ValueError, match="name or session_id"):
-        asyncio.run(kick_session(HOST, 9473))
+        asyncio.run(kick_session(HOST, 16837))

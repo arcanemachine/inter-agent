@@ -12,8 +12,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     listen = sub.add_parser("listen")
-    listen.add_argument("--host", default="127.0.0.1")
-    listen.add_argument("--port", type=int, default=9473)
+    listen.add_argument("--host")
+    listen.add_argument("--port", type=int)
     listen.add_argument("--name", default="")
     listen.add_argument("--label")
     listen.add_argument("--session-id")
@@ -50,18 +50,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "listen":
-        return listen_main(
-            [
-                "--host",
-                args.host,
-                "--port",
-                str(args.port),
-                "--name",
-                args.name,
-            ]
-            + (["--label", args.label] if args.label else [])
-            + (["--session-id", args.session_id] if args.session_id else [])
-        )
+        listen_args = ["--name", args.name]
+        if args.host is not None:
+            listen_args.extend(["--host", args.host])
+        if args.port is not None:
+            listen_args.extend(["--port", str(args.port)])
+        if args.label:
+            listen_args.extend(["--label", args.label])
+        if args.session_id:
+            listen_args.extend(["--session-id", args.session_id])
+        return listen_main(listen_args)
     if args.command == "connect":
         return commands.connect(args.name or "claude", args.label)
     if args.command == "send":
@@ -81,8 +79,28 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"host={payload['host']}")
             print(f"port={payload['port']}")
             print(f"reachable={payload['server_reachable']}")
+            print(f"configured_host={payload['configured_host']}")
+            print(f"configured_port={payload['configured_port']}")
+            print(f"host_source={payload['host_source']}")
+            print(f"port_source={payload['port_source']}")
+            print(f"data_dir={payload['data_dir']}")
+            print(f"data_dir_source={payload['data_dir_source']}")
+            print(f"config_path={payload['config_path'] or ''}")
+            print(f"discovered={payload['discovered']}")
             print(f"identity_verified={payload['identity_verified']}")
             print(f"message={payload['message']}")
+            discovered_servers = payload.get("discovered_servers")
+            if isinstance(discovered_servers, list):
+                for server in discovered_servers:
+                    if isinstance(server, dict):
+                        print(
+                            f"discovered_server={server.get('host')}:{server.get('port')} "
+                            f"pid={server.get('pid')}"
+                        )
+            hints = payload.get("hints")
+            if isinstance(hints, list):
+                for hint in hints:
+                    print(f"hint={hint}")
             connected_name = payload.get("connected_name")
             print(f"connected={payload['connected']}")
             print(f"connected_name={connected_name if connected_name is not None else ''}")

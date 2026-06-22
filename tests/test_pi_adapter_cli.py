@@ -29,7 +29,17 @@ def test_status_outputs_json(
     assert json.loads(capsys.readouterr().out) == {
         "state": "unavailable",
         "host": "127.0.0.1",
-        "port": 9473,
+        "port": 16837,
+        "configured_host": "127.0.0.1",
+        "configured_port": 16837,
+        "host_source": "default",
+        "port_source": "default",
+        "data_dir": str(tmp_path),
+        "data_dir_source": "env",
+        "config_path": None,
+        "discovered": False,
+        "discovered_servers": [],
+        "hints": [],
         "server_reachable": False,
         "identity_verified": False,
         "message": "No server is running. Start one with inter-agent-server",
@@ -45,7 +55,7 @@ def test_status_reports_identity_check_failure(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(commands, "DEFAULT_PORT", unused_tcp_port)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
     write_server_identity("127.0.0.1", unused_tcp_port)
     identity_payload = json.loads(identity_path(unused_tcp_port).read_text(encoding="utf-8"))
     identity_payload["port"] = unused_tcp_port + 1
@@ -74,7 +84,7 @@ def test_send_uses_core_api(
     code = commands.send("agent-b", "hello")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-b", "hello")]
+    assert calls == [("127.0.0.1", 16837, "agent-b", "hello")]
     assert capsys.readouterr().out == '{"op": "welcome"}\n'
 
 
@@ -120,7 +130,7 @@ def test_broadcast_uses_core_api(
     code = commands.broadcast("hello all")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "hello all")]
+    assert calls == [("127.0.0.1", 16837, "hello all")]
     assert capsys.readouterr().out == '{"op": "welcome"}\n'
 
 
@@ -142,7 +152,7 @@ def test_list_uses_core_api(
     code = commands.list_sessions()
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473)]
+    assert calls == [("127.0.0.1", 16837)]
     assert capsys.readouterr().out == '{"op": "list_ok", "sessions": []}\n'
 
 
@@ -163,7 +173,7 @@ def test_shutdown_uses_core_api(
     code = commands.shutdown()
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473)]
+    assert calls == [("127.0.0.1", 16837)]
     assert capsys.readouterr().out == '{"op": "shutdown_ok"}\n'
 
 
@@ -181,4 +191,4 @@ def test_connect_uses_listener(monkeypatch: pytest.MonkeyPatch) -> None:
     code = commands.connect("agent-a", "Agent A")
 
     assert code == 0
-    assert calls == [("127.0.0.1", 9473, "agent-a", "Agent A")]
+    assert calls == [("127.0.0.1", 16837, "agent-a", "Agent A")]

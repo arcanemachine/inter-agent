@@ -25,6 +25,7 @@ from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity,
 )
 
@@ -122,6 +123,10 @@ class Listener:
                     sys.executable,
                     "-m",
                     "inter_agent.core.server",
+                    "--host",
+                    self.host,
+                    "--port",
+                    str(self.port),
                     "--idle-timeout",
                     str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
                 ],
@@ -348,8 +353,8 @@ def _write_to_messages_log(msg_id: str, from_name: str, text: str, log_path: Pat
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-claude listen")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     parser.add_argument("--name", default="")
     parser.add_argument("--label")
     parser.add_argument("--session-id")
@@ -368,9 +373,10 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout,
         )
 
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
     listener = Listener(
-        host=args.host,
-        port=args.port,
+        host=endpoint.host,
+        port=endpoint.port,
         name=name,
         label=args.label,
         session_id=args.session_id,

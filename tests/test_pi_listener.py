@@ -43,7 +43,7 @@ class TestRunListenerReconnect:
 
         # Server never available and auto-start fails.
         monkeypatch.setattr(listener, "verify_server_identity", lambda host, port: False)
-        monkeypatch.setattr(listener, "_start_server", lambda: None)
+        monkeypatch.setattr(listener, "_start_server", lambda host, port: None)
 
         real_sleep = asyncio.sleep
 
@@ -141,7 +141,7 @@ class TestRunListenerReconnect:
         class FakeProc:
             pid = 12345
 
-        def fake_start_server() -> FakeProc:
+        def fake_start_server(host: str, port: int) -> FakeProc:
             started.append(True)
             return FakeProc()
 

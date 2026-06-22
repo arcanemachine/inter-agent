@@ -68,8 +68,8 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 
 2. Implement shared defaults.
    - Default host: `127.0.0.1`.
-   - Default port: `9473`.
-   - Default data directory: `INTER_AGENT_DATA_DIR` or `~/.inter-agent`.
+   - Default port: `16837`.
+   - Default data directory: `INTER_AGENT_DATA_DIR`, config `dataDir`, or the platform default state directory.
    - Default direct, broadcast, frame, custom, and connection limits should match the core defaults where the client validates locally.
 
 3. Implement token loading.

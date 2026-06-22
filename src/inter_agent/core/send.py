@@ -11,11 +11,10 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     control_hello,
     identity_failure_message,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity_details,
 )
 
@@ -156,8 +155,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-send")
     parser.add_argument("to", nargs="?")
     parser.add_argument("text", nargs="?")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     parser.add_argument("--to", dest="to_option")
     parser.add_argument("--text", dest="text_option")
     parser.add_argument("--custom-type")
@@ -172,8 +171,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     to = args.to_option or args.to
     text = args.text_option if args.text_option is not None else args.text
     payload = parse_custom_payload(args.payload) if args.custom_type is not None else None
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
     result = asyncio.run(
-        send_message(args.host, args.port, to, text, args.custom_type, payload, args.from_name)
+        send_message(
+            endpoint.host, endpoint.port, to, text, args.custom_type, payload, args.from_name
+        )
     )
     if result.error is not None:
         print(result.error.raw)

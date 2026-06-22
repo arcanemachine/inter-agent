@@ -25,6 +25,13 @@ class LiveServer:
         return f"ws://{self.host}:{self.port}"
 
 
+@pytest.fixture(autouse=True)
+def isolated_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(tmp_path / "missing-config.json"))
+    monkeypatch.delenv("INTER_AGENT_HOST", raising=False)
+    monkeypatch.delenv("INTER_AGENT_PORT", raising=False)
+
+
 @pytest.fixture
 async def live_server(
     monkeypatch: pytest.MonkeyPatch,

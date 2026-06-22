@@ -10,11 +10,10 @@ from dataclasses import dataclass
 import websockets
 
 from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
     control_hello,
     identity_failure_message,
     load_or_create_token,
+    resolve_endpoint,
     verify_server_identity_details,
 )
 
@@ -72,8 +71,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("name", nargs="?")
     parser.add_argument("--name", dest="name_option")
     parser.add_argument("--session-id")
-    parser.add_argument("--host", default=DEFAULT_HOST)
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--host")
+    parser.add_argument("--port", type=int)
     return parser
 
 
@@ -81,7 +80,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     name = args.name_option or args.name
-    result = asyncio.run(kick_session(args.host, args.port, name=name, session_id=args.session_id))
+    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    result = asyncio.run(
+        kick_session(endpoint.host, endpoint.port, name=name, session_id=args.session_id)
+    )
     print(result.response)
     return 0 if result.response_payload.get("op") == "kick_ok" else 1
 
