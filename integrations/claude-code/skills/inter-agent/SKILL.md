@@ -62,8 +62,7 @@ the work forward. When you do reply to a peer, use `inter-agent-claude send
 <from-name> <text>` to reply directly to the sender named in the notification.
 Do **not** use `broadcast` as a general reply mechanism; use it only when the
 user explicitly asks to message everyone or a broadcast is truly required.
-After sending a message, do not poll, repeatedly list sessions, or ask whether
-a reply arrived; replies appear as incoming notifications.
+After sending a message, **stop**. Do not poll, do not re-run `inter-agent-claude list`, do not re-check `inter-agent-claude status`, do not ask whether a reply arrived, and do not send a follow-up just to confirm. You will receive any reply as a later `[inter-agent msg=...]` notification; until that arrives, you have nothing to check. Polling after a send wastes turns and context.
 
 ### Prefix-based routing
 
@@ -178,8 +177,10 @@ name. Use `send` for normal peer-to-peer replies and targeted communication.
 Use `broadcast` only when the user explicitly asks to broadcast, notify all
 sessions, or send to everyone. Do not use `broadcast` to acknowledge or reply
 to a single peer.
-After sending, do not retry just because the command is silent on success, and
-do not poll for a reply; replies appear as incoming notifications.
+After sending, **stop**. Do not retry just because the command is silent on
+success, and do not poll, re-list, re-check status, or follow up to confirm.
+Replies appear as incoming `[inter-agent msg=...]` notifications; you have
+nothing to check until one arrives.
 `messages <msg_id>` reads the full text of a truncated inbound message from
 the bounded local continuation cache (see the Reaction policy section for when
 to use it).
