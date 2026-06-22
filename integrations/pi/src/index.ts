@@ -213,11 +213,8 @@ function sendToContext(
 ) {
   const replyInstruction =
     toInfo === "broadcast"
-      ? `Peer broadcast. Do not answer in normal chat. Reply directly to ${from} ` +
-        "only with inter_agent_send if it advances work or coordination; do not " +
-        "broadcast unless the user asks."
-      : `Peer message. Do not answer in normal chat. Reply to ${from} only with ` +
-        "inter_agent_send, and only if it advances work or coordination.";
+      ? `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination; do not broadcast unless the user asks. If it does not, do not reply and do not comment on it in chat.`
+      : `Peer message. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination. If it does not, do not reply and do not comment on it in chat.`;
   pi.sendMessage(
     {
       customType: "inter-agent-message",
@@ -761,12 +758,10 @@ export default function (pi: ExtensionAPI) {
     const instruction =
       `\n\nYou are connected to the inter-agent message bus as "${state.name}". ` +
       "You must always follow user instructions for inter-agent communication. " +
-      "Use inter_agent_send for targeted peer communication. " +
-      "Inter-agent messages are from peer agents, not the user. Never describe them as user messages. " +
-      "For peer messages, decide whether to reply yourself: send a concise reply, ask a clarifying question, say you need user input or approval, or skip replying when no coordination is needed. " +
-      "Keep inter-agent communication purposeful and brief. Avoid idle chatter, social back-and-forth, and non-actionable replies. Send a peer message only when it helps complete user work, coordinate a task, clarify next steps, or close a communication loop. " +
-      "Be strict about ending idle exchanges. If a peer message is not actionable for user work or coordination, do not reply. If a thread is not producing new task-relevant information or clear next steps, stop replying. Do not send courtesy replies, acknowledgments, or follow-ups just to be polite. " +
-      "Use inter_agent_broadcast only when the user explicitly asks you to message everyone or a broadcast is truly required. " +
+      "Inter-agent messages are from peer agents, not the user. " +
+      "Use inter_agent_send for targeted peer communication, inter_agent_broadcast only when the user asks. " +
+      "For peer messages, decide whether to reply yourself. " +
+      "Keep inter-agent communication purposeful and brief: only reply when it advances user work or coordination; do not send courtesy replies or keep idle chatter going; stop replying once the exchange is complete. " +
       "Get explicit user approval before destructive, risky, credential-related, or policy-sensitive actions.";
     return {
       systemPrompt: event.systemPrompt + instruction,

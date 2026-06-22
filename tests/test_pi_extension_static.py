@@ -79,16 +79,13 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
     assert "You must always follow user instructions for inter-agent communication" in content
-    assert "Use inter_agent_send for targeted peer communication" in content
-    assert "decide whether to reply yourself" in content
     assert "Inter-agent messages are from peer agents, not the user" in content
-    assert "Peer message. Do not answer in normal chat" in content
-    assert "Peer broadcast. Do not answer in normal chat" in content
-    assert "Record only. Do not respond to this sent-message confirmation" in content
+    assert "decide whether to reply yourself" in content
     assert "Keep inter-agent communication purposeful and brief" in content
-    assert "not actionable for user work or coordination, do not reply" in content
-    assert "Be strict about ending idle exchanges" in content
-    assert "do not " in content
+    assert "Peer message. Reply to" in content
+    assert "Peer broadcast. Reply directly to" in content
+    assert "do not reply and do not comment on it in chat" in content
+    assert "Record only. Do not respond to this sent-message confirmation" in content
     assert "broadcast unless the user asks" in content
     assert "Get explicit user approval before destructive" in content
 
