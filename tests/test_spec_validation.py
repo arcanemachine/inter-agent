@@ -70,6 +70,14 @@ def test_examples_validate_against_schemas() -> None:
         Draft202012Validator(_load_json(schema_path)).validate(example)
 
 
+def test_kick_schema_requires_name_or_session_id() -> None:
+    validator = Draft202012Validator(_load_json(SPEC_DIR / "schemas" / "kick.json"))
+    validator.validate({"op": "kick", "name": "agent-a"})
+    validator.validate({"op": "kick", "session_id": "sess-a"})
+    with pytest.raises(ValidationError):
+        validator.validate({"op": "kick"})
+
+
 def test_hello_capabilities_schema_requires_object_and_allows_extensions() -> None:
     validator = Draft202012Validator(_load_json(SPEC_DIR / "schemas" / "hello.json"))
     valid = {

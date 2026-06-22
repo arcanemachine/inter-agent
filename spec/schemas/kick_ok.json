@@ -2,11 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "KickOk",
   "type": "object",
-  "required": ["op"],
+  "required": ["op", "name", "session_id"],
   "properties": {
     "op": { "const": "kick_ok" },
-    "name": { "type": "string" },
-    "session_id": { "type": "string" }
+    "name": { "type": "string", "minLength": 1 },
+    "session_id": { "type": "string", "minLength": 1 }
   },
   "additionalProperties": true
 }
