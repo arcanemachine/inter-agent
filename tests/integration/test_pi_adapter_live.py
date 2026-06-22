@@ -188,13 +188,11 @@ async def test_pi_cli_send_unknown_target_returns_protocol_error(
 
     result = await asyncio.to_thread(run_pi, ["send", "missing-agent", "hello"])
 
-    lines = result.stdout.strip().splitlines()
     assert result.code == 1
-    assert result.stderr == ""
-    assert json.loads(lines[0])["op"] == "welcome"
-    error = json.loads(lines[1])
-    assert error["op"] == "error"
-    assert error["code"] == "UNKNOWN_TARGET"
+    assert result.stdout.strip() == ""
+    assert result.stderr.splitlines() == [
+        "inter-agent-pi: delivery failed (UNKNOWN_TARGET): unknown target: missing-agent",
+    ]
 
 
 @pytest.mark.asyncio

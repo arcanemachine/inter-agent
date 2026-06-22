@@ -134,9 +134,10 @@ def test_send_protocol_error_returns_failure(
     code = commands.send("missing", "hello")
 
     assert code == 1
-    assert capsys.readouterr().out.splitlines() == [
-        '{"op": "welcome"}',
-        '{"op": "error", "code": "UNKNOWN_TARGET", "message": "unknown target: missing"}',
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "inter-agent-pi: delivery failed (UNKNOWN_TARGET): unknown target: missing",
     ]
 
 

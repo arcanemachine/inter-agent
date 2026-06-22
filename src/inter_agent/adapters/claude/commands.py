@@ -35,7 +35,11 @@ def _expected_error_code(exc: Exception) -> int:
 
 def _send_result_code(result: SendResult) -> int:
     if result.error is not None:
-        print(result.error.raw)
+        print(
+            f"inter-agent-claude: delivery failed ({result.error.code}): "
+            f"{result.error.message}",
+            file=sys.stderr,
+        )
         return 1
     return 0
 

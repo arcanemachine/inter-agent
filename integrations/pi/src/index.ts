@@ -1105,7 +1105,7 @@ export default function (pi: ExtensionAPI) {
         name,
       ]);
       if (result.code !== 0) {
-        throw new Error(`Send failed: ${scriptFailureMessage(result, "send")}`);
+        throw new Error(scriptFailureMessage(result, "send"));
       }
       showOutgoingInContext(pi, name, text, `to ${to}`);
       return {
@@ -1144,9 +1144,7 @@ export default function (pi: ExtensionAPI) {
         name,
       ]);
       if (result.code !== 0) {
-        throw new Error(
-          `Broadcast failed: ${scriptFailureMessage(result, "broadcast")}`,
-        );
+        throw new Error(scriptFailureMessage(result, "broadcast"));
       }
       showOutgoingInContext(pi, name, text, "broadcast");
       return {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -178,7 +179,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     )
     if result.error is not None:
-        print(result.error.raw)
+        print(
+            f"inter-agent: delivery failed ({result.error.code}): {result.error.message}",
+            file=sys.stderr,
+        )
         return 1
     return 0
 

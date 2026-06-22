@@ -34,10 +34,13 @@ def _expected_error_code(exc: Exception) -> int:
 
 
 def _send_result_code(result: SendResult) -> int:
-    print(result.welcome)
     if result.error is not None:
-        print(result.error.raw)
+        print(
+            f"inter-agent-pi: delivery failed ({result.error.code}): " f"{result.error.message}",
+            file=sys.stderr,
+        )
         return 1
+    print(result.welcome)
     return 0
 
 
