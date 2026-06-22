@@ -90,6 +90,19 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Get explicit user approval before destructive" in content
 
 
+def test_pi_extension_separates_display_from_agent_context() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # A custom renderer renders a clean user-facing summary from
+    # details.displayContent, while the full content (with internal
+    # agent instructions) reaches the LLM only.
+    assert "pi.registerMessageRenderer" in content
+    assert '"inter-agent-message"' in content
+    assert "displayContent" in content
+    # Internal-only instruction stays in LLM content, never shown in the TUI.
+    assert "Record only. Do not respond to this sent-message confirmation" in content
+
+
 def test_pi_extension_supports_user_driven_rename() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 

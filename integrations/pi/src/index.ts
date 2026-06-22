@@ -20,7 +20,8 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
-import type { AutocompleteItem } from "@mariozechner/pi-tui";
+import type { AutocompleteItem, Component } from "@mariozechner/pi-tui";
+import { Box, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -224,7 +225,14 @@ ${text}
 
 ${replyInstruction}`,
       display: true,
-      details: { from, text, toInfo },
+      details: {
+        from,
+        text,
+        toInfo,
+        displayContent: `[inter-agent message from agent ${from} ${toInfo}]
+
+${text}`,
+      },
     },
     { triggerTurn: true, deliverAs: "steer" },
   );
@@ -245,7 +253,15 @@ Record only. Do not respond to this sent-message confirmation.
 
 ${text}`,
       display: true,
-      details: { from, text, toInfo, outgoing: true },
+      details: {
+        from,
+        text,
+        toInfo,
+        outgoing: true,
+        displayContent: `[inter-agent message sent by the current agent (${from}) ${toInfo}]
+
+${text}`,
+      },
     },
     { triggerTurn: false, deliverAs: "steer" },
   );
@@ -727,6 +743,37 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 export default function (pi: ExtensionAPI) {
   const config = loadConfig();
   const scripts = getScripts(config);
+
+  // ── Custom message renderer ──────────────────────────────────────────────
+  // Show a clean, user-facing summary in the TUI (from details.displayContent)
+  // while the full `content` (with internal agent instructions) goes to the LLM.
+  pi.registerMessageRenderer<{ displayContent?: string }>(
+    "inter-agent-message",
+    (message, _options, theme) => {
+      const display =
+        typeof message.details === "object" &&
+        message.details !== null &&
+        "displayContent" in message.details
+          ? (message.details as { displayContent: string }).displayContent
+          : typeof message.content === "string"
+            ? message.content
+            : "";
+      const box = new Box(1, 1, (t) => theme.bg("customMessageBg", t));
+      box.addChild(
+        new Text(
+          theme.fg(
+            "customMessageLabel",
+            `\x1b[1m[inter-agent-message]\x1b[22m`,
+          ),
+          0,
+          0,
+        ),
+      );
+      box.addChild(new Spacer(1));
+      box.addChild(new Text(theme.fg("customMessageText", display), 0, 0));
+      return box as unknown as Component;
+    },
+  );
 
   // ── Session Lifecycle ─────────────────────────────────────────────────────
 
