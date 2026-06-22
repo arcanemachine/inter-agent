@@ -174,6 +174,7 @@ class TestConnectAndStream:
     ) -> None:
         """_connect_and_stream prints the welcome frame to stdout."""
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        monkeypatch.delenv("INTER_AGENT_SESSION_ID", raising=False)
 
         import websockets as ws_module
 
@@ -214,6 +215,9 @@ class TestConnectAndStream:
         await _connect_and_stream("127.0.0.1", 12345, "test", None, out)
         lines = out.getvalue().strip().split("\n")
         assert json.loads(lines[0])["op"] == "welcome"
+        hello = json.loads(sent_frames[0])
+        assert hello["name"] == "test"
+        assert hello["session_id"] != "test"
 
     @pytest.mark.asyncio
     async def test_raises_permanent_error_on_name_taken(

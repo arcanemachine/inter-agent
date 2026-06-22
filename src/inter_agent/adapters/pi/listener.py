@@ -20,6 +20,7 @@ import os
 import random
 import subprocess
 import sys
+import uuid
 from collections.abc import Sequence
 from typing import TextIO
 
@@ -107,7 +108,7 @@ async def _connect_and_stream(
             "op": "hello",
             "token": token,
             "role": "agent",
-            "session_id": os.getenv("INTER_AGENT_SESSION_ID", name),
+            "session_id": os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4())),
             "name": name,
             "capabilities": {},
         }
