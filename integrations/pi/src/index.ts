@@ -213,15 +213,15 @@ function sendToContext(
 ) {
   const replyInstruction =
     toInfo === "broadcast"
-      ? `Reply directly to ${from} with inter_agent_send only if useful; ` +
-        "do not broadcast unless the user explicitly asks you to message everyone."
-      : `Reply with inter_agent_send to="${from}" only when coordination needs a response.`;
+      ? `Peer broadcast. Do not answer in normal chat. Reply directly to ${from} ` +
+        "only with inter_agent_send if it advances work or coordination; do not " +
+        "broadcast unless the user asks."
+      : `Peer message. Do not answer in normal chat. Reply to ${from} only with ` +
+        "inter_agent_send, and only if it advances work or coordination.";
   pi.sendMessage(
     {
       customType: "inter-agent-message",
       content: `[inter-agent message from agent ${from} ${toInfo}]
-
-This is a peer-agent message, not a user message. Do not describe it as coming from the user.
 
 ${text}
 
