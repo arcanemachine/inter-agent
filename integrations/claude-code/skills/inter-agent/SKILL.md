@@ -131,12 +131,18 @@ period with no connected sessions. A manually started `inter-agent-server` runs
 until explicit shutdown by default unless it is started with `--idle-timeout
 <seconds>`.
 
-After connecting, verify your session is registered:
+After connecting, verify your session with the authoritative status command:
 
 ```bash
 inter-agent-claude status   # connected=true and connected_name=<your-name>
-inter-agent-claude list      # your name appears in the session list
 ```
+
+If status reports `connected=true` and `connected_name=<your-name>`, you are
+connected; stop there. Do not disconnect, restart, or relaunch just to make the
+listener a Monitor. The connected listener is already the real connection.
+
+`inter-agent-claude list` is for optional peer discovery, not connection
+verification. It may briefly lag behind listener startup.
 
 "a Monitor process exists" does not mean you are connected. If the listener
 emitted `[inter-agent] connection error: NAME_TAKEN`, you are not connected;
