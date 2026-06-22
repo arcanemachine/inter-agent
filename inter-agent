@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+show_help() {
+  cat <<'EOF'
+Usage: ./inter-agent <command> [args...]
+
+Generic commands:
+  server      Start the inter-agent server
+  list        List connected sessions
+  status      Show server status
+  shutdown    Shut down the server
+
+Harness commands:
+  pi send <to> <text>        Send a direct message from a Pi session
+  pi broadcast <text>        Broadcast a message from a Pi session
+  claude send <to> <text>    Send a direct message from a Claude Code session
+  claude broadcast <text>    Broadcast a message from a Claude Code session
+EOF
+}
+
+case "${1:-}" in
+  -h|--help|'')
+    show_help
+    exit 0
+    ;;
+esac
+
+HARN="$1"
+shift
+
+case "$HARN" in
+  server)
+    exec uv run inter-agent-server "$@"
+    ;;
+  list)
+    exec uv run inter-agent-list "$@"
+    ;;
+  status)
+    exec uv run inter-agent-status "$@"
+    ;;
+  shutdown)
+    exec uv run inter-agent-shutdown "$@"
+    ;;
+  pi)
+    exec uv run inter-agent-pi "$@"
+    ;;
+  claude)
+    exec uv run inter-agent-claude "$@"
+    ;;
+  *)
+    echo "Unknown command: $HARN" >&2
+    echo "Run ./inter-agent --help for usage." >&2
+    exit 2
+    ;;
+esac

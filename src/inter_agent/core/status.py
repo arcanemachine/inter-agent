@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -10,6 +12,8 @@ import websockets
 from websockets.exceptions import WebSocketException
 
 from inter_agent.core.shared import (
+    DEFAULT_HOST,
+    DEFAULT_PORT,
     control_hello,
     identity_failure_message,
     load_or_create_token,
@@ -152,3 +156,42 @@ async def check_server_status(host: str, port: int, timeout: float = 0.5) -> Ser
             reachable=False,
             message="server connection failed",
         )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="inter-agent-status")
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--json", action="store_true", help="emit JSON status output")
+    return parser
+
+
+def _status_payload(status: ServerStatus) -> dict[str, object]:
+    return {
+        "state": status.state,
+        "host": status.host,
+        "port": status.port,
+        "identity_verified": status.identity_verified,
+        "reachable": status.reachable,
+        "message": status.message,
+    }
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    status = asyncio.run(check_server_status(args.host, args.port))
+    if args.json:
+        print(json.dumps(_status_payload(status)))
+    else:
+        print(f"state={status.state}")
+        print(f"host={status.host}")
+        print(f"port={status.port}")
+        print(f"reachable={status.reachable}")
+        print(f"identity_verified={status.identity_verified}")
+        print(f"message={status.message}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
