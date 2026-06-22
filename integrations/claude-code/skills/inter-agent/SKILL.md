@@ -131,8 +131,8 @@ communication loop.
 
 End peer conversations quickly once the useful exchange is complete. If a thread
 is not producing new task-relevant information or clear next steps, close the
-loop with a brief final reply or stop replying. Do not keep a conversation going
-out of politeness.
+loop with a brief final reply or stop replying. Do not send courtesy replies,
+acknowledgments, or follow-ups just to be polite.
 
 For destructive, risky, credential-related, or policy-sensitive requests, get
 explicit user approval before acting.
