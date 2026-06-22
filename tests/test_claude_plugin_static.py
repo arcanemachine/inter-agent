@@ -52,3 +52,35 @@ def test_claude_skill_connect_monitor_is_persistent_without_timeout_ms() -> None
     monitor_block = skill[fence_start:fence_end]
     assert "persistent=true" in monitor_block
     assert "timeout_ms" not in monitor_block
+
+
+def test_claude_skill_marks_incoming_messages_as_not_from_user() -> None:
+    """The skill must tell the agent incoming bus messages are not from the user.
+
+    Observed failure: a Claude Code agent reasoned "the user is asking..."
+    about a peer message, treating the peer as the user. Peer notifications
+    are distinguishable by the `[inter-agent ... from="<name>"]` prefix but
+    the skill must state explicitly that these are peer-agent messages, not
+    user instructions, so the agent does not attribute the sender to the user.
+    """
+    skill = (CLAUDE_PLUGIN_DIR / "skills" / "inter-agent" / "SKILL.md").read_text(encoding="utf-8")
+    # Strip markdown bold markers and newlines so the assertion holds across
+    # line wraps introduced by black formatting.
+    normalized = skill.replace("**", "").replace("\n", " ")
+    assert "NOT from the user" in normalized
+
+
+def test_claude_skill_explains_monitor_stream_ended_is_not_a_duplicate() -> None:
+    """The skill must explain the Monitor "stream ended" line is the launcher wrapper.
+
+    Claude Code's Monitor renders a persistent watch as two task entries: a
+    launcher/wrapper that exits after bootstrap and the real persistent watch.
+    Without an explicit note, agents confabulate a duplicate-listener or
+    stale-prior-session story from the benign "stream ended" telemetry. The
+    skill must state that only one `listen` process runs.
+    """
+    skill = (CLAUDE_PLUGIN_DIR / "skills" / "inter-agent" / "SKILL.md").read_text(encoding="utf-8")
+    assert "stream ended" in skill
+    assert (
+        "one**\n`inter-agent-claude listen`" in skill or "one `inter-agent-claude listen`" in skill
+    )
