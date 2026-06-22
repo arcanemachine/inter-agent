@@ -175,7 +175,7 @@ uv sync --locked
 .venv/bin/inter-agent-pi status --json
 ```
 
-If `interAgent.projectPath` is not configured, Pi uses `~/.local/share/inter-agent`. If you cloned inter-agent somewhere else, set `interAgent.projectPath` in `.pi/settings.json` or `~/.pi/agent/settings.json`.
+If `interAgent.projectPath` is not configured, Pi uses `~/.local/share/inter-agent`. If you cloned inter-agent somewhere else, set `interAgent.projectPath` in `.pi/settings.json` or `~/.pi/agent/settings.json`. Pi accepts absolute paths and paths relative to the settings file that declares them; `~` is supported.
 
 ### Name conflicts
 

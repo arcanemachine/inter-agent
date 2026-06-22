@@ -25,7 +25,7 @@ import { Type } from "@sinclair/typebox";
 import { spawn, ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
@@ -42,6 +42,30 @@ interface Settings {
 
 const DEFAULT_PROJECT_PATH = join(homedir(), ".local", "share", "inter-agent");
 
+function expandHome(path: string): string {
+  if (path === "~") return homedir();
+  if (path.startsWith("~/")) return join(homedir(), path.slice(2));
+  return path;
+}
+
+function resolvePathOption(path: string | undefined, baseDir: string) {
+  if (!path) return path;
+  const expanded = expandHome(path);
+  return isAbsolute(expanded) ? expanded : resolve(baseDir, expanded);
+}
+
+function resolveConfigPaths(
+  config: InterAgentConfig,
+  settingsPath: string,
+): InterAgentConfig {
+  const baseDir = dirname(settingsPath);
+  return {
+    ...config,
+    projectPath: resolvePathOption(config.projectPath, baseDir),
+    dataDir: resolvePathOption(config.dataDir, baseDir),
+  };
+}
+
 function loadConfig(): InterAgentConfig {
   const globalSettingsPath = join(homedir(), ".pi", "agent", "settings.json");
   const projectSettingsPath = join(process.cwd(), ".pi", "settings.json");
@@ -55,7 +79,10 @@ function loadConfig(): InterAgentConfig {
         readFileSync(globalSettingsPath, "utf-8"),
       );
       if (parsed.interAgent) {
-        config = { ...config, ...parsed.interAgent };
+        config = {
+          ...config,
+          ...resolveConfigPaths(parsed.interAgent, globalSettingsPath),
+        };
       }
     } catch {
       // Invalid JSON, ignore
@@ -69,7 +96,10 @@ function loadConfig(): InterAgentConfig {
         readFileSync(projectSettingsPath, "utf-8"),
       );
       if (parsed.interAgent) {
-        config = { ...config, ...parsed.interAgent };
+        config = {
+          ...config,
+          ...resolveConfigPaths(parsed.interAgent, projectSettingsPath),
+        };
       }
     } catch {
       // Invalid JSON, ignore
@@ -91,7 +121,9 @@ function getScripts(config: InterAgentConfig) {
 
 type InterAgentScripts = ReturnType<typeof getScripts>;
 
-function interAgentEnv(config: InterAgentConfig = loadConfig()): NodeJS.ProcessEnv {
+function interAgentEnv(
+  config: InterAgentConfig = loadConfig(),
+): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, PYTHONUNBUFFERED: "1" };
   if (config.host) env.INTER_AGENT_HOST = String(config.host);
   if (config.port !== undefined && config.port !== null) {
@@ -726,7 +758,8 @@ export default function (pi: ExtensionAPI) {
     {
       value: "broadcast",
       label: "broadcast",
-      description: "Broadcast only when messaging everyone is explicitly needed",
+      description:
+        "Broadcast only when messaging everyone is explicitly needed",
     },
     { value: "list", label: "list", description: "List connected sessions" },
     {

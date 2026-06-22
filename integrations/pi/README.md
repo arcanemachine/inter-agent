@@ -70,32 +70,34 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
 
 Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, or `dataDir` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
+`projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
+
 If you do not set a project path, the extension falls back to `~/.local/share/inter-agent`.
 
 ## Commands
 
 All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` and Pi will autocomplete the subcommand.
 
-| Subcommand   | Usage                                           | Description                                   |
-| ------------ | ----------------------------------------------- | --------------------------------------------- |
-| `connect`    | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                  |
-| `disconnect` | `/inter-agent disconnect`                       | Disconnect from the bus                       |
-| `send`       | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)   |
+| Subcommand   | Usage                                           | Description                                                               |
+| ------------ | ----------------------------------------------- | ------------------------------------------------------------------------- |
+| `connect`    | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                                              |
+| `disconnect` | `/inter-agent disconnect`                       | Disconnect from the bus                                                   |
+| `send`       | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)                               |
 | `broadcast`  | `/inter-agent broadcast <text>`                 | Broadcast to all agents only when messaging everyone is explicitly needed |
-| `list`       | `/inter-agent list`                             | List connected sessions                       |
-| `status`     | `/inter-agent status`                           | Check server status                           |
+| `list`       | `/inter-agent list`                             | List connected sessions                                                   |
+| `status`     | `/inter-agent status`                           | Check server status                                                       |
 
 ## Tools
 
 Tools are agent-callable; they are not user-facing slash commands.
 
-| Tool                    | Description                             |
-| ----------------------- | --------------------------------------- |
-| `inter_agent_send`      | Send a direct message to a routing name |
+| Tool                    | Description                                                      |
+| ----------------------- | ---------------------------------------------------------------- |
+| `inter_agent_send`      | Send a direct message to a routing name                          |
 | `inter_agent_broadcast` | Broadcast only when the user explicitly asks to message everyone |
-| `inter_agent_list`      | List connected agent sessions           |
-| `inter_agent_whoami`    | Report this Pi session's local identity |
-| `inter_agent_status`    | Check server availability and identity  |
+| `inter_agent_list`      | List connected agent sessions                                    |
+| `inter_agent_whoami`    | Report this Pi session's local identity                          |
+| `inter_agent_status`    | Check server availability and identity                           |
 
 ## Troubleshooting
 
@@ -133,6 +135,16 @@ If you use a non-default clone location, make sure Pi settings contain the match
 {
   "interAgent": {
     "projectPath": "/path/to/inter-agent"
+  }
+}
+```
+
+Relative project-local example for `/workspace/.pi/settings.json`:
+
+```json
+{
+  "interAgent": {
+    "projectPath": "../projects/inter-agent"
   }
 }
 ```

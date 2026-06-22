@@ -78,3 +78,12 @@ def test_pi_extension_discourages_broadcast_replies() -> None:
     assert "do not broadcast unless the user explicitly asks" in content
     assert "Use inter_agent_send for normal replies" in content
     assert "Use inter_agent_broadcast only when the user explicitly asks" in content
+
+
+def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert "function resolveConfigPaths" in content
+    assert "const baseDir = dirname(settingsPath);" in content
+    assert "projectPath: resolvePathOption(config.projectPath, baseDir)" in content
+    assert "dataDir: resolvePathOption(config.dataDir, baseDir)" in content
