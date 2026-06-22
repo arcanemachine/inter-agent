@@ -53,7 +53,9 @@ where = ["src"]
 "share/inter-agent/spec" = ["spec/asyncapi.yaml"]
 "share/inter-agent/spec/schemas" = ["spec/schemas/*.json"]
 "share/inter-agent/spec/examples" = ["spec/examples/*.json"]
-"share/inter-agent/integrations/claude-code" = ["integrations/claude-code/**/*"]
+"share/inter-agent/integrations/claude-code" = ["integrations/claude-code/README.md"]
+"share/inter-agent/integrations/claude-code/monitors" = ["integrations/claude-code/monitors/*.json"]
+"share/inter-agent/integrations/claude-code/skills/inter-agent" = ["integrations/claude-code/skills/inter-agent/SKILL.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
