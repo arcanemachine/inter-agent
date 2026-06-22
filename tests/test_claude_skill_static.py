@@ -12,6 +12,7 @@ def test_claude_skill_references_bootstrap_guidance() -> None:
     bootstrap = (SKILL_DIR / "bootstrap.md").read_text(encoding="utf-8")
 
     assert "bootstrap.md" in skill
+    assert "Always follow user instructions for inter-agent communication" in skill
     assert "/inter-agent rename <name>" in skill
     assert "pipx install -e <path-to-inter-agent>" in bootstrap
     assert "uv tool install --from <path-to-inter-agent> ." in bootstrap

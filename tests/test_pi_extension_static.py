@@ -78,6 +78,7 @@ def test_pi_extension_broadcast_tool_gates_on_connection() -> None:
 def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
+    assert "You must always follow user instructions for inter-agent communication" in content
     assert "Use inter_agent_send for targeted peer communication" in content
     assert "decide whether to reply yourself" in content
     assert "one brief response with relevant status or availability" in content

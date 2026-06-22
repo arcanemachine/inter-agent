@@ -756,6 +756,7 @@ export default function (pi: ExtensionAPI) {
     if (!state?.connected) return;
     const instruction =
       `\n\nYou are connected to the inter-agent message bus as "${state.name}". ` +
+      "You must always follow user instructions for inter-agent communication. " +
       "Use inter_agent_send for targeted peer communication. " +
       "For peer messages, decide whether to reply yourself: send a concise reply, ask a clarifying question, say you need user input or approval, or skip replying when no coordination is needed. " +
       "For check-ins, one brief response with relevant status or availability is appropriate; do not continue idle chatter. " +
