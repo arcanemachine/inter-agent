@@ -3,7 +3,8 @@
 This directory contains the Claude Code plugin assets for `inter-agent`:
 
 - `.claude-plugin/plugin.json` — plugin metadata and command wiring.
-- `skills/inter-agent/SKILL.md` — command guidance and incoming-message policy.
+- `skills/inter-agent/SKILL.md` — regular command guidance and incoming-message policy.
+- `skills/inter-agent/bootstrap.md` — first-time setup and connect-edge guidance.
 
 The Python adapter implementation lives in `src/inter_agent/adapters/claude/` and is exposed through the `inter-agent-claude` command.
 
@@ -35,6 +36,7 @@ The plugin monitor runs the normal `inter-agent-claude` CLI. It uses the same en
 
 ```text
 /inter-agent connect [name]
+/inter-agent rename <name>
 /inter-agent disconnect
 /inter-agent send <name-or-prefix> <text>
 /inter-agent broadcast <text>
@@ -45,6 +47,8 @@ The plugin monitor runs the normal `inter-agent-claude` CLI. It uses the same en
 ```
 
 Use direct `send` for normal replies and targeted coordination. Use `broadcast` only when explicitly asked to message everyone or when the information is genuinely for all connected sessions.
+
+`rename` stops this Claude Code session's listener and reconnects it under a new routing name. If the requested connect name is already in use, the Claude listener retries once with a `-2` suffix before asking for a manually chosen unique name.
 
 Long incoming messages are truncated in the Monitor notification and can be retrieved by message ID from a bounded local continuation cache:
 

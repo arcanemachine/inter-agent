@@ -69,9 +69,10 @@ pi install https://github.com/arcanemachine/pi-inter-agent
 Common Pi commands:
 
 ```text
-/inter-agent-connect my-agent
-/inter-agent-send other-agent "run tests"
-/inter-agent-broadcast "build is green for everyone"
+/inter-agent connect my-agent
+/inter-agent send other-agent "run tests"
+/inter-agent rename my-agent-2
+/inter-agent broadcast "build is green for everyone"
 ```
 
 Use direct `send` for normal coordination. Use `broadcast` only when the message is intended for all connected sessions.
@@ -91,6 +92,7 @@ Common Claude Code commands:
 ```text
 /inter-agent connect my-agent
 /inter-agent send other-agent "run tests"
+/inter-agent rename my-agent-2
 /inter-agent messages <msg_id>
 /inter-agent broadcast "build is green for everyone"
 ```
