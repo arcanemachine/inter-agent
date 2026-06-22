@@ -26,6 +26,35 @@ def messages_log_path() -> Path:
     return claude_data_dir() / "messages.log"
 
 
+def read_message_by_id(msg_id: str) -> dict[str, object] | None:
+    """Return the most recent log record matching ``msg_id``, or None.
+
+    The messages log is JSONL with ``{"msg_id", "from_name", "text"}``
+    records appended by the listener. The latest match wins so a re-delivered
+    or re-logged msg_id resolves to the most recent content.
+    """
+    path = messages_log_path()
+    if not path.exists():
+        return None
+    found: dict[str, object] | None = None
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    payload: object = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                if payload.get("msg_id") == msg_id:
+                    found = {str(k): v for k, v in payload.items()}
+    except OSError:
+        return None
+    return found
+
+
 def session_path(ppid: int) -> Path:
     """Path to the per-session state file."""
     return claude_data_dir() / f"{ppid}.session"

@@ -166,6 +166,60 @@ class TestState:
         assert state.unlink_if_matches(path, {"session_id": "abc", "nonce": "xyz"}) is True
         assert not path.exists()
 
+    def test_read_message_by_id_returns_latest_match(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        log = state.messages_log_path()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(
+            json.dumps({"msg_id": "m1", "from_name": "x", "text": "first"})
+            + "\n"
+            + json.dumps({"msg_id": "m2", "from_name": "y", "text": "second"})
+            + "\n"
+            + json.dumps({"msg_id": "m1", "from_name": "x", "text": "first-replayed"})
+            + "\n",
+            encoding="utf-8",
+        )
+        record = state.read_message_by_id("m1")
+        assert record is not None
+        assert record["text"] == "first-replayed"
+        assert record["from_name"] == "x"
+
+    def test_read_message_by_id_missing_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        log = state.messages_log_path()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(
+            json.dumps({"msg_id": "m1", "from_name": "x", "text": "first"}) + "\n",
+            encoding="utf-8",
+        )
+        assert state.read_message_by_id("nope") is None
+
+    def test_read_message_by_id_no_log_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        assert state.read_message_by_id("m1") is None
+
+    def test_read_message_by_id_skips_corrupt_lines(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        log = state.messages_log_path()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(
+            "not json at all\n"
+            + json.dumps({"msg_id": "m1", "from_name": "x", "text": "ok"})
+            + "\n",
+            encoding="utf-8",
+        )
+        record = state.read_message_by_id("m1")
+        assert record is not None
+        assert record["text"] == "ok"
+
 
 class TestPermanentErrors:
     def test_permanent_error_codes_set_contents(self) -> None:

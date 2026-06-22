@@ -121,6 +121,28 @@ def list_sessions() -> int:
     return 0
 
 
+def message(msg_id: str, as_json: bool = False) -> int:
+    """Look up a stored inbound message by msg_id and print its full text.
+
+    Truncated inbound messages are written to the adapter messages log by the
+    listener. This command reads the full text back by msg_id so the agent does
+    not have to grep/tail the log file itself.
+    """
+    record = state.read_message_by_id(msg_id)
+    if record is None:
+        print(f"no message found for msg_id={msg_id!r}", file=sys.stderr)
+        return 1
+    if as_json:
+        print(json.dumps(record, ensure_ascii=False))
+    else:
+        text = record.get("text")
+        if not isinstance(text, str):
+            print(f"message {msg_id!r} has no text field", file=sys.stderr)
+            return 1
+        print(text)
+    return 0
+
+
 def shutdown() -> int:
     try:
         result = asyncio.run(core_shutdown.shutdown_server(DEFAULT_HOST, DEFAULT_PORT))

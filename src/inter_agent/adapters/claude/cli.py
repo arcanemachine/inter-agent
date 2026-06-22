@@ -35,6 +35,10 @@ def build_parser() -> argparse.ArgumentParser:
     status = sub.add_parser("status")
     status.add_argument("--json", action="store_true")
 
+    messages = sub.add_parser("messages")
+    messages.add_argument("msg_id")
+    messages.add_argument("--json", action="store_true")
+
     sub.add_parser("shutdown")
     sub.add_parser("disconnect")
 
@@ -66,6 +70,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return commands.broadcast(args.text, args.from_name)
     if args.command == "list":
         return commands.list_sessions()
+    if args.command == "messages":
+        return commands.message(args.msg_id, as_json=args.json)
     if args.command == "status":
         if args.json:
             print(commands.status_json())

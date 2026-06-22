@@ -8,7 +8,7 @@ import pytest
 import inter_agent.core.list as core_list
 import inter_agent.core.send as core_send
 import inter_agent.core.shutdown as core_shutdown
-from inter_agent.adapters.claude import commands
+from inter_agent.adapters.claude import commands, state
 from inter_agent.adapters.claude.cli import main
 from inter_agent.core.list import ListResult
 from inter_agent.core.send import ProtocolErrorResult, SendResult
@@ -294,6 +294,63 @@ def test_broadcast_uses_connected_name_instead_of_from_argument(
 
     assert code == 0
     assert calls == [("127.0.0.1", 9473, "hello all", "agent-connected")]
+
+
+def test_message_prints_full_text(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    log = state.messages_log_path()
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(
+        json.dumps({"msg_id": "m1", "from_name": "x", "text": "the full text"}) + "\n",
+        encoding="utf-8",
+    )
+
+    assert commands.message("m1") == 0
+    assert capsys.readouterr().out == "the full text\n"
+
+
+def test_message_json_prints_record(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    log = state.messages_log_path()
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(
+        json.dumps({"msg_id": "m1", "from_name": "x", "text": "the full text"}) + "\n",
+        encoding="utf-8",
+    )
+
+    assert commands.message("m1", as_json=True) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload == {"msg_id": "m1", "from_name": "x", "text": "the full text"}
+
+
+def test_message_missing_returns_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+
+    assert commands.message("nope") == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "no message found" in captured.err
+
+
+def test_message_cli_dispatches_to_command(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    log = state.messages_log_path()
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(
+        json.dumps({"msg_id": "m1", "from_name": "x", "text": "via cli"}) + "\n",
+        encoding="utf-8",
+    )
+
+    assert main(["messages", "m1"]) == 0
+    assert capsys.readouterr().out == "via cli\n"
 
 
 def test_shutdown_uses_core_api(

@@ -4,6 +4,10 @@
 
 The roadmap is the high-level view. Detailed sub-agent-ready work items live under `plans/`, grouped by the same phases shown here. Phases 1 through 6 are the core completion path. Extra phases after that point are planned follow-on integrations. Ideas outside planned scope live in `IDEAS.md`.
 
+## URGENT — do immediately after the current message-lookup work
+
+- **Rotate the Claude adapter `messages.log` by size.** The log appends forever and will grow without bound. Implement size-based rotation (mirror the `claude-code-inter-session` reference, which rotates by size) as soon as the immediate message-lookup fix lands. This is urgent: the log is the continuation store for truncated messages and unbounded growth will degrade the lookup command and the data dir.
+
 ## Scope
 
 - Core protocol, server, client helpers, and conformance suite.

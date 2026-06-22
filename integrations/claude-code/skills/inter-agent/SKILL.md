@@ -160,4 +160,11 @@ Long messages arrive in two lines:
 [inter-agent msg=<id> cont] full text <len> bytes at <path>
 ```
 
-Fetch the full text from the log if needed.
+Read the full text with the message lookup command:
+
+```bash
+inter-agent-claude messages <id>
+```
+
+Add `--json` to get the full record (`msg_id`, `from_name`, `text`). Do not
+`grep` or `tail` the log file directly — use the command.

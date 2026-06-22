@@ -11,12 +11,15 @@ Run Claude adapter commands through the installed package entry point:
 - `uv run inter-agent-claude broadcast <text>`
 - `uv run inter-agent-claude list [--json]`
 - `uv run inter-agent-claude status [--json]`
+- `uv run inter-agent-claude messages <msg_id> [--json]`
 - `uv run inter-agent-claude shutdown`
 - `uv run inter-agent-claude disconnect`
 
 `send` and `broadcast` require an active listener for the current Claude Code session. The adapter uses that listener's connected routing name as the sender name.
 
 `send` and `broadcast` suppress identical repeated invocations within a short window (a few seconds) so that an agent loop re-firing the same command does not produce duplicate deliveries. A later re-send of the same text after the window passes is delivered normally.
+
+`messages <msg_id>` reads the full text of a truncated inbound message back from the adapter messages log by message ID, so the agent does not have to grep or tail the log file directly.
 
 ## Server auto-start and idle timeout
 
