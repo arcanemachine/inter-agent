@@ -82,6 +82,7 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | ------------ | ----------------------------------------------- | ------------------------------------------------------------------------- |
 | `connect`    | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                                              |
 | `disconnect` | `/inter-agent disconnect`                       | Disconnect from the bus                                                   |
+| `rename`     | `/inter-agent rename <name> [--label <label>]`  | Reconnect with a new routing name                                         |
 | `send`       | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)                               |
 | `broadcast`  | `/inter-agent broadcast <text>`                 | Broadcast to all agents only when messaging everyone is explicitly needed |
 | `list`       | `/inter-agent list`                             | List connected sessions                                                   |
@@ -171,7 +172,13 @@ Relative project-local example for `/workspace/.pi/settings.json`:
 
    For replies or targeted coordination, prefer `/inter-agent send <name> <text>`.
 
-4. Check who's connected:
+4. Rename the current Pi session if needed:
+
+   ```
+   /inter-agent rename my-pi-session-2
+   ```
+
+5. Check who's connected:
    ```
    /inter-agent list
    ```
@@ -218,6 +225,7 @@ To verify the extension works end-to-end:
    - `/inter-agent list` → should show "no agents connected" (or your own session)
    - `/inter-agent send test-agent "hello self"` → should show "sent" (only works when connected)
    - `/inter-agent broadcast "test broadcast for everyone"` → should show "sent" (only works when connected; reserve for messages everyone needs)
+   - `/inter-agent rename test-agent-2` → should reconnect under the new name
    - `/inter-agent disconnect` → should show "disconnected"
 
 5. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.

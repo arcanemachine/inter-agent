@@ -530,6 +530,29 @@ function parseConnectArgs(
   return { ok: true, name, label };
 }
 
+function parseRenameArgs(
+  args: string,
+):
+  | { ok: true; name: string; label: string | null }
+  | { ok: false; message: string } {
+  const trimmed = args.trim();
+  if (!trimmed) {
+    return {
+      ok: false,
+      message: "usage: /inter-agent rename <name> [--label <label>]",
+    };
+  }
+  const parsed = parseConnectArgs(trimmed);
+  if (parsed.ok === false) return parsed;
+  if (parsed.name === DEFAULT_NAME && trimmed.startsWith("--label")) {
+    return {
+      ok: false,
+      message: "usage: /inter-agent rename <name> [--label <label>]",
+    };
+  }
+  return parsed;
+}
+
 function formatConnectError(code: string, text: string): string {
   switch (code) {
     case "NAME_TAKEN":
@@ -754,6 +777,11 @@ export default function (pi: ExtensionAPI) {
       label: "disconnect",
       description: "Disconnect from the bus",
     },
+    {
+      value: "rename",
+      label: "rename",
+      description: "Reconnect with a new name",
+    },
     { value: "send", label: "send", description: "Send a direct message" },
     {
       value: "broadcast",
@@ -796,6 +824,33 @@ export default function (pi: ExtensionAPI) {
       updateStatus(ctx, { ...state, connected: false });
     }
     notify("[inter-agent] disconnected", "listener stopped");
+  }
+
+  async function handleRename(args: string, ctx: ExtensionContext) {
+    if (!listenerReady || !currentConnection) {
+      notify(
+        "[inter-agent] rename failed",
+        "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        "error",
+      );
+      return;
+    }
+    const parsed = parseRenameArgs(args);
+    if (parsed.ok === false) {
+      notify("[inter-agent] rename failed", parsed.message, "error");
+      return;
+    }
+
+    const oldName = currentConnection.name;
+    const label = parsed.label ?? currentConnection.label;
+    const ready = await ensureServerAvailable(scripts);
+    if (!ready) return;
+
+    startListener(pi, ctx, config, parsed.name, label, { notifyOnReady: true });
+    notify(
+      "[inter-agent] renaming",
+      `${oldName} -> ${parsed.name}${label ? ` (${label})` : ""}`,
+    );
   }
 
   async function handleSend(args: string, _ctx: ExtensionContext) {
@@ -918,7 +973,7 @@ export default function (pi: ExtensionAPI) {
   function showInterAgentUsage() {
     notify(
       "[inter-agent] usage",
-      "usage: /inter-agent <connect|disconnect|send|broadcast|list|status> [args]",
+      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|list|status> [args]",
       "warning",
     );
   }
@@ -945,6 +1000,9 @@ export default function (pi: ExtensionAPI) {
           break;
         case "disconnect":
           await handleDisconnect(rest, ctx);
+          break;
+        case "rename":
+          await handleRename(rest, ctx);
           break;
         case "send":
           await handleSend(rest, ctx);

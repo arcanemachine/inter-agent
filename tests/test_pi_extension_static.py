@@ -80,6 +80,16 @@ def test_pi_extension_discourages_broadcast_replies() -> None:
     assert "Use inter_agent_broadcast only when the user explicitly asks" in content
 
 
+def test_pi_extension_supports_user_driven_rename() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'value: "rename"' in content
+    assert "async function handleRename" in content
+    assert "Not connected to the inter-agent bus" in content
+    assert "parseRenameArgs" in content
+    assert "startListener(pi, ctx, config, parsed.name, label" in content
+
+
 def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
