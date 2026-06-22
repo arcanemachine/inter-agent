@@ -75,13 +75,15 @@ def test_pi_extension_broadcast_tool_gates_on_connection() -> None:
     assert "formatOutgoing" not in content
 
 
-def test_pi_extension_discourages_broadcast_replies() -> None:
+def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
-    assert "reply directly" in content
+    assert "Use inter_agent_send for targeted peer communication" in content
+    assert "decide whether to reply yourself" in content
+    assert "one brief response with relevant status or availability" in content
+    assert "do not continue idle chatter" in content
     assert "do not broadcast unless the user explicitly asks" in content
-    assert "Use inter_agent_send for normal replies" in content
-    assert "Use inter_agent_broadcast only when the user explicitly asks" in content
+    assert "Get explicit user approval before destructive" in content
 
 
 def test_pi_extension_supports_user_driven_rename() -> None:

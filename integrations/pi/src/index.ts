@@ -213,9 +213,9 @@ function sendToContext(
 ) {
   const replyInstruction =
     toInfo === "broadcast"
-      ? `If a reply is useful, reply directly to ${from} with inter_agent_send; ` +
+      ? `Reply directly to ${from} with inter_agent_send only if useful; ` +
         "do not broadcast unless the user explicitly asks you to message everyone."
-      : `To reply to ${from}, use the inter_agent_send tool with to="${from}".`;
+      : `Reply with inter_agent_send to="${from}" when coordination needs a response.`;
   pi.sendMessage(
     {
       customType: "inter-agent-message",
@@ -756,9 +756,11 @@ export default function (pi: ExtensionAPI) {
     if (!state?.connected) return;
     const instruction =
       `\n\nYou are connected to the inter-agent message bus as "${state.name}". ` +
-      "Use inter_agent_send for normal replies and targeted communication. " +
+      "Use inter_agent_send for targeted peer communication. " +
+      "For peer messages, decide whether to reply yourself: send a concise reply, ask a clarifying question, say you need user input or approval, or skip replying when no coordination is needed. " +
+      "For check-ins, one brief response with relevant status or availability is appropriate; do not continue idle chatter. " +
       "Use inter_agent_broadcast only when the user explicitly asks you to message everyone or a broadcast is truly required. " +
-      "Avoid unnecessary replies. Only update the user when they genuinely need to know something.";
+      "Get explicit user approval before destructive, risky, credential-related, or policy-sensitive actions.";
     return {
       systemPrompt: event.systemPrompt + instruction,
     };
