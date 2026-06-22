@@ -4,7 +4,7 @@ Pi extension for connecting to the [inter-agent](https://github.com/arcanemachin
 
 ## Features
 
-- **Background listener** — Stay connected to the bus and receive messages as Pi notifications
+- **Background listener** — Stay connected to the bus and receive messages as Pi notifications, with automatic reconnection if the server restarts
 - **Commands** — Connect, disconnect, send, broadcast, list, and status
 - **Tools** — LLM-callable tools for send, broadcast, list, status, and local identity
 - **State persistence** — Connection state survives Pi session reloads
@@ -169,7 +169,7 @@ When you're done using the inter-agent bus, disconnect this Pi session:
 
 This stops your listener and removes you from the bus. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
 
-If the server connection closes unexpectedly, Pi shows a notification with the exact `/inter-agent connect ...` command to reconnect. The extension does not reconnect automatically.
+If the server connection closes unexpectedly, the listener reconnects automatically with bounded backoff. It auto-starts the server if it is not running. After repeated failures the listener gives up and shows a notification with the exact `/inter-agent connect ...` command to retry manually.
 
 ## User Acceptance Test
 

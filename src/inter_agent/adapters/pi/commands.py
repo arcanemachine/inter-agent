@@ -11,7 +11,7 @@ import sys
 
 from websockets.exceptions import WebSocketException
 
-from inter_agent.core import client as core_client
+from inter_agent.adapters.pi import listener
 from inter_agent.core import list as core_list
 from inter_agent.core import send as core_send
 from inter_agent.core import shutdown as core_shutdown
@@ -43,12 +43,11 @@ def _send_result_code(result: SendResult) -> int:
 
 def connect(name: str, label: str | None = None) -> int:
     try:
-        asyncio.run(core_client.run_client(DEFAULT_HOST, DEFAULT_PORT, name, label))
+        return asyncio.run(listener.run_listener(DEFAULT_HOST, DEFAULT_PORT, name, label))
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
         return _expected_error_code(exc)
-    return 0
 
 
 def send(to: str, text: str) -> int:
