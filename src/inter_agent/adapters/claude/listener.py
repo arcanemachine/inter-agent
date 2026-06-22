@@ -255,6 +255,10 @@ class Listener:
                         "port": self.port,
                     },
                 )
+                _print_line(
+                    f'[inter-agent] connected as "{self.name}"',
+                    self.output,
+                )
                 continue
 
             if op == "error":

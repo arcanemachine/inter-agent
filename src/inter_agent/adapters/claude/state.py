@@ -114,22 +114,27 @@ def release_lock(fd: int) -> None:
 def _resolve_listener_key() -> int:
     """Return the process ID used as the state-file key.
 
-    In a Claude Code session, the Monitor process is a child of the
-    main Claude process. Helper CLIs run from Bash() calls are
-    children of that same process. We walk up to find a stable parent.
+    In a Claude Code session, the listener and helper CLIs (send, status,
+    etc.) are all descendants of the main Claude Code host process. We walk
+    up the process tree to find that host so every CLI in the same session
+    resolves to the same stable PID.
+
+    The host is identified by an argv[0] basename of exactly ``claude``.
+    A substring match on the full cmdline would wrongly match the
+    ``inter-agent-claude`` entry-point script (and the Bash wrappers that
+    invoke it), causing each CLI to key on its own ephemeral PID instead of
+    the shared host. The exact-basename check excludes those, as well as
+    ``python3.12`` and ``bash``.
     """
     pid = os.getpid()
     seen: set[int] = set()
     while pid and pid not in seen:
         seen.add(pid)
-        # Claude Code main process typically has a distinctive cmdline
         cmdline_path = Path("/proc") / str(pid) / "cmdline"
         if cmdline_path.exists():
             try:
-                cmdline = (
-                    cmdline_path.read_bytes().replace(b"\x00", b" ").decode("utf-8", "replace")
-                )
-                if "claude" in cmdline.lower():
+                argv0 = cmdline_path.read_bytes().split(b"\x00", 1)[0].decode("utf-8", "replace")
+                if os.path.basename(argv0) == "claude":
                     return pid
             except OSError:
                 pass
