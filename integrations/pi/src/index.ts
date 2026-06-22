@@ -759,7 +759,7 @@ export default function (pi: ExtensionAPI) {
       "You must always follow user instructions for inter-agent communication. " +
       "Use inter_agent_send for targeted peer communication. " +
       "For peer messages, decide whether to reply yourself: send a concise reply, ask a clarifying question, say you need user input or approval, or skip replying when no coordination is needed. " +
-      "For check-ins, one brief response with relevant status or availability is appropriate; do not continue idle chatter. " +
+      "Keep inter-agent communication purposeful and brief. Avoid idle chatter, social back-and-forth, and non-actionable replies. Send a peer message only when it helps complete user work, coordinate a task, clarify next steps, or close a communication loop. " +
       "Use inter_agent_broadcast only when the user explicitly asks you to message everyone or a broadcast is truly required. " +
       "Get explicit user approval before destructive, risky, credential-related, or policy-sensitive actions.";
     return {
