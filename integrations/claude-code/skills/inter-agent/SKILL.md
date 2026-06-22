@@ -62,8 +62,10 @@ Try, then sanity-check on failure:
 1. Start the persistent Monitor (`persistent=true`) and wait. Do not fix a
    timeout on it.
 2. `[inter-agent] connected as "<name>"` → connected. **Stop there.**
-   Do not run `status`, `list`, `disconnect`, or relaunch — the connected
-   listener is the real connection.
+   `[inter-agent] already connected as "<name>"; no new listener started.`
+   means this Claude session already has the active listener; no new listener
+   was made. **Stop there too.** Do not run `status`, `list`, `disconnect`, or
+   relaunch — the connected listener is the real connection.
 3. Only if the **persistent** Monitor task itself exits without a connected
    line, run **one** fallback via the **Bash** tool (a one-shot command, not a
    Monitor):
@@ -71,7 +73,7 @@ Try, then sanity-check on failure:
    ```bash
    inter-agent-claude status   # connected=true and connected_name=<your-name>
    ```
-   - `connected=true` for your name: already connected by a prior listener; stop.
+   - `connected=true` for your name: this session is already connected; stop.
    - `[inter-agent] connection error: NAME_TAKEN`: see Name conflicts below.
 
 Monitor renders a persistent watch as two task entries: a launcher wrapper
