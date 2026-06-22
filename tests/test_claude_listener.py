@@ -280,6 +280,29 @@ class TestPermanentErrors:
         assert 'connected as "myname"' in out
 
     @pytest.mark.asyncio
+    async def test_duplicate_msg_id_emits_once(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
+            message = {
+                "op": "msg",
+                "msg_id": "m1",
+                "from_name": "agent-a",
+                "text": "hello",
+                "to": "agent-b",
+            }
+            yield json.dumps(message)
+            yield json.dumps(message)
+
+        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-b")
+        await listener._connect_and_serve(1)
+
+        out = capsys.readouterr().out
+        assert out.count("msg=m1") == 1
+        assert out.count("hello") == 1
+
+    @pytest.mark.asyncio
     async def test_name_taken_emits_actionable_message(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:

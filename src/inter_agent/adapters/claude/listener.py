@@ -12,6 +12,7 @@ import secrets
 import signal
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 from typing import TextIO
@@ -33,6 +34,7 @@ RECONNECT_JITTER_FRAC = 0.2
 RECONNECT_DEADLINE_S = 60.0
 PING_INTERVAL_S = 15
 AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300
+RECEIVE_DEDUP_WINDOW_S = 60.0
 
 # Server error codes that won't resolve by reconnecting.
 # When the server returns one of these, the listener exits instead of retrying.
@@ -97,6 +99,7 @@ class Listener:
         self._lock_fd: int | None = None
         self._connect_task: asyncio.Task[None] | None = None
         self._server_proc: subprocess.Popen[bytes] | None = None
+        self._recent_msg_ids: dict[str, float] = {}
 
     def stop(self) -> None:
         self._stop.set()
@@ -232,6 +235,22 @@ class Listener:
             if self._lock_fd is not None:
                 state.release_lock(self._lock_fd)
 
+    def _is_duplicate_msg_id(self, msg_id: str) -> bool:
+        """Return True if this listener recently emitted the message ID."""
+        if not msg_id:
+            return False
+        now = time.monotonic()
+        cutoff = now - RECEIVE_DEDUP_WINDOW_S
+        self._recent_msg_ids = {
+            recent_id: seen_at
+            for recent_id, seen_at in self._recent_msg_ids.items()
+            if seen_at >= cutoff
+        }
+        if msg_id in self._recent_msg_ids:
+            return True
+        self._recent_msg_ids[msg_id] = now
+        return False
+
     async def _connect_and_serve(self, ppid: int) -> None:
         token = load_or_create_token()
         async for raw in iter_client_frames(self.host, self.port, self.name, self.label):
@@ -281,7 +300,9 @@ class Listener:
                 continue
 
             if op == "msg":
-                msg_id = payload.get("msg_id", "")
+                msg_id = str(payload.get("msg_id", ""))
+                if self._is_duplicate_msg_id(msg_id):
+                    continue
                 from_name = payload.get("from_name") or payload.get("from", "unknown")
                 text = payload.get("text", "")
                 to = payload.get("to")
@@ -289,7 +310,7 @@ class Listener:
                     continue
 
                 line = formatting.format_notification(
-                    str(msg_id), str(from_name), text, str(to) if to else None
+                    msg_id, str(from_name), text, str(to) if to else None
                 )
                 _print_line(line, self.output)
 
