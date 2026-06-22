@@ -9,10 +9,10 @@ show_help() {
 Usage: ./inter-agent <command> [args...]
 
 Generic commands:
-  server      Start the inter-agent server
+  start       Start the inter-agent server
   list        List connected sessions
   status      Show server status
-  shutdown    Shut down the server
+  stop        Shut down the server
   kick <name> Force-disconnect a registered session by name
 
 Harness commands:
@@ -34,7 +34,7 @@ HARN="$1"
 shift
 
 case "$HARN" in
-  server)
+  start)
     exec uv run inter-agent-server "$@"
     ;;
   list)
@@ -43,7 +43,7 @@ case "$HARN" in
   status)
     exec uv run inter-agent-status "$@"
     ;;
-  shutdown)
+  stop)
     exec uv run inter-agent-shutdown "$@"
     ;;
   kick)

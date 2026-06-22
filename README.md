@@ -106,10 +106,10 @@ See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) f
 The repository wrapper provides common operational commands:
 
 ```bash
-./inter-agent server              # start the server
+./inter-agent start               # start the server
 ./inter-agent status              # show server status
 ./inter-agent list                # list connected sessions
-./inter-agent shutdown            # shut down the server
+./inter-agent stop                # shut down the server
 ./inter-agent kick <name>         # force-disconnect a registered session
 ./inter-agent pi send <to> <text>
 ./inter-agent claude send <to> <text>

@@ -38,7 +38,7 @@ def test_help_shows_generic_and_harness_commands(repo_root: Path, fake_uv: Path)
     assert result.returncode == 0
     assert "Generic commands:" in result.stdout
     assert "Harness commands:" in result.stdout
-    assert "server" in result.stdout
+    assert "start" in result.stdout
     assert "kick <name>" in result.stdout
     assert "pi send" in result.stdout
     assert "claude broadcast" in result.stdout
@@ -50,8 +50,8 @@ def test_unknown_command_exits_with_error(repo_root: Path, fake_uv: Path) -> Non
     assert "Unknown command: unknown" in result.stderr
 
 
-def test_server_delegates_to_inter_agent_server(repo_root: Path, fake_uv: Path) -> None:
-    result = _run_wrapper(repo_root, fake_uv, "server", "--idle-timeout", "60")
+def test_start_delegates_to_inter_agent_server(repo_root: Path, fake_uv: Path) -> None:
+    result = _run_wrapper(repo_root, fake_uv, "start", "--idle-timeout", "60")
     assert result.returncode == 0
     assert result.stdout.strip() == "run inter-agent-server --idle-timeout 60"
 
@@ -68,8 +68,8 @@ def test_status_delegates_to_inter_agent_status(repo_root: Path, fake_uv: Path) 
     assert result.stdout.strip() == "run inter-agent-status --json"
 
 
-def test_shutdown_delegates_to_inter_agent_shutdown(repo_root: Path, fake_uv: Path) -> None:
-    result = _run_wrapper(repo_root, fake_uv, "shutdown")
+def test_stop_delegates_to_inter_agent_shutdown(repo_root: Path, fake_uv: Path) -> None:
+    result = _run_wrapper(repo_root, fake_uv, "stop")
     assert result.returncode == 0
     assert result.stdout.strip() == "run inter-agent-shutdown"
 
