@@ -223,6 +223,57 @@ class TestState:
         assert record is not None
         assert record["text"] == "ok"
 
+    def test_append_message_record_trims_oldest_records(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        for i in range(10):
+            state.append_message_record(f"m{i}", "sender", f"text-{i}", max_bytes=240)
+
+        log = state.messages_log_path()
+        assert log.stat().st_size <= 240
+        assert state.read_message_by_id("m0") is None
+        latest = state.read_message_by_id("m9")
+        assert latest is not None
+        assert latest["text"] == "text-9"
+
+    def test_append_message_record_keeps_valid_jsonl_after_trim(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        for i in range(8):
+            state.append_message_record(f"m{i}", "sender", "x" * 20, max_bytes=180)
+
+        lines = state.messages_log_path().read_text(encoding="utf-8").splitlines()
+        assert lines
+        for line in lines:
+            payload = json.loads(line)
+            assert isinstance(payload, dict)
+            assert str(payload["msg_id"]).startswith("m")
+
+    def test_append_message_record_sets_restrictive_permissions(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        state.append_message_record("m1", "sender", "text")
+
+        mode = state.messages_log_path().stat().st_mode & 0o777
+        assert mode == 0o600
+
+    def test_messages_log_max_bytes_uses_env_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(state.MESSAGES_LOG_MAX_BYTES_ENV, "1234")
+        assert state.messages_log_max_bytes() == 1234
+
+    def test_messages_log_max_bytes_ignores_invalid_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(state.MESSAGES_LOG_MAX_BYTES_ENV, "0")
+        assert state.messages_log_max_bytes() == state.MESSAGES_LOG_MAX_BYTES
+        monkeypatch.setenv(state.MESSAGES_LOG_MAX_BYTES_ENV, "nope")
+        assert state.messages_log_max_bytes() == state.MESSAGES_LOG_MAX_BYTES
+
 
 class TestPermanentErrors:
     def test_permanent_error_codes_set_contents(self) -> None:

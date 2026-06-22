@@ -19,7 +19,7 @@ Run Claude adapter commands through the installed package entry point:
 
 `send` and `broadcast` suppress identical repeated invocations within a short window (a few seconds) so that an agent loop re-firing the same command does not produce duplicate deliveries. A later re-send of the same text after the window passes is delivered normally.
 
-`messages <msg_id>` reads the full text of a truncated inbound message back from the adapter messages log by message ID, so the agent does not have to grep or tail the log file directly.
+`messages <msg_id>` reads the full text of a truncated inbound message from the bounded local continuation cache by message ID, so the agent does not have to grep or tail the log file directly. The cache defaults to 5 MiB and can be adjusted for manual testing with `INTER_AGENT_CLAUDE_MESSAGES_LOG_MAX_BYTES`.
 
 ## Server auto-start and idle timeout
 

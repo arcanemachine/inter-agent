@@ -181,7 +181,8 @@ to a single peer.
 After sending, do not retry just because the command is silent on success, and
 do not poll for a reply; replies appear as incoming notifications.
 `messages <msg_id>` reads the full text of a truncated inbound message from
-the adapter log (see the Reaction policy section for when to use it).
+the bounded local continuation cache (see the Reaction policy section for when
+to use it).
 
 ## Name conflicts (NAME_TAKEN)
 

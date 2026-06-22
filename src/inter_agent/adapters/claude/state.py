@@ -8,9 +8,14 @@ import json
 import os
 import subprocess
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from inter_agent.core.shared import data_dir as core_data_dir
+
+MESSAGES_LOG_MAX_BYTES = 5 * 1024 * 1024
+MESSAGES_LOG_MAX_BYTES_ENV = "INTER_AGENT_CLAUDE_MESSAGES_LOG_MAX_BYTES"
 
 
 def claude_data_dir() -> Path:
@@ -26,30 +31,135 @@ def messages_log_path() -> Path:
     return claude_data_dir() / "messages.log"
 
 
+def messages_log_lock_path() -> Path:
+    """Path for the messages log flock file."""
+    return claude_data_dir() / "messages.log.lock"
+
+
+def messages_log_max_bytes() -> int:
+    """Return the configured maximum size for the messages log."""
+    raw = os.environ.get(MESSAGES_LOG_MAX_BYTES_ENV)
+    if raw is None:
+        return MESSAGES_LOG_MAX_BYTES
+    try:
+        value = int(raw)
+    except ValueError:
+        return MESSAGES_LOG_MAX_BYTES
+    return value if value > 0 else MESSAGES_LOG_MAX_BYTES
+
+
+@contextmanager
+def locked_messages_log() -> Iterator[None]:
+    """Hold the messages log lock for read/write operations.
+
+    The lock file may remain on disk after use. The live flock, not the file's
+    existence, is what serializes access.
+    """
+    fd = os.open(str(messages_log_lock_path()), os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
+
+
+def _newest_complete_lines_within(data: bytes, max_bytes: int) -> bytes:
+    """Return newest complete JSONL lines, keeping at least one whole line."""
+    if len(data) <= max_bytes:
+        return data
+    kept: list[bytes] = []
+    total = 0
+    for line in reversed(data.splitlines(keepends=True)):
+        if kept and total + len(line) > max_bytes:
+            break
+        kept.append(line)
+        total += len(line)
+    kept.reverse()
+    return b"".join(kept)
+
+
+def trim_messages_log(path: Path, max_bytes: int = MESSAGES_LOG_MAX_BYTES) -> None:
+    """Trim oldest records from the messages log when it exceeds max_bytes."""
+    try:
+        if path.stat().st_size <= max_bytes:
+            return
+        data = path.read_bytes()
+    except OSError:
+        return
+
+    kept = _newest_complete_lines_within(data, max_bytes)
+    fd, tmp_path_str = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+    tmp_path = Path(tmp_path_str)
+    try:
+        os.fchmod(fd, 0o600)
+        os.write(fd, kept)
+        os.fsync(fd)
+        os.close(fd)
+        os.replace(tmp_path, path)
+        os.chmod(path, 0o600)
+    except OSError:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+
+
+def append_message_record(
+    msg_id: str,
+    from_name: str,
+    text: str,
+    path: Path | None = None,
+    max_bytes: int | None = None,
+) -> None:
+    """Append one continuation record and keep the messages log bounded."""
+    log_path = path or messages_log_path()
+    try:
+        record = json.dumps(
+            {"msg_id": msg_id, "from_name": from_name, "text": text},
+            ensure_ascii=False,
+        )
+        with locked_messages_log():
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(record + "\n")
+            os.chmod(log_path, 0o600)
+            trim_messages_log(
+                log_path,
+                max_bytes=max_bytes if max_bytes is not None else messages_log_max_bytes(),
+            )
+    except OSError:
+        pass
+
+
 def read_message_by_id(msg_id: str) -> dict[str, object] | None:
     """Return the most recent log record matching ``msg_id``, or None.
 
-    The messages log is JSONL with ``{"msg_id", "from_name", "text"}``
-    records appended by the listener. The latest match wins so a re-delivered
-    or re-logged msg_id resolves to the most recent content.
+    The messages log is a bounded JSONL continuation cache with
+    ``{"msg_id", "from_name", "text"}`` records appended by the listener. The
+    latest match wins so a re-delivered or re-logged msg_id resolves to the
+    most recent content.
     """
     path = messages_log_path()
     if not path.exists():
         return None
     found: dict[str, object] | None = None
     try:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                try:
-                    payload: object = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(payload, dict):
-                    continue
-                if payload.get("msg_id") == msg_id:
-                    found = {str(k): v for k, v in payload.items()}
+        with locked_messages_log():
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    try:
+                        payload: object = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(payload, dict):
+                        continue
+                    if payload.get("msg_id") == msg_id:
+                        found = {str(k): v for k, v in payload.items()}
     except OSError:
         return None
     return found

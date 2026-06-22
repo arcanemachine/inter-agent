@@ -45,7 +45,7 @@ The listener auto-starts the local server when needed. Auto-started servers use 
 
 Use direct `send` for normal replies and targeted coordination. Use `broadcast` only when explicitly asked to message everyone or when the information is genuinely for all connected sessions.
 
-Long incoming messages are truncated in the Monitor notification and can be retrieved with:
+Long incoming messages are truncated in the Monitor notification and can be retrieved by message ID from a bounded local continuation cache:
 
 ```text
 /inter-agent messages <msg_id>

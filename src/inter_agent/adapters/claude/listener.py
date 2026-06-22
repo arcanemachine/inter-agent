@@ -342,16 +342,8 @@ class Listener:
 
 
 def _write_to_messages_log(msg_id: str, from_name: str, text: str, log_path: Path) -> None:
-    """Append the full message to the messages log for continuation lookup."""
-    try:
-        record = json.dumps(
-            {"msg_id": msg_id, "from_name": from_name, "text": text},
-            ensure_ascii=False,
-        )
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(record + "\n")
-    except OSError:
-        pass
+    """Append the full message to the bounded messages log."""
+    state.append_message_record(msg_id, from_name, text, path=log_path)
 
 
 def build_parser() -> argparse.ArgumentParser:
