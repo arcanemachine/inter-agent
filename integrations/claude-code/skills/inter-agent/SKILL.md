@@ -59,11 +59,14 @@ auto-starts if needed and idles out after 300s with no connections.
 
 Try, then sanity-check on failure:
 
-1. Start the Monitor and wait for its first line.
-2. `[inter-agent] connected as "<name>"` → you are connected. **Stop there.**
+1. Start the persistent Monitor (`persistent=true`) and wait. Do not fix a
+   timeout on it.
+2. `[inter-agent] connected as "<name>"` → connected. **Stop there.**
    Do not run `status`, `list`, `disconnect`, or relaunch — the connected
    listener is the real connection.
-3. If the Monitor exits without a connected line, run one fallback:
+3. Only if the **persistent** Monitor task itself exits without a connected
+   line, run **one** fallback via the **Bash** tool (a one-shot command, not a
+   Monitor):
 
    ```bash
    inter-agent-claude status   # connected=true and connected_name=<your-name>
@@ -71,11 +74,14 @@ Try, then sanity-check on failure:
    - `connected=true` for your name: already connected by a prior listener; stop.
    - `[inter-agent] connection error: NAME_TAKEN`: see Name conflicts below.
 
-After startup you'll see a `Monitor "..." stream ended` line (Monitor's
-launcher wrapper exiting after bootstrap). Only **one**
-`inter-agent-claude listen` process actually runs, so that line is not a
-second listener, a prior session taking the name, or you being replaced; the
-connected line in step 2 is authoritative.
+Monitor renders a persistent watch as two task entries: a launcher wrapper
+that exits right after bootstrap (you'll see `Monitor "..." stream ended`)
+and the real persistent watch, which keeps running. That `stream ended` line
+arrives **before** the connected line — keep waiting for the connected line
+while the persistent task is still running; it is not a second listener, a
+prior session taking the name, or you being replaced. Only one
+`inter-agent-claude listen` process actually runs; the connected line in
+step 2 is authoritative.
 
 `list` is for peer discovery, not verification; it may briefly lag startup.
 
