@@ -59,7 +59,7 @@ Receiving a message does **not** require a reply. Only reply when the prefix
 routing below calls for one, or when the user asks you to. Do not send an
 acknowledgment just because a message arrived. After sending a message, do not
 poll, repeatedly list sessions, or ask whether a reply arrived; replies appear
-as incoming notifications when they are ready.
+as incoming notifications.
 
 ### Prefix-based routing
 
@@ -156,7 +156,7 @@ Send and broadcast require an active listener for the current Claude Code
 session. The adapter uses that listener's connected routing name as the sender
 name. Use `send` for normal peer-to-peer replies. Use `broadcast` only when
 the user explicitly asks to broadcast, notify all sessions, or send to everyone.
-After sending, wait for an incoming notification instead of polling for a reply.
+After sending, do not poll for a reply; replies appear as incoming notifications.
 `messages <msg_id>` reads the full text of a truncated inbound message from
 the adapter log (see the Reaction policy section for when to use it).
 
