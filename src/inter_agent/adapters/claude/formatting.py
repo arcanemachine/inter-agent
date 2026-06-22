@@ -53,5 +53,15 @@ def format_notification(
 
 
 def format_truncation_pointer(msg_id: str, full_len: int, log_path: Path) -> str:
-    """Emit a continuation pointer for truncated messages."""
-    return f"[inter-agent msg={msg_id} cont] " f"full text {full_len} bytes at {log_path}"
+    """Emit a continuation pointer for truncated messages.
+
+    The filesystem path is intentionally omitted so the agent's only obvious
+    next action is the `inter-agent-claude messages <id>` lookup command
+    rather than grepping/tailing the log file directly. The ``log_path``
+    argument is retained for signature stability and tests.
+    """
+    del log_path
+    return (
+        f"[inter-agent msg={msg_id} cont] full text {full_len} bytes — "
+        f"run: inter-agent-claude messages {msg_id}"
+    )

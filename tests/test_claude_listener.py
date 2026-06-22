@@ -58,7 +58,10 @@ class TestFormatting:
 
     def test_format_truncation_pointer(self) -> None:
         line = formatting.format_truncation_pointer("abc", 1234, Path("/tmp/log"))
-        assert line == "[inter-agent msg=abc cont] full text 1234 bytes at /tmp/log"
+        assert (
+            line == "[inter-agent msg=abc cont] full text 1234 bytes — "
+            "run: inter-agent-claude messages abc"
+        )
 
 
 class TestState:
