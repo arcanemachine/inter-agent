@@ -123,7 +123,7 @@ Extra notes:
 
 Goal: add Claude Code as a supported host integration after the core project is release-ready.
 
-Design notes: `docs/CLAUDE_CODE_SUPPORT.md`
+Plugin docs: `integrations/claude-code/README.md`
 
 Plan items: complete.
 

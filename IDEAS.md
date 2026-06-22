@@ -25,7 +25,7 @@ This file holds promising work that is not required for project completion as de
 
 ### Claude Code adapter
 
-Claude Code support is a completed host integration (Phase 7). Durable design notes live in `docs/CLAUDE_CODE_SUPPORT.md`. Keep new Claude Code ideas here only when they are outside that completed scope.
+Claude Code support is a completed host integration (Phase 7). User-facing plugin docs live in `integrations/claude-code/README.md`. Keep new Claude Code ideas here only when they are outside that completed scope.
 
 ### Claude Code MCP and Channels follow-up
 

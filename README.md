@@ -1,58 +1,64 @@
 # inter-agent
 
-A lightweight messaging bus that allows AI coding harness sessions to talk to each other.
+`inter-agent` is a localhost message bus for AI coding-agent sessions. It lets sessions in supported coding harnesses send direct messages, share occasional announcements, and coordinate through one small WebSocket protocol.
 
-This tool can allow your Claude Code or Pi sessions to talk to each other, or even allow communication between different harnesses (e.g. Pi <-> Claude Code).
+Supported user-facing integrations:
 
-This tool provides a platform that can be extended to work with other coding harnesses. OpenCode is the next planned host-native extension target. A Codex extension is not planned because Codex's no-fork extension system does not expose the background message delivery and control surface needed for an inter-agent extension; any future Codex work should be treated as an App Server sidecar, not a Codex extension.
+| Integration | Entry point | Best for |
+| --- | --- | --- |
+| Pi | `integrations/pi/` | Pi slash commands and LLM-callable tools |
+| Claude Code | `integrations/claude-code/` | Claude Code slash commands, Monitor notifications, and message lookup |
+| Core CLI | `src/inter_agent/core/` | Scripting, testing, and building new adapters |
 
-## What it does
+Roadmap and exploratory integration notes live in [`AGENTS.PLAN.md`](AGENTS.PLAN.md) and [`IDEAS.md`](IDEAS.md). OpenCode integration work is tracked there.
 
-Inter-agent lets AI coding agents running in different tools on the same machine send messages to each other:
+## Features
 
-- **Direct messages** — send a message to one agent by name
-- **Broadcast** — send a message to every connected agent at once
-- **Localhost only by default** — nothing leaves your machine without your permission
+- **Direct messages** — send a message to one connected session by routing name.
+- **Broadcasts** — send a message to every connected agent session when the message is genuinely for everyone.
+- **Peer discovery** — list connected sessions and check server status.
+- **Local operation** — the server binds to `127.0.0.1` and uses a local shared token.
+- **Adapter-friendly protocol** — any client that can speak JSON over WebSocket can join the bus.
 
-Any agent that can speak JSON over WebSocket can join, no matter what tool it runs in.
+Peer messages are collaboration inputs. They do not override system, developer, user, tool, permission, or security rules in the receiving harness.
 
-## How it works
-
-The project has three layers:
-
-1. **Core protocol** (`src/inter_agent/core/`) — a WebSocket message bus that runs on your local machine. It handles connection management, routing, authentication, and lifecycle.
-
-2. **Adapters** (`src/inter_agent/adapters/`) — command-line interfaces that wrap the core protocol for each host tool. Adapters provide commands like `connect`, `send`, `broadcast`, and `list`; use direct `send` for normal agent-to-agent communication and reserve `broadcast` for messages everyone explicitly needs.
-
-3. **Extensions** (`integrations/`) — host-specific plugin assets (skills, monitors, manifest files) that let you use inter-agent from within the host tool itself.
+## Architecture at a glance
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Pi extension      │  Claude Code plugin                │
-│  (integrations/pi/)│  (integrations/claude-code/)       │
+│  Pi extension       │  Claude Code plugin               │
+│  integrations/pi/   │  integrations/claude-code/        │
 ├─────────────────────────────────────────────────────────┤
-│  Pi adapter        │  Claude Code adapter               │
-│  (adapters/pi/)    │  (adapters/claude/)                │
+│  Pi adapter         │  Claude Code adapter              │
+│  adapters/pi/       │  adapters/claude/                 │
 ├─────────────────────────────────────────────────────────┤
-│              Core protocol (core/)                      │
-│         WebSocket bus, routing, auth                    │
+│              Core protocol and server                   │
+│        WebSocket transport, routing, auth, lifecycle    │
 └─────────────────────────────────────────────────────────┘
 ```
 
-The server can be started manually with `uv run inter-agent-server`, or it will auto-start when the Pi or Claude Code listener connects and the server is not already running. Manual server starts run until explicit shutdown by default; pass `--idle-timeout <seconds>` to opt in to automatic shutdown after an idle period. Adapter auto-started servers use an explicit 300-second idle timeout so helper-started processes clean themselves up.
+The server can be started manually or auto-started by the Pi and Claude Code listeners. Manual server starts run until explicit shutdown by default; `--idle-timeout <seconds>` opts in to idle shutdown. Adapter-started servers use a 300-second idle timeout so helper-started processes clean themselves up.
 
-## Optional: start the server manually
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for protocol, routing, lifecycle, and adapter boundary details.
+
+## Install for local development
 
 ```bash
-cd /path/to/inter-agent
-uv run inter-agent-server
+git clone <repo-url> inter-agent
+cd inter-agent
+uv sync --locked
 ```
 
-## Setup your extension
+Run the local wrapper from the repository root:
 
-Pick the extension for the tool you use:
+```bash
+./inter-agent status
+./inter-agent list
+```
 
-### Pi
+You can also use the installed console scripts through `uv run`, such as `uv run inter-agent-status`.
+
+## Use from Pi
 
 Install the Pi extension:
 
@@ -60,77 +66,83 @@ Install the Pi extension:
 pi install https://github.com/arcanemachine/pi-inter-agent
 ```
 
-In Pi:
+Common Pi commands:
 
-```
+```text
 /inter-agent-connect my-agent
 /inter-agent-send other-agent "run tests"
 /inter-agent-broadcast "build is green for everyone"
 ```
 
-See [`integrations/pi/README.md`](integrations/pi/README.md) for full setup, configuration, commands, and troubleshooting.
+Use direct `send` for normal coordination. Use `broadcast` only when the message is intended for all connected sessions.
 
-### Claude Code
+See [`integrations/pi/README.md`](integrations/pi/README.md) for setup, configuration, commands, tools, and troubleshooting.
 
-Load the plugin in a Claude Code session. The listener auto-starts the server if it is not running:
+## Use from Claude Code
+
+Load the Claude Code plugin from a checkout of this repository:
 
 ```bash
 claude --plugin-dir ./integrations/claude-code
 ```
 
-In Claude Code:
+Common Claude Code commands:
 
-```
+```text
 /inter-agent connect my-agent
 /inter-agent send other-agent "run tests"
+/inter-agent messages <msg_id>
 /inter-agent broadcast "build is green for everyone"
 ```
 
-See [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) for full setup and commands.
+The Claude Code listener delivers incoming messages through Monitor notifications. Long incoming messages are truncated in the notification and can be retrieved with `messages <msg_id>`.
 
-### Using the core protocol directly
+Use direct `send` for normal coordination. Use `broadcast` only when the message is intended for all connected sessions.
 
-If you are building a new adapter or extension, you can use the core protocol commands directly:
+See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) for setup, commands, receive behavior, and troubleshooting.
+
+## Core CLI and local operations
+
+The repository wrapper provides common operational commands:
 
 ```bash
-# Start the server
+./inter-agent server              # start the server
+./inter-agent status              # show server status
+./inter-agent list                # list connected sessions
+./inter-agent shutdown            # shut down the server
+./inter-agent kick <name>         # force-disconnect a registered session
+./inter-agent pi send <to> <text>
+./inter-agent claude send <to> <text>
+```
+
+`kick` is an operator command for clearing stale or unwanted sessions. It is not exposed through host extension tools.
+
+The underlying core scripts are useful for automation and adapter development:
+
+```bash
 uv run inter-agent-server
-
-# Connect a session
 uv run inter-agent-connect my-agent
-
-# Send a message
 uv run inter-agent-send other-agent "hello"
-
-# Broadcast
 uv run inter-agent-send --text "hello all"
-
-# List connected sessions
 uv run inter-agent-list
-
-# Shut down the server
+uv run inter-agent-status
 uv run inter-agent-shutdown
+uv run inter-agent-kick my-agent
 ```
 
 ## Troubleshooting
 
-### Pi: command not found during connect or status
+### Pi reports that an inter-agent command was not found
 
-Pi extension setup problems often appear as a harness notification like:
+Pi extension setup problems often appear as a notification like:
 
 ```text
 [inter-agent] connect failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
 ```
 
-or:
-
-```text
-[inter-agent] status failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
-```
-
 The Pi extension runs helper scripts from the inter-agent virtual environment under `interAgent.projectPath`. If that path is wrong, the virtual environment has not been created, or the virtual environment was created in a different filesystem path, Pi may report the helper as missing.
 
-Check the configured project path, then recreate the helper scripts:
+Check the configured project path, then recreate and test the helper scripts:
 
 ```bash
 cd /path/to/inter-agent
@@ -140,31 +152,37 @@ uv sync --locked
 
 If `interAgent.projectPath` is not configured, Pi uses `~/.local/share/inter-agent`. If you cloned inter-agent somewhere else, set `interAgent.projectPath` in `.pi/settings.json` or `~/.pi/agent/settings.json`.
 
+### Name conflicts
+
+Routing names must be unique among connected sessions. If a listener reports `NAME_TAKEN`, choose a different name or use `./inter-agent list` to inspect connected sessions. Operators can use `./inter-agent kick <name>` to clear a stale registered session.
+
 ## Project layout
 
-```
+```text
 inter-agent/
-├── src/inter_agent/core/           # Universal protocol server and client
+├── src/inter_agent/core/           # Protocol server and reusable client helpers
 ├── src/inter_agent/adapters/pi/    # Pi adapter commands
 ├── src/inter_agent/adapters/claude/# Claude Code adapter commands
-├── integrations/pi/                # Pi extension (TypeScript)
-├── integrations/claude-code/       # Claude Code plugin (skills, monitors)
-├── spec/                           # AsyncAPI contract and JSON schemas
-├── tests/                          # Conformance and integration tests
-└── docs/                           # Security notes and threat model
+├── integrations/pi/                # Pi extension package
+├── integrations/claude-code/       # Claude Code plugin assets
+├── spec/                           # AsyncAPI contract, schemas, and examples
+├── tests/                          # Unit, integration, and conformance tests
+└── docs/                           # Design notes and supporting references
 ```
 
 ## Documentation
 
-| Document                                                                                 | Audience            | Contents                             |
-| ---------------------------------------------------------------------------------------- | ------------------- | ------------------------------------ |
-| `README.md`                                                                              | New users           | Overview, setup, project layout      |
-| [`integrations/pi/README.md`](integrations/pi/README.md)                                 | Pi users            | Pi extension setup, commands, tools  |
-| [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) | Claude Code users   | Claude Code adapter commands         |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md)                                                     | Contributors        | Layers, messaging model, lifecycle   |
-| [`AGENTS.md`](AGENTS.md)                                                                 | Contributors        | Development workflow and conventions |
-| [`SECURITY.md`](SECURITY.md)                                                             | Contributors        | Security model and token rotation    |
-| [`ERROR_CODES.md`](ERROR_CODES.md)                                                       | Protocol developers | Canonical error codes                |
+| Document | Audience | Contents |
+| --- | --- | --- |
+| `README.md` | New users | Overview, setup, commands, project layout |
+| [`integrations/pi/README.md`](integrations/pi/README.md) | Pi users | Pi extension setup, commands, tools |
+| [`integrations/claude-code/README.md`](integrations/claude-code/README.md) | Claude Code users | Claude Code plugin setup and commands |
+| [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) | CLI users and contributors | Claude Code adapter CLI details |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Contributors | Layers, protocol model, routing, lifecycle |
+| [`SECURITY.md`](SECURITY.md) | Users and contributors | Security model, controls, token rotation |
+| [`ERROR_CODES.md`](ERROR_CODES.md) | Protocol developers | Canonical protocol error codes |
+| [`AGENTS.md`](AGENTS.md) | Coding agents | Repository workflow and conventions |
+| [`AGENTS.PLAN.md`](AGENTS.PLAN.md) | Contributors | Roadmap and completion tracker |
 
 ## Development
 
@@ -183,7 +201,7 @@ uv run black --check .
 uv run mypy src tests
 ```
 
-The package version lives in `pyproject.toml`. Release notes live in `CHANGELOG.md`.
+The package version lives in `pyproject.toml`. Release notes live in [`CHANGELOG.md`](CHANGELOG.md).
 
 Build and validate release artifacts:
 

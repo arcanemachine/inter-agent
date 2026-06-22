@@ -11,6 +11,7 @@ Items from this list should be addressed as soon as possible.
 ## User-specified items (these are top priority items)
 
 - Incoming agents are often confused when their replies are added to the context. They sometimes think they are reading a message from the user, instead of it being a message they wrote themselves.
+- Add the Claude Code and Pi extensions to the appropriate distribution/discovery areas, such as Claude Code plugins, npm/package registries, and the Pi packages page.
 
 ## Misc
 
