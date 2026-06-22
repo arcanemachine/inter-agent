@@ -112,53 +112,49 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 
 ## connect — start the monitor
 
-To connect, invoke the skill which starts the Monitor listener. If a monitor
-from a previous connect is still running, stop it first to avoid duplicates.
+To connect, start exactly one Monitor. Do not run `status` or `list` first —
+they are not connection checks. If a listener from a previous connect is still
+running, stop it with `/inter-agent disconnect` before connecting again.
 
 ```
 Monitor(
   command="inter-agent-claude listen --name <name>",
   description="inter-agent bus messages",
-  persistent=true,
-  timeout_ms=3600000
+  persistent=true
 )
 ```
 
-The listener auto-names from the current working directory if no name is given.
-The server starts automatically if it is not already running. Listener-started
-servers use an explicit 300-second idle timeout and stop themselves after that
-period with no connected sessions. A manually started `inter-agent-server` runs
-until explicit shutdown by default unless it is started with `--idle-timeout
-<seconds>`. `inter-agent-claude` uses the standard inter-agent endpoint and
-state discovery: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`,
-`INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform config file.
+`persistent=true` runs the listener for the session lifetime with no timeout;
+do not add a `timeout_ms` (it is ignored when persistent, and implies a false
+deafness cap). The listener auto-names from the current working directory if no
+name is given. The server starts automatically if it is not already running;
+auto-started servers use a 300-second idle timeout and stop themselves once no
+connections remain. A manually started `inter-agent-server` runs until explicit
+shutdown unless started with `--idle-timeout <seconds>`. `inter-agent-claude`
+uses the standard inter-agent endpoint and state discovery:
+`INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`,
+`INTER_AGENT_CONFIG`, and the platform config file.
 
-After connecting, the Monitor's connected line is authoritative:
+Try, then sanity-check on failure:
 
-```text
-[inter-agent] connected as "<your-name>"
-```
+1. Start the Monitor above. Wait for its first output line.
+2. `[inter-agent] connected as "<name>"` — you are connected. **Stop there.**
+   Do not run `status`, `list`, `disconnect`, or relaunch; the connected
+   listener is the real connection.
+3. If the Monitor exits without printing a connected line, or its output is
+   unclear, run one fallback check:
 
-If you see that line, you are connected; stop there. Do not run extra
-verification commands, disconnect, restart, or relaunch just to make the
-listener a Monitor. The connected listener is already the real connection.
+   ```bash
+   inter-agent-claude status   # connected=true and connected_name=<your-name>
+   ```
 
-If the Monitor says you are already connected, or that no new listener was
-started because another listener is already running, stop there; do not launch a
-second listener.
-
-If the Monitor output is unclear, run one fallback status check:
-
-```bash
-inter-agent-claude status   # connected=true and connected_name=<your-name>
-```
+   - If it shows `connected=true` for your name, you were already connected by
+     a prior listener; stop, do not launch a second one.
+   - If it shows `[inter-agent] connection error: NAME_TAKEN`, see the Name
+     conflicts section below.
 
 `inter-agent-claude list` is for optional peer discovery, not connection
-verification. It may briefly lag behind listener startup.
-
-"a Monitor process exists" does not mean you are connected. If the listener
-emitted `[inter-agent] connection error: NAME_TAKEN`, you are not connected;
-see the Name conflicts section below.
+verification; it may briefly lag behind listener startup.
 
 ## send / broadcast / list / status / messages / disconnect
 

@@ -33,3 +33,22 @@ def test_claude_plugin_has_no_monitors_directory() -> None:
         "integrations/claude-code/monitors/ must not exist; a plugin-declared "
         "Monitor races the skill-driven listener and causes duplicate launches"
     )
+
+
+def test_claude_skill_connect_monitor_is_persistent_without_timeout_ms() -> None:
+    """The connect Monitor must be persistent with no timeout_ms.
+
+    Claude Code's Monitor docs state timeout_ms is ignored when persistent is
+    true, and persistent means "run for the lifetime of the session (no
+    timeout)". Keeping a timeout_ms in the example would imply a false 1-hour
+    deafness cap and invite agents to defend against a gap that does not exist.
+    """
+    skill = (CLAUDE_PLUGIN_DIR / "skills" / "inter-agent" / "SKILL.md").read_text(encoding="utf-8")
+    # The Monitor(...) invocation block must be persistent and must not set
+    # timeout_ms; the prose may mention the token while explaining why.
+    start = skill.index("Monitor(")
+    fence_start = skill.rindex("```", 0, start)
+    fence_end = skill.index("```", start)
+    monitor_block = skill[fence_start:fence_end]
+    assert "persistent=true" in monitor_block
+    assert "timeout_ms" not in monitor_block
