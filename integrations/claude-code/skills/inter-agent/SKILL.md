@@ -97,8 +97,8 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 |------------|--------|
 | `/inter-agent` or `/inter-agent connect` | Connect with auto-generated name from cwd. |
 | `/inter-agent connect <name>` | Connect with the given name. |
-| `/inter-agent send <name-or-prefix> <text>` | Send a direct message. |
-| `/inter-agent broadcast <text>` | Broadcast to all other sessions. |
+| `/inter-agent send <name-or-prefix> <text>` | Send a direct message to one session. Use this for peer replies and targeted communication. |
+| `/inter-agent broadcast <text>` | Broadcast to all other sessions. Use only when the user explicitly asks to broadcast or notify everyone. |
 | `/inter-agent list` | List connected sessions. |
 | `/inter-agent status` | Check server status and whether this session is connected. |
 | `/inter-agent messages <msg_id>` | Read the full text of a truncated inbound message. |
@@ -152,8 +152,10 @@ inter-agent-claude disconnect
 
 Send and broadcast require an active listener for the current Claude Code
 session. The adapter uses that listener's connected routing name as the sender
-name. `messages <msg_id>` reads the full text of a truncated inbound message
-from the adapter log (see the Reaction policy section for when to use it).
+name. Use `send` for normal peer-to-peer replies. Use `broadcast` only when
+the user explicitly asks to broadcast, notify all sessions, or send to everyone.
+`messages <msg_id>` reads the full text of a truncated inbound message from
+the adapter log (see the Reaction policy section for when to use it).
 
 ## Name conflicts (NAME_TAKEN)
 
