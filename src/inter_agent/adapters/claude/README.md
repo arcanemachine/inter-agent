@@ -16,6 +16,8 @@ Run Claude adapter commands through the installed package entry point:
 
 `send` and `broadcast` require an active listener for the current Claude Code session. The adapter uses that listener's connected routing name as the sender name.
 
+`send` and `broadcast` suppress identical repeated invocations within a short window (a few seconds) so that an agent loop re-firing the same command does not produce duplicate deliveries. A later re-send of the same text after the window passes is delivered normally.
+
 ## Server auto-start and idle timeout
 
 The `listen` command auto-starts the server if it is not already running. Listener-started servers use an explicit 300-second idle timeout and shut down after that period with no connected sessions. You do not need to start the server manually before using the listener; if you do start `inter-agent-server` manually, it runs until explicit shutdown unless you pass `--idle-timeout <seconds>`.

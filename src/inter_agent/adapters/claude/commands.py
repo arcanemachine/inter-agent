@@ -11,7 +11,7 @@ from pathlib import Path
 
 from websockets.exceptions import WebSocketException
 
-from inter_agent.adapters.claude import state
+from inter_agent.adapters.claude import dedup, state
 from inter_agent.core import list as core_list
 from inter_agent.core import send as core_send
 from inter_agent.core import shutdown as core_shutdown
@@ -79,6 +79,8 @@ def send(to: str, text: str, from_name: str | None = None) -> int:
     connected_name = _require_connected_from_name()
     if connected_name is None:
         return 1
+    if dedup.is_duplicate_send(connected_name, to, text):
+        return 0
     try:
         result = asyncio.run(
             core_send.send_direct_message(DEFAULT_HOST, DEFAULT_PORT, to, text, connected_name)
@@ -95,6 +97,8 @@ def broadcast(text: str, from_name: str | None = None) -> int:
     connected_name = _require_connected_from_name()
     if connected_name is None:
         return 1
+    if dedup.is_duplicate_send(connected_name, text):
+        return 0
     try:
         result = asyncio.run(
             core_send.broadcast_message(DEFAULT_HOST, DEFAULT_PORT, text, connected_name)

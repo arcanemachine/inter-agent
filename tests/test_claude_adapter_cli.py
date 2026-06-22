@@ -22,6 +22,13 @@ class Capture:
         self.stderr = stderr
 
 
+@pytest.fixture(autouse=True)
+def _isolate_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate the adapter data dir so send-dedup state never leaks between
+    tests or touches the real on-disk cache."""
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+
+
 def run_claude(args: list[str], capsys: pytest.CaptureFixture[str]) -> Capture:
     code = main(args)
     captured = capsys.readouterr()
@@ -74,6 +81,47 @@ def test_status_reports_identity_check_failure(
     assert payload["state"] == "identity_check_failed"
     assert payload["identity_verified"] is False
     assert payload["message"] == "server identity metadata does not match requested endpoint"
+
+
+def test_send_suppresses_duplicate_within_window(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int, str, str, str | None]] = []
+
+    async def fake_send(
+        host: str, port: int, to: str, text: str, from_name: str | None = None
+    ) -> SendResult:
+        calls.append((host, port, to, text, from_name))
+        return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
+
+    monkeypatch.setattr(core_send, "send_direct_message", fake_send)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    assert commands.send("agent-b", "hello") == 0
+    assert commands.send("agent-b", "hello") == 0
+
+    # Only the first invocation reaches the bus.
+    assert calls == [("127.0.0.1", 9473, "agent-b", "hello", "agent-a")]
+
+
+def test_broadcast_suppresses_duplicate_within_window(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int, str, str | None]] = []
+
+    async def fake_broadcast(
+        host: str, port: int, text: str, from_name: str | None = None
+    ) -> SendResult:
+        calls.append((host, port, text, from_name))
+        return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
+
+    monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    assert commands.broadcast("hello all") == 0
+    assert commands.broadcast("hello all") == 0
+
+    assert calls == [("127.0.0.1", 9473, "hello all", "agent-a")]
 
 
 def test_send_uses_core_api(

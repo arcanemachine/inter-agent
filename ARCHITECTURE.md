@@ -18,7 +18,7 @@
    - Call importable core command APIs rather than spawning core scripts by file path.
    - May expose only a subset of core-supported operations.
    - Pi adapter (`pi/`) provides TypeScript extension integration.
-   - Claude Code adapter (`claude/`) provides Monitor-backed listener and CLI commands.
+   - Claude Code adapter (`claude/`) provides Monitor-backed listener and CLI commands, and suppresses identical repeated sends within a short window so agent-loop re-fires do not duplicate deliveries.
    - Integration assets for each host live under `integrations/<host>/`.
 
 3. **Spec (`spec/`)**
