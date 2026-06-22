@@ -40,7 +40,8 @@ def test_pi_extension_send_command_gates_on_connection() -> None:
     assert "async function handleSend" in content
     assert "!listenerReady || !currentConnection" in content
     assert "Not connected to the inter-agent bus" in content
-    assert '["send", to, formattedText]' in content
+    assert '"send",\n      to,\n      text,\n      "--from",\n      name' in content
+    assert "formatOutgoing" not in content
 
 
 def test_pi_extension_broadcast_command_gates_on_connection() -> None:
@@ -50,7 +51,8 @@ def test_pi_extension_broadcast_command_gates_on_connection() -> None:
     assert "async function handleBroadcast" in content
     assert "!listenerReady || !currentConnection" in content
     assert "Not connected to the inter-agent bus" in content
-    assert '["broadcast", formattedText]' in content
+    assert '"broadcast",\n      text,\n      "--from",\n      name' in content
+    assert "formatOutgoing" not in content
 
 
 def test_pi_extension_send_tool_gates_on_connection() -> None:
@@ -59,7 +61,8 @@ def test_pi_extension_send_tool_gates_on_connection() -> None:
     assert 'name: "inter_agent_send"' in content
     assert "!listenerReady || !currentConnection" in content
     assert "Not connected to the inter-agent bus" in content
-    assert '["send", to, formattedText]' in content
+    assert '"send",\n        to,\n        text,\n        "--from",\n        name' in content
+    assert "formatOutgoing" not in content
 
 
 def test_pi_extension_broadcast_tool_gates_on_connection() -> None:
@@ -68,7 +71,8 @@ def test_pi_extension_broadcast_tool_gates_on_connection() -> None:
     assert 'name: "inter_agent_broadcast"' in content
     assert "!listenerReady || !currentConnection" in content
     assert "Not connected to the inter-agent bus" in content
-    assert '["broadcast", formattedText]' in content
+    assert '"broadcast",\n        text,\n        "--from",\n        name' in content
+    assert "formatOutgoing" not in content
 
 
 def test_pi_extension_discourages_broadcast_replies() -> None:

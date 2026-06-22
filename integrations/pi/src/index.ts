@@ -174,10 +174,6 @@ function truncate(text: string, max: number): string {
 
 const FROM_PREFIX_RE = /^\[from: ([^\]]+)\] ?/;
 
-function formatOutgoing(text: string, name: string): string {
-  return `[from: ${name}] ${text}`;
-}
-
 function parseIncoming(text: string): { from: string | null; text: string } {
   const match = text.match(FROM_PREFIX_RE);
   if (match) {
@@ -873,8 +869,13 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     const name = currentConnection.name;
-    const formattedText = formatOutgoing(text, name);
-    const result = await execScript(scripts.pi, ["send", to, formattedText]);
+    const result = await execScript(scripts.pi, [
+      "send",
+      to,
+      text,
+      "--from",
+      name,
+    ]);
     if (result.code !== 0) {
       notify(
         "[inter-agent] send failed",
@@ -902,8 +903,12 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     const name = currentConnection.name;
-    const formattedText = formatOutgoing(text, name);
-    const result = await execScript(scripts.pi, ["broadcast", formattedText]);
+    const result = await execScript(scripts.pi, [
+      "broadcast",
+      text,
+      "--from",
+      name,
+    ]);
     if (result.code !== 0) {
       notify(
         "[inter-agent] broadcast failed",
@@ -1041,8 +1046,13 @@ export default function (pi: ExtensionAPI) {
         );
       }
       const name = currentConnection.name;
-      const formattedText = formatOutgoing(text, name);
-      const result = await execScript(scripts.pi, ["send", to, formattedText]);
+      const result = await execScript(scripts.pi, [
+        "send",
+        to,
+        text,
+        "--from",
+        name,
+      ]);
       if (result.code !== 0) {
         throw new Error(`Send failed: ${scriptFailureMessage(result, "send")}`);
       }
@@ -1076,8 +1086,12 @@ export default function (pi: ExtensionAPI) {
         );
       }
       const name = currentConnection.name;
-      const formattedText = formatOutgoing(text, name);
-      const result = await execScript(scripts.pi, ["broadcast", formattedText]);
+      const result = await execScript(scripts.pi, [
+        "broadcast",
+        text,
+        "--from",
+        name,
+      ]);
       if (result.code !== 0) {
         throw new Error(
           `Broadcast failed: ${scriptFailureMessage(result, "broadcast")}`,

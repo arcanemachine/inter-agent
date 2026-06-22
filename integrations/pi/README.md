@@ -88,6 +88,8 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | `list`       | `/inter-agent list`                             | List connected sessions                                                   |
 | `status`     | `/inter-agent status`                           | Check server status                                                       |
 
+`send` and `broadcast` automatically use the current Pi connection name as the sender.
+
 ## Tools
 
 Tools are agent-callable; they are not user-facing slash commands.
