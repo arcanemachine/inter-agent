@@ -84,6 +84,7 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Keep inter-agent communication purposeful and brief" in content
     assert "Avoid idle chatter, social back-and-forth" in content
     assert "End peer conversations quickly once the useful exchange is complete" in content
+    assert "Be strict about ending idle exchanges" in content
     assert "do not broadcast unless the user explicitly asks" in content
     assert "Get explicit user approval before destructive" in content
 
