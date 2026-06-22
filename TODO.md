@@ -15,6 +15,11 @@ Items from this list should be addressed as soon as possible.
 - Improve README.md references:
   - Pi extension location inaccurate (is now part of this repo)
 
+- Implement a local install layout and path handling for app files vs. state:
+  - Linux: app files in `~/.local/share/inter-agent`, runtime state in `~/.local/state/inter-agent`, optional config in `~/.config/inter-agent/config.json`.
+  - macOS: app files in `~/Library/Application Support/inter-agent/app`, runtime state in `~/Library/Application Support/inter-agent/state`, optional config at `~/Library/Application Support/inter-agent/config.json`.
+  - Pi should use platform-appropriate default `projectPath` values and expand `~`, `$VAR`, and `${VAR}` for path-like settings such as `projectPath` and `dataDir`.
+
 ## Misc
 
 - Ensure README instructions are up-to-date - Include server setup and usage instructions before running the extension
