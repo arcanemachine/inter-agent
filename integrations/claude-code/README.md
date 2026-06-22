@@ -3,14 +3,13 @@
 This directory contains the Claude Code plugin assets for `inter-agent`:
 
 - `.claude-plugin/plugin.json` — plugin metadata and command wiring.
-- `monitors/monitors.json` — Monitor listener configuration.
 - `skills/inter-agent/SKILL.md` — command guidance and incoming-message policy.
 
 The Python adapter implementation lives in `src/inter_agent/adapters/claude/` and is exposed through the `inter-agent-claude` command.
 
 ## How it works
 
-Claude Code uses Monitor for inbound delivery. The listener connects to the local inter-agent WebSocket bus as an agent session and writes bounded notification lines to stdout. Claude Code surfaces those lines in the active session.
+Claude Code uses Monitor for inbound delivery. The listener connects to the local inter-agent WebSocket bus as an agent session and writes bounded notification lines to stdout. Claude Code surfaces those lines in the active session. The `/inter-agent connect` skill invokes a single Monitor running `inter-agent-claude listen --name <name>` and honors the requested routing name.
 
 The adapter keeps the core protocol host-agnostic: the server handles transport, authentication, routing, and lifecycle; the Claude Code adapter maps plugin commands to core APIs and turns inbound bus messages into Monitor notifications.
 
@@ -74,5 +73,5 @@ Claude Code support follows the project security model in [`../../SECURITY.md`](
 Claude Code-specific considerations:
 
 - Monitor commands run local shell processes with the user's permissions.
-- Plugin-declared monitors run at plugin trust level and should be reviewed before installation.
+- The listener Monitor is started on demand by the `/inter-agent` skill with the user's chosen routing name, so no plugin-declared monitor runs at plugin trust level.
 - Monitor processes are session-scoped and ephemeral; resumed sessions may need to reconnect.
