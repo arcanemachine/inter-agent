@@ -141,6 +141,10 @@ If you see that line, you are connected; stop there. Do not run extra
 verification commands, disconnect, restart, or relaunch just to make the
 listener a Monitor. The connected listener is already the real connection.
 
+If the Monitor says you are already connected, or that no new listener was
+started because another listener is already running, stop there; do not launch a
+second listener.
+
 If the Monitor output is unclear, run one fallback status check:
 
 ```bash
