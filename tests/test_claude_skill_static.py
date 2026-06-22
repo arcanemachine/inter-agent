@@ -14,8 +14,9 @@ def test_claude_skill_references_bootstrap_guidance() -> None:
     assert "bootstrap.md" in skill
     assert "Always follow user instructions for inter-agent communication" in skill
     assert "Keep inter-agent communication purposeful and brief" in skill
-    assert "End peer conversations quickly once the useful exchange is complete" in skill
-    assert "Be strict about ending idle" in skill
+    assert "Be strict about ending idle exchanges" in skill
+    assert "not actionable for" in skill
+    assert "user work or coordination, do not reply" in skill
     assert "/inter-agent rename <name>" in skill
     assert "pipx install -e <path-to-inter-agent>" in bootstrap
     assert "uv tool install --from <path-to-inter-agent> ." in bootstrap
