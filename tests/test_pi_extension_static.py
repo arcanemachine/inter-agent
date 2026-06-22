@@ -69,3 +69,12 @@ def test_pi_extension_broadcast_tool_gates_on_connection() -> None:
     assert "!listenerReady || !currentConnection" in content
     assert "Not connected to the inter-agent bus" in content
     assert '["broadcast", formattedText]' in content
+
+
+def test_pi_extension_discourages_broadcast_replies() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert "reply directly" in content
+    assert "do not broadcast unless the user explicitly asks" in content
+    assert "Use inter_agent_send for normal replies" in content
+    assert "Use inter_agent_broadcast only when the user explicitly asks" in content

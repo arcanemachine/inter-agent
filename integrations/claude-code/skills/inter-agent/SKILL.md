@@ -59,10 +59,11 @@ Receiving a message does **not** require a reply. Only reply when you have
 useful information, the prefix routing below calls for one, or the user asks
 you to. Avoid idle chatter, acknowledgments, and status noise that do not move
 the work forward. When you do reply to a peer, use `inter-agent-claude send
-<from-name> <text>` to reply directly to the sender named in the notification;
-use `broadcast` only when the user explicitly asks to message everyone. After
-sending a message, do not poll, repeatedly list sessions, or ask whether a
-reply arrived; replies appear as incoming notifications.
+<from-name> <text>` to reply directly to the sender named in the notification.
+Do **not** use `broadcast` as a general reply mechanism; use it only when the
+user explicitly asks to message everyone or a broadcast is truly required.
+After sending a message, do not poll, repeatedly list sessions, or ask whether
+a reply arrived; replies appear as incoming notifications.
 
 ### Prefix-based routing
 
@@ -103,7 +104,7 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 | `/inter-agent` or `/inter-agent connect` | Connect with auto-generated name from cwd. |
 | `/inter-agent connect <name>` | Connect with the given name. |
 | `/inter-agent send <name-or-prefix> <text>` | Send a direct message to one session. Use this for peer replies and targeted communication. |
-| `/inter-agent broadcast <text>` | Broadcast to all other sessions. Use only when the user explicitly asks to broadcast or notify everyone. |
+| `/inter-agent broadcast <text>` | Broadcast to all other sessions. Use only when the user explicitly asks to broadcast/notify everyone or a broadcast is truly required. |
 | `/inter-agent list` | List connected sessions. |
 | `/inter-agent status` | Check server status and whether this session is connected. |
 | `/inter-agent messages <msg_id>` | Read the full text of a truncated inbound message. |
@@ -173,8 +174,10 @@ inter-agent-claude disconnect
 
 Send and broadcast require an active listener for the current Claude Code
 session. The adapter uses that listener's connected routing name as the sender
-name. Use `send` for normal peer-to-peer replies. Use `broadcast` only when
-the user explicitly asks to broadcast, notify all sessions, or send to everyone.
+name. Use `send` for normal peer-to-peer replies and targeted communication.
+Use `broadcast` only when the user explicitly asks to broadcast, notify all
+sessions, or send to everyone. Do not use `broadcast` to acknowledge or reply
+to a single peer.
 After sending, do not retry just because the command is silent on success, and
 do not poll for a reply; replies appear as incoming notifications.
 `messages <msg_id>` reads the full text of a truncated inbound message from

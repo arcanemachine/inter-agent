@@ -15,6 +15,8 @@ Run Pi adapter commands through the installed package entry point:
 
 The Pi extension auto-starts the server when `/inter-agent-connect` runs and no healthy server is available. Auto-started servers use an explicit 300-second idle timeout and shut down after that period with no connected sessions. Manual server starts remain supported with `uv run inter-agent-server` and run until explicit shutdown unless you pass `--idle-timeout <seconds>`.
 
+Use `send` for normal replies and targeted coordination. Use `broadcast` only when the user explicitly asks to message everyone or the information is genuinely for every connected session.
+
 ## Example workflow
 
 1. Connect two Pi sessions in separate terminals:
@@ -24,8 +26,8 @@ The Pi extension auto-starts the server when `/inter-agent-connect` runs and no 
 2. Send a direct message to a routing name:
    - `uv run inter-agent-pi send agent-b "run tests"`
 
-3. Broadcast to all connected agent sessions:
-   - `uv run inter-agent-pi broadcast "build is green"`
+3. Broadcast only when every connected session needs the message:
+   - `uv run inter-agent-pi broadcast "build is green for everyone"`
 
 4. Inspect sessions and server state:
    - `uv run inter-agent-pi list --json`

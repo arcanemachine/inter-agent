@@ -78,7 +78,7 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | `connect`    | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                  |
 | `disconnect` | `/inter-agent disconnect`                       | Disconnect from the bus                       |
 | `send`       | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)   |
-| `broadcast`  | `/inter-agent broadcast <text>`                 | Broadcast to all agents (requires connection) |
+| `broadcast`  | `/inter-agent broadcast <text>`                 | Broadcast to all agents only when messaging everyone is explicitly needed |
 | `list`       | `/inter-agent list`                             | List connected sessions                       |
 | `status`     | `/inter-agent status`                           | Check server status                           |
 
@@ -89,7 +89,7 @@ Tools are agent-callable; they are not user-facing slash commands.
 | Tool                    | Description                             |
 | ----------------------- | --------------------------------------- |
 | `inter_agent_send`      | Send a direct message to a routing name |
-| `inter_agent_broadcast` | Broadcast a message to all agents       |
+| `inter_agent_broadcast` | Broadcast only when the user explicitly asks to message everyone |
 | `inter_agent_list`      | List connected agent sessions           |
 | `inter_agent_whoami`    | Report this Pi session's local identity |
 | `inter_agent_status`    | Check server availability and identity  |
@@ -148,11 +148,13 @@ If you use a non-default clone location, make sure Pi settings contain the match
    /inter-agent send agent-b "run tests"
    ```
 
-3. Or broadcast to everyone (requires an active connection):
+3. Broadcast only when everyone needs the message (requires an active connection):
 
    ```
-   /inter-agent broadcast "build is green"
+   /inter-agent broadcast "build is green for everyone"
    ```
+
+   For replies or targeted coordination, prefer `/inter-agent send <name> <text>`.
 
 4. Check who's connected:
    ```
@@ -200,7 +202,7 @@ To verify the extension works end-to-end:
    - `/inter-agent status` → should show "State: available"
    - `/inter-agent list` → should show "no agents connected" (or your own session)
    - `/inter-agent send test-agent "hello self"` → should show "sent" (only works when connected)
-   - `/inter-agent broadcast "test broadcast"` → should show "sent" (only works when connected)
+   - `/inter-agent broadcast "test broadcast for everyone"` → should show "sent" (only works when connected; reserve for messages everyone needs)
    - `/inter-agent disconnect` → should show "disconnected"
 
 5. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.

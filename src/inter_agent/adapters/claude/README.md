@@ -15,7 +15,7 @@ Run Claude adapter commands through the installed package entry point:
 - `uv run inter-agent-claude shutdown`
 - `uv run inter-agent-claude disconnect`
 
-`send` and `broadcast` require an active listener for the current Claude Code session. The adapter uses that listener's connected routing name as the sender name.
+`send` and `broadcast` require an active listener for the current Claude Code session. The adapter uses that listener's connected routing name as the sender name. Use `send` for normal replies and targeted coordination. Use `broadcast` only when the user explicitly asks to message everyone or the information is genuinely for every connected session.
 
 `send` and `broadcast` suppress identical repeated invocations within a short window (a few seconds) so that an agent loop re-firing the same command does not produce duplicate deliveries. A later re-send of the same text after the window passes is delivered normally.
 
@@ -37,9 +37,9 @@ The `listen` command auto-starts the server if it is not already running. Listen
    /inter-agent send agent-b "run tests"
    ```
 
-3. Broadcast to all connected agent sessions:
+3. Broadcast only when every connected session needs the message:
    ```
-   /inter-agent broadcast "build is green"
+   /inter-agent broadcast "build is green for everyone"
    ```
 
 4. Inspect sessions and server state:

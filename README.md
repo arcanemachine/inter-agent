@@ -22,7 +22,7 @@ The project has three layers:
 
 1. **Core protocol** (`src/inter_agent/core/`) — a WebSocket message bus that runs on your local machine. It handles connection management, routing, authentication, and lifecycle.
 
-2. **Adapters** (`src/inter_agent/adapters/`) — command-line interfaces that wrap the core protocol for each host tool. Adapters provide commands like `connect`, `send`, `broadcast`, and `list`.
+2. **Adapters** (`src/inter_agent/adapters/`) — command-line interfaces that wrap the core protocol for each host tool. Adapters provide commands like `connect`, `send`, `broadcast`, and `list`; use direct `send` for normal agent-to-agent communication and reserve `broadcast` for messages everyone explicitly needs.
 
 3. **Extensions** (`integrations/`) — host-specific plugin assets (skills, monitors, manifest files) that let you use inter-agent from within the host tool itself.
 
@@ -65,7 +65,7 @@ In Pi:
 ```
 /inter-agent-connect my-agent
 /inter-agent-send other-agent "run tests"
-/inter-agent-broadcast "build is green"
+/inter-agent-broadcast "build is green for everyone"
 ```
 
 See [`integrations/pi/README.md`](integrations/pi/README.md) for full setup, configuration, commands, and troubleshooting.
@@ -83,7 +83,7 @@ In Claude Code:
 ```
 /inter-agent connect my-agent
 /inter-agent send other-agent "run tests"
-/inter-agent broadcast "build is green"
+/inter-agent broadcast "build is green for everyone"
 ```
 
 See [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) for full setup and commands.

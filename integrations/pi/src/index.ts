@@ -172,7 +172,8 @@ function sendToContext(
 ) {
   const replyInstruction =
     toInfo === "broadcast"
-      ? "To reply to this broadcast, use the inter_agent_broadcast tool."
+      ? `If a reply is useful, reply directly to ${from} with inter_agent_send; ` +
+        "do not broadcast unless the user explicitly asks you to message everyone."
       : `To reply to ${from}, use the inter_agent_send tool with to="${from}".`;
   pi.sendMessage(
     {
@@ -691,7 +692,8 @@ export default function (pi: ExtensionAPI) {
     if (!state?.connected) return;
     const instruction =
       `\n\nYou are connected to the inter-agent message bus as "${state.name}". ` +
-      "To reply to an inter-agent message, use the inter_agent_send or inter_agent_broadcast tool. " +
+      "Use inter_agent_send for normal replies and targeted communication. " +
+      "Use inter_agent_broadcast only when the user explicitly asks you to message everyone or a broadcast is truly required. " +
       "Avoid unnecessary replies. Only update the user when they genuinely need to know something.";
     return {
       systemPrompt: event.systemPrompt + instruction,
@@ -711,7 +713,7 @@ export default function (pi: ExtensionAPI) {
     {
       value: "broadcast",
       label: "broadcast",
-      description: "Broadcast a message",
+      description: "Broadcast only when messaging everyone is explicitly needed",
     },
     { value: "list", label: "list", description: "List connected sessions" },
     {
@@ -956,9 +958,11 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "inter_agent_broadcast",
     label: "Broadcast inter-agent message",
-    description: "Broadcast a message to all agents on the inter-agent bus",
+    description:
+      "Broadcast to all agents only when the user explicitly asks to message " +
+      "everyone; prefer inter_agent_send for replies.",
     parameters: Type.Object({
-      text: Type.String({ description: "Message text" }),
+      text: Type.String({ description: "Message text for all agents" }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const { text } = params as { text: string };
