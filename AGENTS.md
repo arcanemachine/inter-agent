@@ -28,6 +28,8 @@ This file is for coding agents working in this repository.
    - `uv run ruff check .`
    - `uv run black --check .`
    - `uv run mypy src tests`
+
+   Exception: for documentation-only wording changes (for example, skill prompt wording that does not affect code, package metadata, schemas, or generated artifacts), do not spend time running the full gate unless the user asks for it or the edit touches a checked/generated document.
 3. Commit completed work when the task is done, keeping commits atomic per logical step.
 4. When completing a plan phase, provide a user acceptance test when possible, along with the commit hash where that acceptance test applies.
 5. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
