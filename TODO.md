@@ -10,8 +10,10 @@ Items from this list should be addressed as soon as possible.
 
 ## User-specified items (these are top priority items)
 
-- Incoming agents are often confused when their replies are added to the context. They sometimes think they are reading a message from the user, instead of it being a message they wrote themselves.
 - Add the Claude Code and Pi extensions to the appropriate distribution/discovery areas, such as Claude Code plugins, npm/package registries, and the Pi packages page.
+
+- Improve README.md references:
+  - Pi extension location inaccurate (is now part of this repo)
 
 ## Misc
 
@@ -19,6 +21,6 @@ Items from this list should be addressed as soon as possible.
 
 ## Integrations - Claude Code
 
-- Agents keep getting confused and sending messages back to "control". This should be fixed in Claude Code (was also handled in Pi)
-
 - Add auto-complete for the inter-agent commands. (This has been implemented in [claude-code-inter-session](https://github.com/yilunzhang/claude-code-inter-session))
+  - NOTE: Not sure if this still needs to be done. Worth a double-check.
+
