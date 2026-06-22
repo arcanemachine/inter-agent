@@ -368,7 +368,7 @@ async def test_listener_truncates_long_messages(
 
 
 @pytest.mark.asyncio
-async def test_listener_exits_on_name_taken(
+async def test_listener_retries_name_taken_once(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -387,11 +387,11 @@ async def test_listener_exits_on_name_taken(
             output=out,
         )
         task = asyncio.create_task(listener.run())
+        await asyncio.sleep(0.3)
+        listener.stop()
         result = await asyncio.wait_for(task, timeout=2.0)
 
-    assert result == 1
+    assert result == 0
     output = out.getvalue()
-    assert "NAME_TAKEN" not in output
-    assert '"duplicate-name"' in output
-    assert "unique name" in output
-    assert "Listener stopped" in output
+    assert 'name "duplicate-name" is already in use; retrying as "duplicate-name-2"' in output
+    assert 'connected as "duplicate-name-2"' in output

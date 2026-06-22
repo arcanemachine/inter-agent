@@ -66,7 +66,7 @@ Command output is JSON-oriented. Stdout is reserved for protocol or status paylo
 
 ## Permanent errors
 
-The listener exits without reconnecting on permanent errors: `AUTH_FAILED`, `BAD_ROLE`, `BAD_NAME`, `BAD_SESSION`, `NAME_TAKEN`, `SESSION_TAKEN`, `BAD_LABEL`, `TOO_MANY_CONNECTIONS`. Transient errors trigger reconnection with bounded backoff.
+The listener exits without reconnecting on permanent errors: `AUTH_FAILED`, `BAD_ROLE`, `BAD_NAME`, `BAD_SESSION`, `SESSION_TAKEN`, `BAD_LABEL`, `TOO_MANY_CONNECTIONS`. On `NAME_TAKEN`, the Claude listener retries once with a `-2` suffix and exits only if that retry is also taken. Transient errors trigger reconnection with bounded backoff.
 
 ## Development helper
 

@@ -36,9 +36,11 @@ RECONNECT_DEADLINE_S = 60.0
 PING_INTERVAL_S = 15
 AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300
 RECEIVE_DEDUP_WINDOW_S = 60.0
+MAX_NAME_LEN = 40
+NAME_TAKEN_RETRY_SUFFIX = "-2"
 
-# Server error codes that won't resolve by reconnecting.
-# When the server returns one of these, the listener exits instead of retrying.
+# Server error codes that won't resolve by reconnecting with the same name.
+# NAME_TAKEN gets one adapter-level retry under a suffixed name in run().
 _PERMANENT_ERROR_CODES = frozenset(
     {
         "AUTH_FAILED",
@@ -76,7 +78,14 @@ def _auto_name_from_cwd() -> str:
     name = name.strip("-")
     if not name:
         return "claude"
-    return name[:40]
+    return name[:MAX_NAME_LEN]
+
+
+def _retry_name(name: str) -> str:
+    """Return a single NAME_TAKEN retry name with a valid max length."""
+    base_len = MAX_NAME_LEN - len(NAME_TAKEN_RETRY_SUFFIX)
+    base = name[:base_len].rstrip("-") or "claude"
+    return f"{base}{NAME_TAKEN_RETRY_SUFFIX}"
 
 
 class Listener:
@@ -193,6 +202,7 @@ class Listener:
 
             backoff = RECONNECT_BACKOFF_MIN_S
             deadline: float | None = None
+            name_retry_used = False
             while not self._stop.is_set():
                 self._connect_task = asyncio.create_task(self._connect_and_serve(ppid))
                 try:
@@ -210,7 +220,25 @@ class Listener:
                     )
                     return 1
                 except PermanentError as exc:
-                    if exc.code != "NAME_TAKEN":
+                    if exc.code == "NAME_TAKEN" and not name_retry_used:
+                        old_name = self.name
+                        self.name = _retry_name(old_name)
+                        name_retry_used = True
+                        _print_line(
+                            f'[inter-agent] name "{old_name}" is already in use; '
+                            f'retrying as "{self.name}".',
+                            self.output,
+                        )
+                        backoff = RECONNECT_BACKOFF_MIN_S
+                        deadline = None
+                        continue
+                    if exc.code == "NAME_TAKEN":
+                        _print_line(
+                            f'[inter-agent] name "{self.name}" is already in use after retry. '
+                            "Run 'inter-agent-claude list' and reconnect with a unique name.",
+                            self.output,
+                        )
+                    else:
                         _print_line(
                             f"[inter-agent] permanent error — giving up: {exc}",
                             self.output,
@@ -297,12 +325,6 @@ class Listener:
                 code = payload.get("code", "")
                 message = payload.get("message", "")
                 if isinstance(code, str) and code == "NAME_TAKEN":
-                    _print_line(
-                        f'[inter-agent] name "{self.name}" is already in use by another '
-                        "session. Run 'inter-agent-claude list' and reconnect with a "
-                        "unique name. Listener stopped.",
-                        self.output,
-                    )
                     raise PermanentError(code, message)
                 _print_line(
                     f"[inter-agent] connection error: {code}: {message}",

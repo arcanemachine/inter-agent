@@ -354,7 +354,7 @@ class TestPermanentErrors:
         assert out.count("hello") == 1
 
     @pytest.mark.asyncio
-    async def test_name_taken_emits_actionable_message(
+    async def test_name_taken_raises_for_run_retry_handling(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
@@ -367,10 +367,7 @@ class TestPermanentErrors:
         with pytest.raises(PermanentError, match="NAME_TAKEN"):
             await listener._connect_and_serve(1)
 
-        out = capsys.readouterr().out
-        assert '"y"' in out
-        assert "unique name" in out
-        assert "Listener stopped" in out
+        assert capsys.readouterr().out == ""
 
     @pytest.mark.asyncio
     async def test_name_taken_does_not_emit_generic_permanent_line(
@@ -387,6 +384,57 @@ class TestPermanentErrors:
             await listener._connect_and_serve(1)
 
         assert "permanent error — giving up" not in capsys.readouterr().out
+
+    @pytest.mark.asyncio
+    async def test_run_retries_name_taken_once(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(
+            "inter_agent.adapters.claude.listener.verify_server_identity",
+            lambda h, p: True,
+        )
+        seen_names: list[str] = []
+
+        async def fake_connect_and_serve(self: Listener, ppid: int) -> None:
+            seen_names.append(self.name)
+            if len(seen_names) == 1:
+                raise PermanentError("NAME_TAKEN", "name already in use")
+            self._stop.set()
+
+        monkeypatch.setattr(Listener, "_connect_and_serve", fake_connect_and_serve)
+
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="agent", output=out)
+
+        assert await listener.run() == 0
+        assert seen_names == ["agent", "agent-2"]
+        assert 'retrying as "agent-2"' in out.getvalue()
+
+    @pytest.mark.asyncio
+    async def test_run_stops_after_name_taken_retry_is_taken(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(
+            "inter_agent.adapters.claude.listener.verify_server_identity",
+            lambda h, p: True,
+        )
+        seen_names: list[str] = []
+
+        async def fake_connect_and_serve(self: Listener, ppid: int) -> None:
+            seen_names.append(self.name)
+            raise PermanentError("NAME_TAKEN", "name already in use")
+
+        monkeypatch.setattr(Listener, "_connect_and_serve", fake_connect_and_serve)
+
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="agent", output=out)
+
+        assert await listener.run() == 1
+        assert seen_names == ["agent", "agent-2"]
+        assert 'retrying as "agent-2"' in out.getvalue()
+        assert 'name "agent-2" is already in use after retry' in out.getvalue()
 
 
 class TestDuplicateListener:
