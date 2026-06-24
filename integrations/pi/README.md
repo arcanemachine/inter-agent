@@ -63,12 +63,14 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
     "projectPath": "/path/to/inter-agent",
     "host": "127.0.0.1",
     "port": 16837,
-    "dataDir": "/path/to/inter-agent-state"
+    "dataDir": "/path/to/.local/state/inter-agent"
   }
 }
 ```
 
 Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, or `dataDir` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
+
+`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores runtime state — the shared bearer token and server lifecycle metadata — kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` (`~/.local/state/inter-agent` on Linux, `~/Library/Application Support/inter-agent` on macOS) works for normal single-bus use; set it only when you want a custom state location or to run multiple isolated buses.
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
 
