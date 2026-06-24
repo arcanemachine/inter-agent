@@ -10,6 +10,8 @@ Items from this list should be addressed as soon as possible.
 
 ## User-specified items (these are top priority items)
 
+- Immediate: work `plans/09-host-extension-packaging/00-execution-guide.md` next. This promotes host extension packaging and repository/package separation into the active plan. Treat this repo as the future superproject/container for project-wide instructions, docs, and coordination, with core, Claude Code, and Pi integration packages planned as distinct distributable units. Do not let this get buried behind other follow-on integration tasks unless the user explicitly redirects.
+
 - Add the Claude Code and Pi extensions to the appropriate distribution/discovery areas, such as Claude Code plugins, npm/package registries, and the Pi packages page.
 
 - Improve README.md references:

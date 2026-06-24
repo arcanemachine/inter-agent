@@ -4,6 +4,10 @@
 
 The roadmap is the high-level view. Detailed sub-agent-ready work items live under `plans/`, grouped by the same phases shown here. Phases 1 through 6 are the core completion path. Extra phases after that point are planned follow-on integrations. Ideas outside planned scope live in `IDEAS.md`.
 
+## Current immediate priority
+
+Work `plans/09-host-extension-packaging/00-execution-guide.md` next. This phase promotes host extension packaging, distribution, and the superproject/package layout from TODO into the active plan. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
+
 ## Scope
 
 - Core protocol, server, client helpers, and conformance suite.
@@ -164,6 +168,24 @@ Completion criteria:
 Extra notes:
 
 - Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
+
+## Phase 9: Host Extension Packaging and Superproject Layout
+
+Goal: make the core package and host integrations cleanly distributable while preserving the core protocol boundary and using this repository as the coordination superproject for plans, agent instructions, and cross-package documentation.
+
+Priority: immediate. Work this phase before continuing lower-priority follow-on integration work unless the user directs otherwise.
+
+Plan items:
+
+1. `plans/09-host-extension-packaging/00-execution-guide.md`
+
+Completion criteria:
+
+- The target superproject/package layout is documented with explicit decisions and open questions.
+- The core package boundary is documented separately from host extension packaging.
+- Claude Code and Pi extension packaging plans cover managed Python environments, custom local core paths, missing-Python behavior, distribution/discovery, and live acceptance tests.
+- The plan identifies which work happens in this repository and which work belongs in future package/repository extractions.
+- No host integration package vendors the core source unless a later accepted design changes this.
 
 ## Completion standard
 
