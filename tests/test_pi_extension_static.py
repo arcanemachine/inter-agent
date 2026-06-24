@@ -125,13 +125,21 @@ def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:
 def test_pi_extension_reports_generic_command_not_found() -> None:
     """When a helper script is missing, the message should not name a specific
     operation like "status", because the same helper is used for setup checks
-    inside connect/rename/send and the operation name confuses users.
+    inside connect/rename/send and the operation name confuses users. The
+    message should include the resolved script path so users know what to fix.
     """
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
-    expected = (
-        'return "inter-agent command was not found. '
-        'Check that inter-agent is installed and configured, then try again.";'
+    assert (
+        "stderr += `inter-agent command was not found at ${script}. "
+        "Check that inter-agent is installed and configured, then try again.`" in content
     )
-    assert expected in content
+    assert (
+        "`inter-agent server command was not found at ${scripts.server}. "
+        "Check that inter-agent is installed and configured, then try again.`" in content
+    )
+    # scriptFailureMessage must propagate the path-bearing stderr rather than
+    # replacing it with a generic message.
+    assert 'if (output.includes("not found")) {' in content
+    assert "return output;" in content
     assert "`inter-agent ${operation} command was not found" not in content

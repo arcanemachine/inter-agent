@@ -289,8 +289,7 @@ function execScript(script: string, args: string[]): Promise<ScriptResult> {
     proc.on("error", (err) => {
       const nodeErr = err as NodeJS.ErrnoException;
       if (nodeErr.code === "ENOENT") {
-        stderr +=
-          "inter-agent command was not found. Check that inter-agent is installed and configured, then try again.";
+        stderr += `inter-agent command was not found at ${script}. Check that inter-agent is installed and configured, then try again.`;
       } else {
         stderr += String(err);
       }
@@ -305,8 +304,11 @@ function sleep(ms: number): Promise<void> {
 
 function scriptFailureMessage(result: ScriptResult, operation: string): string {
   const output = (result.stderr || result.stdout).trim();
-  if (result.code === null || output.includes("not found")) {
+  if (!output && result.code === null) {
     return "inter-agent command was not found. Check that inter-agent is installed and configured, then try again.";
+  }
+  if (output.includes("not found")) {
+    return output;
   }
   return truncate(output || `inter-agent ${operation} command failed`, 200);
 }
@@ -405,8 +407,7 @@ function startServerProcess(
       if (nodeErr.code === "ENOENT") {
         finish({
           ok: false,
-          message:
-            "inter-agent server command was not found. Check that inter-agent is installed and configured, then try again.",
+          message: `inter-agent server command was not found at ${scripts.server}. Check that inter-agent is installed and configured, then try again.`,
         });
       } else {
         finish({
