@@ -6,7 +6,7 @@ The roadmap is the high-level view. Detailed sub-agent-ready work items live und
 
 ## Current immediate priority
 
-Work `plans/09-host-extension-packaging/00-execution-guide.md` next. This phase promotes host extension packaging, distribution, and the superproject/package layout from TODO into the active plan. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
+Work `plans/09-host-extension-packaging/00-execution-guide.md` next. This phase starts with a required user discussion to settle the installability and setup model for the Claude Code and Pi extensions, then proceeds through narrowly scoped milestones. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
 
 ## Scope
 
@@ -169,9 +169,9 @@ Extra notes:
 
 - Codex extension development is not planned. Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
 
-## Phase 9: Host Extension Packaging and Superproject Layout
+## Phase 9: Host Extension Installability and Setup Simplification
 
-Goal: make the core package and host integrations cleanly distributable while preserving the core protocol boundary and using this repository as the coordination superproject for plans, agent instructions, and cross-package documentation.
+Goal: make the Claude Code and Pi integrations easier to install and configure while preserving shared bus defaults, custom local core paths, and the core protocol boundary.
 
 Priority: immediate. Work this phase before continuing lower-priority follow-on integration work unless the user directs otherwise.
 
@@ -181,11 +181,11 @@ Plan items:
 
 Completion criteria:
 
-- The target superproject/package layout is documented with explicit decisions and open questions.
-- The core package boundary is documented separately from host extension packaging.
-- Claude Code and Pi extension packaging plans cover managed Python environments, custom local core paths, missing-Python behavior, distribution/discovery, and live acceptance tests.
-- The plan identifies which work happens in this repository and which work belongs in future package/repository extractions.
-- No host integration package vendors the core source unless a later accepted design changes this.
+- The initial discussion checkpoint is completed with the user before implementation starts.
+- Claude Code persistent plugin installability is proven or blockers are documented.
+- Runtime setup behavior is simplified without changing the shared default bus state/token directory.
+- Pi setup and distribution gaps are reviewed after the Claude installability proof.
+- Repository/package split or superproject layout work is deferred unless it is still necessary after installability and setup pain are addressed.
 
 ## Completion standard
 

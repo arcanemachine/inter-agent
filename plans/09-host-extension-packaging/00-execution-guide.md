@@ -1,494 +1,425 @@
-# Host Extension Packaging and Superproject Layout
+# Host Extension Installability and Setup Simplification
 
-Phase: 9 — Host Extension Packaging and Superproject Layout
+Phase: 9 — Host Extension Installability and Setup Simplification
 
 ## Purpose
 
-Plan the transition from a single core repository with nested integration assets into a coordinated package layout where:
+Make the Claude Code and Pi integrations easier to install, verify, and configure without changing the core protocol semantics or fragmenting the default inter-agent bus state.
 
-- the `inter-agent` core remains reusable and host-agnostic;
-- Claude Code, Pi coding agent, and future host integrations are separate distributable packages;
-- this repository acts as the superproject/container for project-wide instructions, roadmap, plans, architecture documentation, and cross-package coordination;
-- extension packages consume the core as a package dependency or through an explicit local development checkout, not by implicitly relying on nested source paths.
+This plan replaces the earlier assumption that repository/package splitting must be the first step. The immediate problem is narrower: the integrations mostly work today, but persistent installation and setup are difficult to reason about. Start by proving installability and reducing configuration friction. Revisit repository/package separation only after the installability and setup behavior is understood.
 
-This file is a planning artifact. Do not move packages, split repositories, or change runtime install behavior until the decisions and acceptance criteria below are explicitly accepted.
+## Required first step: discuss with the user
 
-## Worker quick start
+Before implementing code, package metadata, managed venv behavior, or repository layout changes, stop and discuss this plan with the user.
 
-1. Read this file before changing Claude Code, Pi, or repository/package layout.
-2. Do not flatten host integrations into one shared extension runtime. Claude Code and Pi use different extension systems.
-3. Preserve the core boundary: protocol, server, transport, auth, routing, limits, and reusable command APIs belong to the core package; host UX belongs to host packages.
-4. Treat managed Python environments as host integration runtime details, not as protocol state.
-5. Keep custom local core checkout support for development.
-6. Ask the user before choosing a repository-splitting mechanism, publishing package names, or changing live install behavior.
+The discussion is required because the desired shape changed during planning and earlier conclusions were too broad. Confirm the immediate objective, assumptions, and first milestone before changing runtime behavior.
+
+At minimum, confirm:
+
+1. Whether the immediate goal is still to make the Claude Code plugin persistently installable.
+2. Whether the first implementation should keep the existing runtime assumption that `inter-agent-claude` is on PATH.
+3. Whether managed Python environments should be deferred until plugin installability is proven.
+4. Whether Pi changes should wait until after the Claude installability proof.
+5. Whether repository/package splitting should remain a later option rather than the first milestone.
+
+Do not proceed past this checkpoint without explicit user acceptance.
+
+## Key model: runtime source and bus state are separate
+
+Keep these two concerns independent.
+
+### Core runtime source
+
+The core runtime source is where a host integration finds executable helpers such as `inter-agent-claude`, `inter-agent-pi`, and `inter-agent-server`.
+
+Possible runtime sources:
+
+- global install on PATH;
+- local development checkout, for example `<projectPath>/.venv/bin/inter-agent-*`;
+- host-managed venv, for example a Claude-managed or Pi-managed Python environment;
+- future package registry install.
+
+### Bus endpoint and state
+
+The bus endpoint and state determine which message bus a host joins.
+
+Relevant values:
+
+- `host`;
+- `port`;
+- `dataDir` / token location;
+- `INTER_AGENT_HOST`;
+- `INTER_AGENT_PORT`;
+- `INTER_AGENT_DATA_DIR`;
+- `INTER_AGENT_CONFIG`.
+
+### Required invariant
+
+Different host integrations may use different core runtime sources and still interoperate, provided they use compatible protocol versions and the same bus endpoint/state.
+
+Do not make per-extension token/data directories the default. A Claude-managed venv and a Pi-managed venv are acceptable. A Claude-only default token directory and a Pi-only default token directory are not acceptable for normal cross-harness use.
+
+Default cross-harness operation should continue to use the core defaults unless explicitly configured otherwise:
+
+- `127.0.0.1:16837`;
+- platform default inter-agent state directory, such as `~/.local/state/inter-agent` on Linux.
+
+Intentional isolation should require explicit configuration, such as a different `dataDir` and/or `port`.
 
 ## Confirmed facts
 
-These points are considered established for this plan:
-
-1. Claude Code and Pi do not load the same kind of extension.
+1. Claude Code and Pi use different extension systems.
    - Claude Code plugins use `.claude-plugin/plugin.json`, skills, and Monitor-driven shell commands.
    - Pi extensions use an npm-style package with `package.json` and `pi.extensions` pointing at a TypeScript extension entry point.
 
-2. A single host extension cannot literally run in both Claude Code and Pi.
-   - The shared component is the inter-agent protocol/core package.
-   - Host packages must remain host-specific adapters.
+2. A single extension runtime cannot serve both hosts.
+   - The shared component is the inter-agent core package/protocol.
+   - Host-facing integration code remains host-specific.
 
 3. Claude Code does not require Python for Claude Code itself.
-   - Python is a dependency of this integration because the inter-agent core is Python.
-   - Claude installation and missing-Python errors must be explicit.
+   - Python is required only because this integration uses the Python inter-agent core.
+   - Missing Python must be handled as an integration setup problem, not assumed away.
 
-4. Pi exposes a user agent directory at `~/.pi/agent` by default, with override support through Pi's `PI_CODING_AGENT_DIR` behavior.
-   - Existing Pi extension code already reads `~/.pi/agent/settings.json`.
-   - A Pi-managed inter-agent runtime under `~/.pi/agent/inter-agent/` is consistent with current Pi layout, though Pi does not expose a generic extension data directory API.
+4. The current Claude Code integration is development-loadable with `claude --plugin-dir ./integrations/claude-code`.
+   - Persistent plugin installation is not proven until `/plugin marketplace add` and `/plugin install` have been tested.
 
-5. The current Claude listener starts the server using `sys.executable -m inter_agent.core.server`.
-   - If the listener runs from a managed venv, the auto-started server also runs from that venv.
-   - The server does not need to be found separately on PATH in that case.
+5. Claude Code marketplaces support plugin sources that point at repository subdirectories.
+   - A root `.claude-plugin/marketplace.json` can point at `./integrations/claude-code` if the current repository remains the marketplace source.
 
-6. `claude-code-inter-session` is self-contained because it vendors its own Python application code inside the plugin package and uses pip only for third-party dependencies.
-   - `inter-agent` should not copy that exact model by default because the reusable core is a real package intended for multiple host integrations.
+6. The current Claude plugin must not declare a plugin-level monitor.
+   - Existing static tests enforce that declarative monitors are absent because a declarative monitor would race the skill-driven listener.
 
-7. Claude Code marketplaces support plugin `source` values that point at subdirectories of a marketplace repository.
-   - This means the current repository can expose an installable Claude plugin while the plugin assets remain in a subdirectory, if that remains the chosen transitional path.
+7. The current Claude listener starts the server with `sys.executable -m inter_agent.core.server`.
+   - If a later managed venv is used, the listener-started server runs from that same venv.
 
-## Target architecture
+8. Pi uses `~/.pi/agent` as the default agent directory and can be configured through Pi's agent-dir behavior.
+   - The existing Pi extension already reads `~/.pi/agent/settings.json`.
+   - Pi does not expose a generic extension data directory API in the extension context.
 
-The target architecture is a superproject plus distributable packages:
+9. The `claude-code-inter-session` project vendors its own Python application code into the plugin and installs only third-party dependencies into a venv.
+   - That model is informative but not automatically appropriate for inter-agent because inter-agent is intended to be a reusable core package used by multiple host integrations.
 
-```text
-inter-agent/                         # superproject / coordination repo
-├── AGENTS.md                        # agent workflow
-├── AGENTS.PLAN.md                   # roadmap
-├── plans/                           # cross-package plans
-├── docs/                            # cross-package docs, as needed
-├── packages/                        # planned package/repo checkouts or package dirs
-│   ├── inter-agent-core/            # Python core package, protocol, server
-│   ├── claude-code-inter-agent/     # Claude Code plugin package
-│   └── pi-inter-agent/              # Pi npm extension package
-└── ...
-```
+## Non-goals for the first milestone
 
-The exact mechanism for `packages/` is intentionally undecided in this plan:
+Do not do these before the first Claude persistent-install proof:
 
-- regular directories in a monorepo;
-- git submodules;
-- git subtrees;
-- external repositories referenced by documentation only;
-- a staged migration from the current `integrations/` directories.
+- split repositories;
+- move integration directories into `packages/`;
+- add submodules or subtrees;
+- vendor the core source into host extensions;
+- implement managed venv bootstrap;
+- change default token/data directory behavior;
+- redesign Pi packaging;
+- add declarative Claude monitors.
 
-The user prefers a superproject shape. Before implementation, decide which mechanism supports day-to-day development, package publishing, and user installation with the least friction.
+These may be revisited after the first proof if they are still necessary.
 
-## Non-goals
+## Milestone 1: Prove Claude Code persistent plugin installation
 
-- Do not create one combined extension that attempts to run in both Claude Code and Pi.
-- Do not vendor the core source into each host package by default.
-- Do not require users to clone the superproject or its submodules to use a host extension.
-- Do not make host extension package installation depend on mutable local repository layout.
-- Do not add declarative Claude Code monitors that race the skill-driven listener.
-- Do not continue OpenCode packaging work under this phase unless it is explicitly brought into scope after Claude and Pi decisions are settled.
+### Goal
 
-## Core package contract
+Answer the immediate question: can the existing Claude Code plugin be installed persistently through Claude Code's plugin system from this repository?
 
-The core package is the stable dependency consumed by host integrations.
+### Minimal intended change
 
-Required core responsibilities:
-
-1. Provide the local WebSocket protocol implementation.
-2. Provide the server and lifecycle behavior.
-3. Provide reusable client/control APIs where appropriate.
-4. Provide console scripts required by existing integrations:
-   - `inter-agent-server`
-   - `inter-agent-connect`
-   - `inter-agent-status`
-   - `inter-agent-list`
-   - `inter-agent-shutdown`
-   - `inter-agent-pi`
-   - `inter-agent-claude`
-5. Keep host-specific UX in adapter modules or host packages.
-6. Maintain protocol docs, schemas, examples, and conformance tests.
-
-Required install sources:
-
-- Development: editable install from a local checkout.
-- Pre-release distribution: install from a git URL or git tag.
-- Release distribution: install from a published package when available.
-
-Open decision: choose the first supported non-local install source for host packages. Prefer a versioned source, such as a git tag or package registry release, over an unpinned branch.
-
-## Managed Python environment model
-
-Host integrations that need the Python core should manage an isolated Python environment unless the user explicitly points them at a local checkout.
-
-Shared requirements:
-
-1. Python must be treated as an integration dependency.
-2. If Python is missing, show an actionable setup message.
-3. If `python3 -m venv` is unavailable, show an actionable setup message.
-4. Do not modify the user's system Python or user site packages.
-5. Do not require `pipx` or `uv` for normal users.
-6. Allow `uv` as an optional optimization only if the host package has a clear fallback to vanilla `python3 -m venv` and `pip`.
-7. Do not store bus runtime state inside the managed venv.
-
-Default venv locations currently proposed:
-
-- Claude Code: `~/.claude/data/inter-agent/venv`
-- Pi: `~/.pi/agent/inter-agent/venv`
-
-Open decision: confirm these paths before implementation.
-
-## Custom local core checkout model
-
-Each host package must support development against a local core checkout.
-
-Shared behavior:
-
-1. If a custom core project path is configured, it wins over the managed venv.
-2. The host package should use helper scripts from `<projectPath>/.venv/bin/` when that path is configured.
-3. If the configured custom path does not contain the expected helper, fail with a message that includes the expected absolute path.
-4. Relative and `~` paths should be expanded consistently.
-5. Environment-variable expansion for `$VAR` and `${VAR}` is desired for path-like settings where host configuration supports it.
-
-Existing Pi behavior:
-
-- Pi already supports `interAgent.projectPath` in Pi settings.
-- Pi already resolves `~` and relative paths for `projectPath` and `dataDir`.
-- TODO currently asks for `$VAR` and `${VAR}` expansion.
-
-Claude decision required:
-
-- Choose the custom path mechanism for Claude:
-  - environment variable such as `INTER_AGENT_PROJECT_PATH`;
-  - Claude plugin `userConfig` if environment injection behavior is verified;
-  - a config file read by wrapper scripts;
-  - or more than one of the above.
-
-Do not assume Claude `userConfig` environment variable names until verified in a live or documented source.
-
-## Claude Code package plan
-
-### Package role
-
-The Claude Code package should be a thin plugin package that:
-
-- provides the Claude plugin manifest and marketplace metadata;
-- provides the `inter-agent` skill and bootstrap guidance;
-- starts a Monitor-backed listener through the skill;
-- invokes the core package through a managed venv or a configured local checkout;
-- does not vendor the core package source by default.
-
-### Proposed package contents
+Add root marketplace metadata:
 
 ```text
-claude-code-inter-agent/
-├── .claude-plugin/
-│   ├── marketplace.json
-│   └── plugin.json
-├── skills/
-│   └── inter-agent/
-│       ├── SKILL.md
-│       ├── bootstrap.md
-│       └── bin/
-│           └── inter-agent-claude
-├── README.md
-└── LICENSE.md
+.claude-plugin/marketplace.json
 ```
 
-The `bin/inter-agent-claude` file should be a small wrapper, not the core implementation.
+The marketplace should list the `inter-agent` plugin with source:
 
-Wrapper responsibilities:
+```json
+"source": "./integrations/claude-code"
+```
 
-1. Resolve the configured local core checkout, if any.
-2. Otherwise resolve the managed venv binary.
-3. Execute the resolved `inter-agent-claude` script.
-4. Preserve arguments exactly.
-5. Print clear setup guidance when no usable helper exists.
+Do not change the runtime model in this milestone. Keep the existing assumption that `inter-agent-claude` must be available to the Claude session, likely through PATH or an existing local development install.
 
-### Claude bootstrap behavior
+### Why this comes first
 
-The Claude skill should expose or document a first-time setup flow that:
+If persistent plugin install does not work, managed venv design and repo splitting are premature. If it does work, the remaining problem is runtime setup convenience, not plugin discovery.
 
-1. Checks for Python 3.10 or newer.
-2. Creates the managed venv if it does not exist.
-3. Installs the core package into the venv from the accepted source.
-4. Verifies `inter-agent-claude status` through the wrapper.
-5. Leaves normal message bus state in the core data directory, not the venv.
+### Implementation steps
 
-Open decision: choose whether this is an explicit `/inter-agent install-deps` command, automatic guidance after a missing-helper error, or both.
+1. Confirm with the user that this milestone is the immediate target.
+2. Add `.claude-plugin/marketplace.json` at repository root.
+3. Keep `integrations/claude-code/.claude-plugin/plugin.json` minimal unless metadata changes are required for install.
+4. Add or update static tests for marketplace metadata.
+5. Update Claude integration documentation to distinguish:
+   - development load with `claude --plugin-dir`;
+   - persistent install with `/plugin marketplace add` and `/plugin install`.
+6. Do not add managed venv behavior in this milestone.
+7. Run appropriate checks.
+8. Perform a live Claude Code install test.
 
-### Claude Monitor behavior
+### Live acceptance test
 
-Current design constraints remain:
-
-1. Do not declare a plugin-level monitor in `plugin.json`.
-2. The skill starts exactly one persistent Monitor with the user-selected routing name.
-3. The Monitor command should call the wrapper under `skills/inter-agent/bin/`.
-4. The wrapper should avoid relying on shell `~` expansion inside Monitor commands.
-
-### Claude acceptance tests
-
-Static tests:
-
-- plugin manifest has no declarative monitors;
-- marketplace metadata is valid;
-- wrapper exists and includes expected resolution branches;
-- skill references the wrapper path rather than bare `inter-agent-claude`;
-- bootstrap docs describe missing Python, venv creation, install source, and verification.
-
-Live acceptance tests:
-
-1. Install marketplace/plugin through Claude Code.
-2. Run first-time setup on a machine without a local core checkout.
-3. Connect as a named Claude session.
-4. List sessions.
-5. Send to another session.
-6. Receive a direct message notification.
-7. Disconnect cleanly.
-8. Repeat using a local core checkout override.
-
-## Pi package plan
-
-### Package role
-
-The Pi package should be a thin npm/Pi extension package that:
-
-- provides Pi commands and tools;
-- starts the existing Python listener through the core package;
-- invokes the core package through a managed venv or a configured local checkout;
-- preserves existing `interAgent.projectPath` behavior;
-- does not require users to clone the core repository for normal installation.
-
-### Proposed package contents
+From a Claude Code session, test a local marketplace first if possible:
 
 ```text
-pi-inter-agent/
-├── package.json
-├── src/
-│   └── index.ts
-├── README.md
-└── LICENSE.md
+/plugin marketplace add /workspace/projects/inter-agent
+/plugin install inter-agent
 ```
 
-### Pi helper resolution behavior
+Then test the GitHub form when appropriate:
 
-Resolution order:
+```text
+/plugin marketplace add https://github.com/arcanemachine/inter-agent
+/plugin install inter-agent
+```
 
-1. If `interAgent.projectPath` is set, use helpers from `<projectPath>/.venv/bin/`.
-2. Otherwise use helpers from `~/.pi/agent/inter-agent/venv/bin/`.
-3. If the selected helper is missing, show an error that includes the expected absolute helper path.
+After install, verify that `/inter-agent` skill commands are available. If `inter-agent-claude` is missing, that is not a failure of plugin installation; it is the next milestone's setup problem.
 
-The Pi extension should keep passing endpoint/state overrides to helper subprocesses through:
+### Acceptance criteria
 
-- `INTER_AGENT_HOST`
-- `INTER_AGENT_PORT`
-- `INTER_AGENT_DATA_DIR`
+- Claude Code recognizes the repository as a plugin marketplace.
+- Claude Code can install the `inter-agent` plugin from the marketplace.
+- The installed plugin exposes the `inter-agent` skill.
+- Any runtime failure due to missing `inter-agent-claude` is documented as a setup issue for Milestone 2.
 
-### Pi bootstrap behavior
+## Milestone 2: Simplify Claude runtime setup
 
-Open decision: choose one of these UX flows.
+### Goal
 
-Option A — explicit setup command:
+Reduce or remove the current requirement that users manually arrange for `inter-agent-claude` to be on PATH.
 
-- Add `/inter-agent install-deps` or `/inter-agent setup`.
-- The command creates the managed venv and installs the core package.
-- Normal commands fail with clear setup guidance until the setup command succeeds.
+### Inputs from Milestone 1
 
-Option B — lazy auto-bootstrap:
+Use the results of the persistent install proof to decide how much runtime setup should be automated.
 
-- On first `/inter-agent connect` or `/inter-agent status`, detect missing managed venv.
-- Ask for confirmation if Pi exposes an appropriate confirmation UI.
-- Create the venv and install the core package.
-- Continue the original command if setup succeeds.
+### Options
 
-Option C — documentation-only bootstrap:
+#### Option A: Keep PATH/global install and improve guidance
 
-- Keep runtime simple.
-- Require the user to run documented setup commands manually.
-
-Recommendation to decide later: prefer explicit setup first, then consider lazy auto-bootstrap after live testing.
-
-### Pi acceptance tests
-
-Static tests:
-
-- resolver preserves `interAgent.projectPath` precedence;
-- managed venv default path is documented and used only when no project path is configured;
-- missing helper errors include absolute expected helper paths;
-- path expansion covers accepted forms.
-
-Live acceptance tests:
-
-1. Install the Pi package normally.
-2. Run setup with no local core checkout.
-3. Connect as a named Pi session.
-4. Send, broadcast, list, status, rename, and disconnect.
-5. Receive an inbound notification.
-6. Repeat with `interAgent.projectPath` pointing to a local core checkout.
-
-## Superproject/package split sequence
-
-Perform the split in small, reversible steps.
-
-### Step 1: Document and freeze package boundaries
-
-- Complete this plan.
-- Update architecture docs to describe the intended superproject/package roles.
-- Do not move code yet.
-
-### Step 2: Stabilize core dependency contract
-
-- Ensure the core package can be installed cleanly from local checkout and git URL.
-- Ensure required console scripts work after install.
-- Add build validation if needed.
-- Decide version pinning rules for host packages.
-
-### Step 3: Claude package extraction or staging
-
-- Decide whether the Claude package first lives under `packages/claude-code-inter-agent/`, remains under `integrations/claude-code/`, or moves to a separate repository immediately.
-- Implement wrapper and managed venv flow.
-- Add marketplace/distribution docs.
-- Run static and live acceptance tests.
-
-### Step 4: Pi package extraction or staging
-
-- Decide whether the Pi package first lives under `packages/pi-inter-agent/`, remains under `integrations/pi/`, or moves to a separate repository immediately.
-- Implement managed venv fallback while preserving `interAgent.projectPath`.
-- Add package distribution docs.
-- Run static and live acceptance tests.
-
-### Step 5: Superproject layout
-
-- Decide whether `packages/` contains checked-in package directories, submodules, subtrees, or external checkout documentation.
-- Update repository instructions for agents working across packages.
-- Update README and architecture docs to reflect the chosen layout.
-
-### Step 6: Distribution and discovery
-
-- Publish or document the Claude plugin marketplace source.
-- Publish or document the Pi package source and any npm/Pi package registry entry.
-- Update the Pi packages page if appropriate.
-- Update user-facing docs with stable install commands.
-
-## Repository mechanism options
-
-### Regular monorepo directories
+Users install the core package separately, and the plugin keeps calling `inter-agent-claude`.
 
 Pros:
 
-- easiest local development;
-- atomic cross-package commits;
-- no submodule commands.
+- smallest runtime change;
+- preserves current behavior;
+- simple to debug.
 
 Cons:
 
-- publishing package roots may require extra tooling;
-- host package git installs may clone more than needed unless package managers support subdirectories.
+- still requires users to understand Python package installation;
+- not zero-config.
 
-### Git submodules
+#### Option B: Managed Claude venv
+
+The plugin guides or performs setup of a managed venv, for example:
+
+```text
+~/.claude/data/inter-agent/venv
+```
+
+The skill or wrapper then invokes `inter-agent-claude` from that venv.
 
 Pros:
 
-- separate repos with pinned revisions;
-- superproject can coordinate exact tested combinations.
+- no PATH requirement;
+- isolated from system Python;
+- aligns with Claude plugin installation expectations.
 
 Cons:
 
-- fragile for casual contributors;
-- users must know recursive clone/update commands;
-- not suitable as a runtime dependency mechanism.
+- requires Python to be installed;
+- requires setup UX and error handling;
+- raises version/update policy questions.
 
-### Git subtrees
+#### Option C: Custom local checkout only
+
+The plugin requires a configured local core checkout and uses `<projectPath>/.venv/bin/inter-agent-claude`.
 
 Pros:
 
-- vendored history without submodule checkout friction;
-- package source is present in the superproject.
+- good for development;
+- simple if users already work from a checkout.
 
 Cons:
 
-- duplicated history;
-- sync workflow is manual;
-- easy to patch copied code in the wrong place.
+- not a good normal-user install story.
 
-### External repos referenced by docs
+### Required behavior regardless of option
 
-Pros:
+- Missing helper errors must include the expected command/path.
+- Missing Python errors must be actionable if managed venv setup is introduced.
+- The plugin must not change the default bus token/data directory to a Claude-specific location.
+- A local development checkout override should remain possible.
 
-- simplest distribution story per host;
-- least coupling between package ecosystems.
+### Open decisions
 
-Cons:
+Before implementation, decide:
 
-- no single checkout contains everything unless the user clones all repos manually.
+1. Should Claude setup remain PATH-based for now?
+2. Should a managed venv be introduced immediately after installability is proven?
+3. If managed venv is introduced, should setup be explicit (`/inter-agent install-deps`), automatic after missing dependency, or documentation-only?
+4. What core install source should the venv use before registry release: git tag, branch, or local checkout?
+5. How should users reset or upgrade the managed venv?
 
-Open decision: choose the mechanism after writing down release and development workflows.
+## Milestone 3: Pi setup and distribution parity
 
-## Versioning and compatibility
+### Goal
 
-Required policy decisions:
+Review the Pi extension after the Claude installability proof and decide what is needed to make Pi equally easy to install and configure.
 
-1. How host packages declare the minimum compatible core version.
-2. Whether host packages pin an exact core version, compatible range, or git tag.
-3. How host packages upgrade the managed venv.
-4. How users intentionally use a local development checkout instead of the packaged core.
-5. How mismatch errors are detected and displayed.
+### Current Pi behavior
 
-Acceptance criteria for this section:
+The Pi extension currently resolves a configured inter-agent project path and uses helper scripts from the checkout's `.venv/bin` directory. This works but requires users to clone/setup the core repository or configure a path.
 
-- A user can tell which core version a host package installed.
-- A user can upgrade or reset the managed venv.
-- A developer can point a host package at a local core checkout without editing package source.
+### Required invariants
 
-## Security and operational notes
+- Preserve `interAgent.projectPath` for development and custom local installs.
+- Keep default bus state shared with Claude and other hosts.
+- Do not default Pi to a Pi-specific token/data directory.
+- Missing helper errors should include expected absolute paths.
 
-- Managed venvs contain executable code and should be treated as local application files, not message bus state.
-- Token and server lifecycle state continue to use the core data directory resolution described in `SECURITY.md`.
-- Host packages must not silently execute unreviewed install commands without a documented user action or host-appropriate confirmation.
-- Missing Python, failed venv creation, and failed package install must produce actionable messages.
-- Custom local checkout paths must be explicit and should not be guessed from unrelated current working directories.
+### Possible improvements
 
-## Documentation updates required before completion
+#### Option A: Documentation and error messages only
 
-- Root README: describe superproject/package roles.
-- Architecture docs: describe core package boundary and host package boundary.
-- Claude README: install, setup, custom path, managed venv, live acceptance test.
-- Pi README: install, setup, custom path, managed venv, live acceptance test.
-- SECURITY.md: clarify what is state, what is application code, and where managed venvs fit.
-- AGENTS.md: update workflow notes if the repository layout or package roots change.
-- AGENTS.PLAN.md: update this phase as sub-items complete.
+Keep current projectPath-based behavior, but improve setup instructions and errors.
+
+#### Option B: Managed Pi venv fallback
+
+If no `interAgent.projectPath` is configured, use a Pi-managed venv, for example:
+
+```text
+~/.pi/agent/inter-agent/venv
+```
+
+This venv contains the core package. The extension invokes helpers from the venv.
+
+#### Option C: Separate Pi package/repository
+
+Create or extract a `pi-inter-agent` npm/Pi package for distribution. The package may still use Option A or B for the core runtime.
+
+### Open decisions
+
+1. Does Pi need a managed venv now, or is better documentation enough?
+2. Should Pi setup be explicit, lazy auto-bootstrap, or manual documentation-only?
+3. Should Pi distribution be solved in this repository first or through a separate package repository?
+4. Does Pi support installing this nested package directly, or is a separate root package required?
+
+## Milestone 4: Cross-harness interoperability validation
+
+### Goal
+
+Prove that the setup model keeps cross-harness communication working.
+
+### Required scenarios
+
+1. Claude using its current/global runtime can talk to Pi using configured `projectPath`.
+2. Claude using a future managed runtime can talk to Pi using configured `projectPath`.
+3. Claude and Pi using separate managed runtimes can talk to each other with zero bus configuration.
+4. Both hosts can connect to an explicitly configured shared server/state directory.
+5. Intentional isolation works only when endpoint/state settings are explicitly changed.
+
+### Key acceptance rule
+
+Separate runtime installs must not imply separate buses.
+
+## Milestone 5: Repository/package split decision
+
+### Goal
+
+Revisit repository/package separation only after installability and setup behavior are understood.
+
+### Possible end states
+
+#### Keep current repository layout
+
+The current repository remains the source for core and integration assets. Claude marketplace metadata may point at a subdirectory.
+
+#### Superproject with `packages/`
+
+This repository becomes a coordination superproject with package directories such as:
+
+```text
+packages/inter-agent-core/
+packages/claude-code-inter-agent/
+packages/pi-inter-agent/
+```
+
+#### Separate package repositories
+
+The core, Claude plugin, and Pi extension become separate repositories, while this repository becomes documentation/planning coordination or remains the core repository.
+
+### Do not decide prematurely
+
+Do not choose submodules, subtrees, package workspaces, or repository splits before Milestones 1 and 2 are complete unless the user explicitly changes priorities.
+
+## Documentation updates by milestone
+
+### Milestone 1
+
+- Claude README: persistent install vs development load.
+- Root README: status of Claude persistent plugin install.
+- Plan/roadmap: record acceptance results.
+
+### Milestone 2
+
+- Claude README: runtime setup, custom local checkout, missing Python/helper behavior.
+- SECURITY.md if managed venv/application files need clarification.
+
+### Milestone 3
+
+- Pi README: setup path, custom `projectPath`, managed runtime if introduced.
+- Root README: Pi distribution status.
+
+### Milestone 4
+
+- Root README or architecture docs: cross-harness interoperability model.
+
+### Milestone 5
+
+- AGENTS.md, AGENTS.PLAN.md, README.md, and architecture docs if repository/package layout changes.
+
+## Testing and verification
+
+### Static checks
+
+Add or update tests as behavior changes:
+
+- Claude marketplace metadata validation;
+- Claude plugin manifest still declares no monitors;
+- error message text includes expected helper paths where applicable;
+- Pi resolver precedence tests if resolver behavior changes;
+- docs/static tests for new package metadata where useful.
+
+### Local checks
+
+For code changes, run the full repository gate:
+
+```bash
+./run-checks.sh
+```
+
+For documentation-only plan wording, full checks are not required unless generated/checked files are touched or the user asks.
+
+### Live checks
+
+Live host acceptance is required before calling installability done:
+
+- Claude Code `/plugin marketplace add` and `/plugin install`;
+- Pi extension install/load path when Pi changes are introduced;
+- cross-harness message send/receive after setup behavior changes.
 
 ## Stop conditions
 
 Stop and ask the user before:
 
-- moving code between repositories or package roots;
-- choosing submodule vs subtree vs regular directories;
-- changing the core package name;
+- introducing managed venv bootstrap;
+- changing default `dataDir` or token state behavior;
 - changing public CLI names;
-- adding automatic dependency installation without explicit user confirmation behavior;
+- splitting repositories or moving package roots;
+- adding submodules or subtrees;
+- making automatic dependency installation run without explicit confirmation or a clearly accepted UX;
 - publishing package names or marketplace entries;
-- changing the security model or token/data directory behavior.
+- declaring Claude or Pi installation complete without live verification.
 
-## Immediate next decisions
+## Immediate next action
 
-Before implementation, decide:
+The next worker should not implement immediately. First, review this plan with the user and confirm Milestone 1 as the immediate target.
 
-1. Should `packages/` initially contain real directories in this repo, submodules, subtrees, or only planned future repos?
-2. What exact custom local core path mechanism should Claude use?
-3. Should Claude setup be explicit `/inter-agent install-deps`, automatic after missing dependency, or both?
-4. Should Pi setup be explicit `/inter-agent install-deps`, lazy auto-bootstrap, or documentation-only at first?
-5. What core install source should host packages use before a registry release exists?
-6. Should host packages pin a git tag for the core, or track a branch during early development?
-
-## Completion criteria
-
-This phase is complete when:
-
-- the superproject/package layout is accepted and documented;
-- the core package can be consumed by host packages from an accepted install source;
-- Claude Code package distribution works through a documented install path;
-- Pi package distribution works through a documented install path;
-- both host packages support a managed venv and a custom local core checkout;
-- both host packages handle missing Python and missing helpers with actionable errors;
-- docs distinguish application files, managed venvs, config, and runtime state;
-- static tests and live acceptance tests pass for the core, Claude Code, and Pi paths.
+If accepted, proceed with Milestone 1 only: add the Claude marketplace metadata, document persistent install, test plugin installation, and report whether runtime setup remains the only blocker.
