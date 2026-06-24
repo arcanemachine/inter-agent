@@ -120,3 +120,18 @@ def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:
     assert "const baseDir = dirname(settingsPath);" in content
     assert "projectPath: resolvePathOption(config.projectPath, baseDir)" in content
     assert "dataDir: resolvePathOption(config.dataDir, baseDir)" in content
+
+
+def test_pi_extension_reports_generic_command_not_found() -> None:
+    """When a helper script is missing, the message should not name a specific
+    operation like "status", because the same helper is used for setup checks
+    inside connect/rename/send and the operation name confuses users.
+    """
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    expected = (
+        'return "inter-agent command was not found. '
+        'Check that inter-agent is installed and configured, then try again.";'
+    )
+    assert expected in content
+    assert "`inter-agent ${operation} command was not found" not in content

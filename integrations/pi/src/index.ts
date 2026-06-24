@@ -306,7 +306,7 @@ function sleep(ms: number): Promise<void> {
 function scriptFailureMessage(result: ScriptResult, operation: string): string {
   const output = (result.stderr || result.stdout).trim();
   if (result.code === null || output.includes("not found")) {
-    return `inter-agent ${operation} command was not found. Check that inter-agent is installed and configured, then try again.`;
+    return "inter-agent command was not found. Check that inter-agent is installed and configured, then try again.";
   }
   return truncate(output || `inter-agent ${operation} command failed`, 200);
 }
