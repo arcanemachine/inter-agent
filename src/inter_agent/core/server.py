@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import http
 import json
 import signal
 from collections.abc import Sequence
@@ -9,6 +10,7 @@ from dataclasses import dataclass
 
 import websockets
 from websockets.asyncio.server import ServerConnection
+from websockets.http11 import Request, Response
 
 from inter_agent.core.errors import ErrorCode
 from inter_agent.core.router import RouterMiddleware
@@ -422,6 +424,42 @@ class BusServer:
             await conn.ws.send(json.dumps(payload))
 
 
+def _is_websocket_upgrade(request: Request) -> bool:
+    """Return True when ``request`` carries a valid WebSocket upgrade."""
+    connection = [
+        token.strip().lower()
+        for value in request.headers.get_all("Connection")
+        for token in value.split(",")
+    ]
+    if "upgrade" not in connection:
+        return False
+    upgrade = [value.strip().lower() for value in request.headers.get_all("Upgrade")]
+    return upgrade == ["websocket"]
+
+
+async def _process_request(connection: ServerConnection, request: Request) -> Response | None:
+    """Serve a friendly HTTP response for non-WebSocket requests.
+
+    Plain HTTP probes (e.g. ``curl http://host:port``) would otherwise make
+    the underlying library raise ``InvalidUpgrade`` and log a noisy traceback.
+    Returning a ``Response`` short-circuits the handshake before that happens
+    and keeps the server log quiet. WebSocket upgrades fall through to the
+    normal handshake by returning ``None``.
+    """
+    if _is_websocket_upgrade(request):
+        return None
+    headers = websockets.datastructures.Headers()
+    headers["Upgrade"] = "websocket"
+    headers["Content-Type"] = "text/plain; charset=utf-8"
+    body = b"This is an inter-agent WebSocket server.\n" b"Use a WebSocket client to connect.\n"
+    return Response(
+        http.HTTPStatus.UPGRADE_REQUIRED,
+        http.HTTPStatus.UPGRADE_REQUIRED.phrase,
+        headers,
+        body,
+    )
+
+
 async def run_server(
     host: str,
     port: int,
@@ -446,7 +484,11 @@ async def run_server(
 
     try:
         async with websockets.serve(
-            server.handle, host=host, port=port, max_size=server.limits.frame_max
+            server.handle,
+            host=host,
+            port=port,
+            max_size=server.limits.frame_max,
+            process_request=_process_request,
         ):
             if not server.registry:
                 server._schedule_idle_timer()
