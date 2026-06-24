@@ -55,12 +55,12 @@ If you cloned inter-agent to a location other than `~/.local/share/inter-agent`,
 
 ## Configuration
 
-You can override the inter-agent project path and endpoint in your Pi `settings.json`:
+You can override the inter-agent project path and endpoint in your Pi `settings.json`. These are the default values; only set a key when you want a non-default value:
 
 ```json
 {
   "interAgent": {
-    "projectPath": "/path/to/inter-agent",
+    "projectPath": "~/.local/share/inter-agent",
     "host": "127.0.0.1",
     "port": 16837,
     "dataDir": "~/.local/state/inter-agent"
@@ -68,13 +68,13 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
 }
 ```
 
+Most users only need to set `projectPath` — if their inter-agent clone is somewhere other than the default `~/.local/share/inter-agent`. Leave `host`, `port`, and `dataDir` unset unless you need a non-default endpoint or state location.
+
 Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, or `dataDir` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
-`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores runtime state — the shared bearer token and server lifecycle metadata — kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` (`~/.local/state/inter-agent` on Linux, `~/Library/Application Support/inter-agent` on macOS) works for normal single-bus use; set it only when you want a custom state location or to run multiple isolated buses.
+`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores runtime state — the shared bearer token and server lifecycle metadata — kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom state location or to run multiple isolated buses.
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
-
-If you do not set a project path, the extension falls back to `~/.local/share/inter-agent`.
 
 ## Commands
 
