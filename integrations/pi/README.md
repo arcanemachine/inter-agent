@@ -63,7 +63,7 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
     "projectPath": "/path/to/inter-agent",
     "host": "127.0.0.1",
     "port": 16837,
-    "dataDir": "/path/to/.local/state/inter-agent"
+    "dataDir": "~/.local/state/inter-agent"
   }
 }
 ```
