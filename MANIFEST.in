@@ -1,8 +1,7 @@
 include README.md
 include ARCHITECTURE.md
 include SECURITY.md
-include ERROR_CODES.md
 recursive-include docs *.md
 recursive-include integrations/claude-code *.md *.json
 recursive-include integrations/claude-code/skills/inter-agent/bin *
-recursive-include spec *.yaml *.json
+recursive-include spec *.yaml *.json *.md

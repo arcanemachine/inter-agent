@@ -6,7 +6,7 @@ The roadmap is the high-level view. Detailed sub-agent-ready work items live und
 
 ## Current immediate priority
 
-Continue `plans/09-host-extension-packaging/00-execution-guide.md` with Milestone 5: repository/package split decision after cross-harness interoperability validation. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
+Phase 9 installability/setup work is complete. Resume release-readiness work in `plans/06-release-readiness/`, starting with `plans/06-release-readiness/03-versioning-and-changelog.md`, unless the user explicitly redirects to repository extraction or another follow-on integration.
 
 ## Scope
 
@@ -173,11 +173,14 @@ Extra notes:
 
 Goal: make the Claude Code and Pi integrations easier to install and configure while preserving shared bus defaults, custom local core paths, and the core protocol boundary.
 
-Priority: immediate. Work this phase before continuing lower-priority follow-on integration work unless the user directs otherwise.
+Status: complete. The installability/setup decisions are recorded; use the repository boundary inventory before starting physical extraction work.
 
-Plan items:
+Plan items: complete.
+
+Decision records:
 
 1. `plans/09-host-extension-packaging/00-execution-guide.md`
+2. `plans/09-host-extension-packaging/01-repository-boundary-inventory.md`
 
 Completion criteria:
 
@@ -186,7 +189,7 @@ Completion criteria:
 - Runtime setup behavior is simplified without changing the shared default bus state/token directory.
 - Pi setup and distribution gaps are reviewed after the Claude installability proof.
 - Cross-harness interoperability is validated across separate runtime sources and shared bus settings.
-- Repository/package split or superproject layout work is deferred unless it is still necessary after installability and setup pain are addressed.
+- Repository/package split direction is recorded as a private `inter-agent-meta` wrapper, a public `inter-agent/inter-agent` ecosystem superproject, and independently deployable core and extension repositories.
 
 ## Completion standard
 

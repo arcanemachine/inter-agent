@@ -36,7 +36,7 @@ Define and implement the Claude Code user commands and the instruction policy fo
 - `src/inter_agent/adapters/claude/commands.py`
 - Claude Code skill or plugin instruction files
 - `tests/`
-- `ERROR_CODES.md`
+- `spec/error-codes.md`
 - `src/inter_agent/adapters/claude/README.md`
 
 ## Checks

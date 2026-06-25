@@ -50,7 +50,7 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.data-files]
-"share/inter-agent/spec" = ["spec/asyncapi.yaml"]
+"share/inter-agent/spec" = ["spec/asyncapi.yaml", "spec/error-codes.md"]
 "share/inter-agent/spec/schemas" = ["spec/schemas/*.json"]
 "share/inter-agent/spec/examples" = ["spec/examples/*.json"]
 "share/inter-agent/integrations/claude-code" = ["integrations/claude-code/README.md"]

@@ -25,6 +25,7 @@
    - AsyncAPI contract in `spec/asyncapi.yaml`.
    - Standalone JSON Schemas for protocol operations in `spec/schemas/`.
    - Example payloads for canonical behavior in `spec/examples/`.
+   - Canonical protocol error codes in `spec/error-codes.md`.
 
 ## Messaging model
 
@@ -34,7 +35,7 @@
 - List introspection returns agent sessions sorted by routing name and excludes control sessions.
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation after type and payload-size checks.
-- Error: canonical `error` envelopes use documented codes from `ERROR_CODES.md`; clients should key behavior on `code`, not `message`.
+- Error: canonical `error` envelopes use documented codes from `spec/error-codes.md`; clients should key behavior on `code`, not `message`.
 - Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; active connections, custom types, and JSON-encoded custom payloads also have configurable limits.
 
 ## Server lifecycle

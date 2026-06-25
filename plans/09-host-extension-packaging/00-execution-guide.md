@@ -393,6 +393,14 @@ The core, Claude plugin, and Pi extension become separate repositories, while th
 
 Do not choose submodules, subtrees, package workspaces, or repository splits before Milestones 1 and 2 are complete unless the user explicitly changes priorities.
 
+### Recorded decision
+
+Milestone 5 is complete. The target direction is a private `inter-agent-meta` wrapper repository, a public `inter-agent/inter-agent` ecosystem superproject, and independently deployable public package repositories for `inter-agent-core`, `inter-agent-claude-code`, `inter-agent-pi`, and future host integrations.
+
+The split is driven by deployment ownership. The core package should provide the protocol, server, client helpers, generic CLI, spec, schemas, examples, canonical error codes, and conformance tests. Host extension repositories should provide host-native plugin/extension metadata, UX, wrapper/bootstrap behavior, and any host-specific adapter code while depending on the core package through local directory, GitHub/archive, or PyPI installs as appropriate.
+
+Physical splitting is deferred. The repository boundary inventory and migration sequence are recorded in `plans/09-host-extension-packaging/01-repository-boundary-inventory.md`. As a small safe cleanup, canonical error code documentation moved from top-level `ERROR_CODES.md` to `spec/error-codes.md` so it follows the protocol/core boundary.
+
 ## Documentation updates by milestone
 
 ### Milestone 1
@@ -417,7 +425,10 @@ Do not choose submodules, subtrees, package workspaces, or repository splits bef
 
 ### Milestone 5
 
-- AGENTS.md, PLAN.md, README.md, and architecture docs if repository/package layout changes.
+- `plans/09-host-extension-packaging/01-repository-boundary-inventory.md`: target repository topology, file ownership inventory, migration sequence.
+- PLAN.md: Phase 9 completion and next priority.
+- README.md and architecture docs if repository/package layout changes.
+- Protocol docs: canonical error code docs live under `spec/`.
 
 ## Testing and verification
 
@@ -464,4 +475,4 @@ Stop and ask the user before:
 
 ## Immediate next action
 
-Work Milestone 2 next: decide and implement the Claude runtime setup model that reduces or removes the manual requirement for `inter-agent-claude` to be on `PATH`. Before changing runtime behavior, confirm the Milestone 2 setup option with the user.
+Phase 9 is complete. Resume release-readiness work in `plans/06-release-readiness/`, starting with `plans/06-release-readiness/03-versioning-and-changelog.md`, unless the user explicitly redirects to repository extraction or another follow-on integration.

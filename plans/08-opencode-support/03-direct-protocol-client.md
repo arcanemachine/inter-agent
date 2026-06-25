@@ -11,7 +11,7 @@ Implement a direct TypeScript client for the inter-agent protocol so the OpenCod
 - Client-side protocol envelopes needed by OpenCode.
 - Token loading and server identity verification.
 - Agent listener connection and short-lived control connections.
-- Error handling aligned with `ERROR_CODES.md`.
+- Error handling aligned with `spec/error-codes.md`.
 - Tests for protocol and error behavior.
 
 ## Protocol operations required
@@ -152,7 +152,7 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 - `integrations/opencode/src/config.ts`
 - `integrations/opencode/src/format.ts`
 - `integrations/opencode/test/` or equivalent test location
-- `ERROR_CODES.md` only if protocol docs are stale
+- `spec/error-codes.md` only if protocol docs are stale
 
 ## Checks
 

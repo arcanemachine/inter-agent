@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _documented_codes() -> set[str]:
-    text = (ROOT / "ERROR_CODES.md").read_text(encoding="utf-8")
+    text = (ROOT / "spec/error-codes.md").read_text(encoding="utf-8")
     return set(re.findall(r"^\| `([^`]+)` \|", text, flags=re.MULTILINE))
 
 

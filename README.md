@@ -250,7 +250,7 @@ inter-agent/
 ├── src/inter_agent/adapters/claude/# Claude Code adapter commands
 ├── integrations/pi/                # Pi extension package
 ├── integrations/claude-code/       # Claude Code plugin assets
-├── spec/                           # AsyncAPI contract, schemas, and examples
+├── spec/                           # AsyncAPI contract, schemas, examples, and error codes
 ├── tests/                          # Unit, integration, and conformance tests
 └── docs/                           # Design notes and supporting references
 ```
@@ -265,7 +265,7 @@ inter-agent/
 | [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) | CLI users and contributors | Claude Code adapter CLI details |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Contributors | Layers, protocol model, routing, lifecycle |
 | [`SECURITY.md`](SECURITY.md) | Users and contributors | Security model, controls, token rotation |
-| [`ERROR_CODES.md`](ERROR_CODES.md) | Protocol developers | Canonical protocol error codes |
+| [`spec/error-codes.md`](spec/error-codes.md) | Protocol developers | Canonical protocol error codes |
 | [`AGENTS.md`](AGENTS.md) | Coding agents | Repository workflow and conventions |
 | [`PLAN.md`](PLAN.md) | Contributors | Roadmap and completion tracker |
 
