@@ -393,7 +393,7 @@ Do not choose submodules, subtrees, package workspaces, or repository splits bef
 
 ### Milestone 5
 
-- AGENTS.md, AGENTS.PLAN.md, README.md, and architecture docs if repository/package layout changes.
+- AGENTS.md, PLAN.md, README.md, and architecture docs if repository/package layout changes.
 
 ## Testing and verification
 

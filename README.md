@@ -10,7 +10,7 @@ Supported user-facing integrations:
 | Claude Code | `integrations/claude-code/` | Claude Code slash commands, Monitor notifications, and message lookup |
 | Core CLI | `src/inter_agent/core/` | Scripting, testing, and building new adapters |
 
-Roadmap and exploratory integration notes live in [`AGENTS.PLAN.md`](AGENTS.PLAN.md) and [`IDEAS.md`](IDEAS.md). OpenCode integration work is tracked there.
+Roadmap and exploratory integration notes live in [`PLAN.md`](PLAN.md) and [`IDEAS.md`](IDEAS.md). OpenCode integration work is tracked there.
 
 ## Features
 
@@ -256,7 +256,7 @@ inter-agent/
 | [`SECURITY.md`](SECURITY.md) | Users and contributors | Security model, controls, token rotation |
 | [`ERROR_CODES.md`](ERROR_CODES.md) | Protocol developers | Canonical protocol error codes |
 | [`AGENTS.md`](AGENTS.md) | Coding agents | Repository workflow and conventions |
-| [`AGENTS.PLAN.md`](AGENTS.PLAN.md) | Contributors | Roadmap and completion tracker |
+| [`PLAN.md`](PLAN.md) | Contributors | Roadmap and completion tracker |
 
 ## Development
 

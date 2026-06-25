@@ -1,6 +1,6 @@
 # Ideas
 
-This file holds promising work that is not required for project completion as defined in `AGENTS.PLAN.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
+This file holds promising work that is not required for project completion as defined in `PLAN.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
 
 ## User-suggested improvements (do not edit these; remove when completed)
 

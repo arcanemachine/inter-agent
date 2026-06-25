@@ -57,7 +57,7 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Document any degraded identity verification behavior on non-Linux platforms.
    - Document notification and inbox privacy implications.
 
-7. Update `AGENTS.PLAN.md`.
+7. Update `PLAN.md`.
    - Track OpenCode as the next extension phase.
    - State completion criteria.
    - State the Codex extension non-goal.
@@ -92,7 +92,7 @@ Make OpenCode support installable, documented, and included in the repository's 
 - `README.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`
-- `AGENTS.PLAN.md`
+- `PLAN.md`
 - `IDEAS.md`
 - `run-checks.sh`
 - Release validation scripts if package assets are included in release artifacts
