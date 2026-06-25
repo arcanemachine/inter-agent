@@ -58,7 +58,7 @@ Run the local wrapper from the repository root:
 
 You can also use the installed console scripts through `uv run`, such as `uv run inter-agent-status`.
 
-The Python checkout provides the server and helper commands used by the host extensions. Installing a host extension installs the host assets only; for now, keep a prepared inter-agent checkout or tool install available for the helper commands.
+The Python runtime provides the server and helper commands used by host extensions. Host extensions may use a prepared checkout, a managed venv, or helper commands on `PATH`; these are runtime sources only and do not change the shared default bus endpoint or state directory.
 
 To run a shared server from a checkout and point extensions at it, prepare the checkout once:
 
@@ -78,19 +78,19 @@ Pi and Claude Code sessions can use separate extension installs and still talk t
 
 ## Use from Pi
 
-Install the bundled Pi extension from a checkout of this repository:
+Install the Pi extension from this repository:
+
+```bash
+pi install https://github.com/arcanemachine/inter-agent
+```
+
+For local development, install the bundled Pi package from a checkout:
 
 ```bash
 pi install /path/to/inter-agent/integrations/pi
 ```
 
-If you are using the separately packaged Pi extension, install that package instead:
-
-```bash
-pi install https://github.com/arcanemachine/pi-inter-agent
-```
-
-The Pi extension runs helper commands from `interAgent.projectPath`. If the inter-agent checkout is somewhere other than `~/.local/share/inter-agent`, set `interAgent.projectPath` in Pi settings to that checkout.
+The Pi extension resolves helper commands from an override, a configured checkout, a Pi-managed venv, or `PATH`. If you use a checkout runtime, set `interAgent.projectPath` in Pi settings to that checkout and run `uv sync --locked` there. If no runtime is found, Pi shows a short setup-needed message; see [`integrations/pi/README.md#runtime-setup`](integrations/pi/README.md#runtime-setup).
 
 Common Pi commands:
 
@@ -211,17 +211,15 @@ If the configured endpoint is unavailable and exactly one live server is found i
 
 ## Troubleshooting
 
-### Pi reports that an inter-agent command was not found
+### Pi reports that inter-agent setup is needed
 
-Pi extension setup problems often appear as a notification like:
+Pi extension setup problems appear as a short notification pointing to the Pi runtime setup docs, for example:
 
 ```text
-[inter-agent] connect failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
+[inter-agent] setup needed. See integrations/pi/README.md#runtime-setup
 ```
 
-The Pi extension runs helper scripts from the inter-agent virtual environment under `interAgent.projectPath`. If that path is wrong, the virtual environment has not been created, or the virtual environment was created in a different filesystem path, Pi may report the helper as missing.
-
-Check the configured project path, then recreate and test the helper scripts:
+If you configured `interAgent.projectPath`, Pi fails fast when helpers are missing from that checkout. Recreate the checkout venv and test the helper directly:
 
 ```bash
 cd /path/to/inter-agent
@@ -229,7 +227,7 @@ uv sync --locked
 .venv/bin/inter-agent-pi status --json
 ```
 
-If `interAgent.projectPath` is not configured, Pi uses `~/.local/share/inter-agent`. If you cloned inter-agent somewhere else, set `interAgent.projectPath` in `.pi/settings.json` or `~/.pi/agent/settings.json`. Pi accepts absolute paths and paths relative to the settings file that declares them; `~` is supported.
+If you did not configure a checkout, use the managed Pi runtime instructions in [`integrations/pi/README.md#runtime-setup`](integrations/pi/README.md#runtime-setup).
 
 ### Name conflicts
 

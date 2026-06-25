@@ -24,18 +24,24 @@
   },
   "author": "Nicholas Moen",
   "license": "MIT",
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.49"
+  },
   "devDependencies": {
     "@mariozechner/pi-coding-agent": "^0.72.1",
-    "@sinclair/typebox": "^0.34.49",
     "@types/node": "^25.3.0",
     "prettier": "^3.8.3",
     "typescript": "^5.7.2"
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*"
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
   },
   "peerDependenciesMeta": {
     "@mariozechner/pi-coding-agent": {
+      "optional": true
+    },
+    "@mariozechner/pi-tui": {
       "optional": true
     }
   },

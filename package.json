@@ -1,0 +1,33 @@
+{
+  "name": "inter-agent-pi-package",
+  "version": "0.1.0",
+  "description": "Pi package entry point for the inter-agent message bus extension",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "inter-agent"
+  ],
+  "pi": {
+    "extensions": [
+      "./integrations/pi/src/index.ts"
+    ]
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.49"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "peerDependenciesMeta": {
+    "@mariozechner/pi-coding-agent": {
+      "optional": true
+    },
+    "@mariozechner/pi-tui": {
+      "optional": true
+    }
+  }
+}

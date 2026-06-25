@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PI_EXTENSION = ROOT / "integrations" / "pi" / "src" / "index.ts"
+ROOT_PACKAGE = ROOT / "package.json"
+PI_PACKAGE = ROOT / "integrations" / "pi" / "package.json"
 
 
 def test_pi_extension_auto_starts_server_with_bounded_idle_timeout() -> None:
@@ -13,7 +16,7 @@ def test_pi_extension_auto_starts_server_with_bounded_idle_timeout() -> None:
     assert "const AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300;" in content
     assert '"--idle-timeout"' in content
     assert "String(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S)" in content
-    assert "const ready = await ensureServerAvailable(scripts);" in content
+    assert "const ready = await ensureServerAvailable(currentScripts());" in content
 
 
 def test_pi_extension_disconnect_does_not_shutdown_server() -> None:
@@ -122,24 +125,35 @@ def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:
     assert "dataDir: resolvePathOption(config.dataDir, baseDir)" in content
 
 
-def test_pi_extension_reports_generic_command_not_found() -> None:
-    """When a helper script is missing, the message should not name a specific
-    operation like "status", because the same helper is used for setup checks
-    inside connect/rename/send and the operation name confuses users. The
-    message should include the resolved script path so users know what to fix.
+def test_pi_extension_reports_runtime_setup_guidance() -> None:
+    """Missing helpers should show short setup guidance and preserve fail-fast
+    paths for explicitly configured projectPath values.
     """
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
-    assert (
-        "stderr += `inter-agent command was not found at ${script}. "
-        "Check that inter-agent is installed and configured, then try again.`" in content
-    )
-    assert (
-        "`inter-agent server command was not found at ${scripts.server}. "
-        "Check that inter-agent is installed and configured, then try again.`" in content
-    )
-    # scriptFailureMessage must propagate the path-bearing stderr rather than
-    # replacing it with a generic message.
-    assert 'if (output.includes("not found")) {' in content
-    assert "return output;" in content
-    assert "`inter-agent ${operation} command was not found" not in content
+    assert 'const RUNTIME_SETUP_DOCS = "integrations/pi/README.md#runtime-setup"' in content
+    assert "const helper = process.env.INTER_AGENT_PI_HELPER;" in content
+    assert "config.projectPathExplicit && config.projectPath" in content
+    assert "missingConfiguredRuntimeMessage(binDir)" in content
+    assert "MANAGED_RUNTIME_VENV" in content
+    assert "pathScripts()" in content
+    assert "setupNeededMessage()" in content
+    assert "scripts.unavailableMessage" in content
+
+
+def test_root_pi_package_installs_nested_extension() -> None:
+    manifest = json.loads(ROOT_PACKAGE.read_text(encoding="utf-8"))
+
+    assert manifest["private"] is True
+    assert "pi-package" in manifest["keywords"]
+    assert manifest["pi"]["extensions"] == ["./integrations/pi/src/index.ts"]
+    assert manifest["dependencies"]["@sinclair/typebox"] == "^0.34.49"
+
+
+def test_bundled_pi_package_declares_runtime_dependencies() -> None:
+    manifest = json.loads(PI_PACKAGE.read_text(encoding="utf-8"))
+
+    assert manifest["dependencies"]["@sinclair/typebox"] == "^0.34.49"
+    assert "@sinclair/typebox" not in manifest["devDependencies"]
+    assert "@mariozechner/pi-coding-agent" in manifest["peerDependencies"]
+    assert "@mariozechner/pi-tui" in manifest["peerDependencies"]

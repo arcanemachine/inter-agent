@@ -24,14 +24,15 @@ import type { AutocompleteItem, Component } from "@mariozechner/pi-tui";
 import { Box, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, ChildProcess } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
 interface InterAgentConfig {
   projectPath?: string;
+  projectPathExplicit?: boolean;
   host?: string;
   port?: number | string;
   dataDir?: string;
@@ -42,6 +43,14 @@ interface Settings {
 }
 
 const DEFAULT_PROJECT_PATH = join(homedir(), ".local", "share", "inter-agent");
+const MANAGED_RUNTIME_VENV = join(
+  homedir(),
+  ".pi",
+  "agent",
+  "inter-agent",
+  "venv",
+);
+const RUNTIME_SETUP_DOCS = "integrations/pi/README.md#runtime-setup";
 
 function expandHome(path: string): string {
   if (path === "~") return homedir();
@@ -67,11 +76,26 @@ function resolveConfigPaths(
   };
 }
 
+function mergeConfig(
+  current: InterAgentConfig,
+  next: InterAgentConfig,
+  settingsPath: string,
+): InterAgentConfig {
+  const resolved = resolveConfigPaths(next, settingsPath);
+  return {
+    ...current,
+    ...resolved,
+    projectPathExplicit:
+      Object.prototype.hasOwnProperty.call(next, "projectPath") ||
+      current.projectPathExplicit === true,
+  };
+}
+
 function loadConfig(): InterAgentConfig {
   const globalSettingsPath = join(homedir(), ".pi", "agent", "settings.json");
   const projectSettingsPath = join(process.cwd(), ".pi", "settings.json");
 
-  let config: InterAgentConfig = { projectPath: DEFAULT_PROJECT_PATH };
+  let config: InterAgentConfig = {};
 
   // Load global settings first
   if (existsSync(globalSettingsPath)) {
@@ -80,10 +104,7 @@ function loadConfig(): InterAgentConfig {
         readFileSync(globalSettingsPath, "utf-8"),
       );
       if (parsed.interAgent) {
-        config = {
-          ...config,
-          ...resolveConfigPaths(parsed.interAgent, globalSettingsPath),
-        };
+        config = mergeConfig(config, parsed.interAgent, globalSettingsPath);
       }
     } catch {
       // Invalid JSON, ignore
@@ -97,10 +118,7 @@ function loadConfig(): InterAgentConfig {
         readFileSync(projectSettingsPath, "utf-8"),
       );
       if (parsed.interAgent) {
-        config = {
-          ...config,
-          ...resolveConfigPaths(parsed.interAgent, projectSettingsPath),
-        };
+        config = mergeConfig(config, parsed.interAgent, projectSettingsPath);
       }
     } catch {
       // Invalid JSON, ignore
@@ -110,9 +128,23 @@ function loadConfig(): InterAgentConfig {
   return config;
 }
 
-function getScripts(config: InterAgentConfig) {
-  const projectPath = config.projectPath || DEFAULT_PROJECT_PATH;
-  const binDir = join(projectPath, ".venv", "bin");
+interface InterAgentScripts {
+  pi: string;
+  connect: string;
+  server: string;
+  unavailableMessage?: string;
+}
+
+function isExecutable(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function scriptsFromBinDir(binDir: string): InterAgentScripts {
   return {
     pi: join(binDir, "inter-agent-pi"),
     connect: join(binDir, "inter-agent-connect"),
@@ -120,7 +152,78 @@ function getScripts(config: InterAgentConfig) {
   };
 }
 
-type InterAgentScripts = ReturnType<typeof getScripts>;
+function scriptsAvailable(scripts: InterAgentScripts): boolean {
+  return (
+    isExecutable(scripts.pi) &&
+    isExecutable(scripts.connect) &&
+    isExecutable(scripts.server)
+  );
+}
+
+function findPathCommand(command: string): string | null {
+  for (const dir of (process.env.PATH || "").split(delimiter)) {
+    if (!dir) continue;
+    const candidate = join(dir, command);
+    if (isExecutable(candidate)) return candidate;
+  }
+  return null;
+}
+
+function pathScripts(): InterAgentScripts | null {
+  const pi = findPathCommand("inter-agent-pi");
+  const connect = findPathCommand("inter-agent-connect");
+  const server = findPathCommand("inter-agent-server");
+  if (!pi || !connect || !server) return null;
+  return { pi, connect, server };
+}
+
+function missingConfiguredRuntimeMessage(path: string): string {
+  return `inter-agent runtime was not found at ${path}. See ${RUNTIME_SETUP_DOCS}`;
+}
+
+function setupNeededMessage(): string {
+  return `inter-agent setup needed. See ${RUNTIME_SETUP_DOCS}`;
+}
+
+function getScripts(config: InterAgentConfig): InterAgentScripts {
+  const helper = process.env.INTER_AGENT_PI_HELPER;
+  if (helper) {
+    const expanded = expandHome(helper);
+    const scripts = scriptsFromBinDir(dirname(expanded));
+    if (!scriptsAvailable(scripts) || expanded !== scripts.pi) {
+      return {
+        ...scripts,
+        unavailableMessage: `inter-agent helper override is invalid at ${expanded}. See ${RUNTIME_SETUP_DOCS}`,
+      };
+    }
+    return scripts;
+  }
+
+  if (config.projectPathExplicit && config.projectPath) {
+    const binDir = join(config.projectPath, ".venv", "bin");
+    const scripts = scriptsFromBinDir(binDir);
+    if (!scriptsAvailable(scripts)) {
+      return {
+        ...scripts,
+        unavailableMessage: missingConfiguredRuntimeMessage(binDir),
+      };
+    }
+    return scripts;
+  }
+
+  const defaultScripts = scriptsFromBinDir(
+    join(DEFAULT_PROJECT_PATH, ".venv", "bin"),
+  );
+  if (scriptsAvailable(defaultScripts)) return defaultScripts;
+
+  const managedScripts = scriptsFromBinDir(join(MANAGED_RUNTIME_VENV, "bin"));
+  if (scriptsAvailable(managedScripts)) return managedScripts;
+
+  const fromPath = pathScripts();
+  if (fromPath) return fromPath;
+
+  return { ...managedScripts, unavailableMessage: setupNeededMessage() };
+}
 
 function interAgentEnv(
   config: InterAgentConfig = loadConfig(),
@@ -298,6 +401,20 @@ function execScript(script: string, args: string[]): Promise<ScriptResult> {
   });
 }
 
+function execPiScript(
+  scripts: InterAgentScripts,
+  args: string[],
+): Promise<ScriptResult> {
+  if (scripts.unavailableMessage) {
+    return Promise.resolve({
+      stdout: "",
+      stderr: scripts.unavailableMessage,
+      code: 127,
+    });
+  }
+  return execScript(scripts.pi, args);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -319,7 +436,7 @@ async function readServerStatus(
   | { ok: true; payload: Record<string, unknown> }
   | { ok: false; message: string }
 > {
-  const result = await execScript(scripts.pi, ["status", "--json"]);
+  const result = await execPiScript(scripts, ["status", "--json"]);
   if (result.code !== 0) {
     return { ok: false, message: scriptFailureMessage(result, "status") };
   }
@@ -375,6 +492,9 @@ function statusFailureGuidance(payload: Record<string, unknown>): string {
 function startServerProcess(
   scripts: InterAgentScripts,
 ): Promise<{ ok: true; pid?: number } | { ok: false; message: string }> {
+  if (scripts.unavailableMessage) {
+    return Promise.resolve({ ok: false, message: scripts.unavailableMessage });
+  }
   return new Promise((resolve) => {
     let settled = false;
     const finish = (
@@ -595,6 +715,10 @@ function startListener(
   stopListener();
 
   const scripts = getScripts(config);
+  if (scripts.unavailableMessage) {
+    notify("[inter-agent] listener error", scripts.unavailableMessage, "error");
+    return;
+  }
   const args = [name];
   if (label) args.push("--label", label);
 
@@ -743,7 +867,7 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 
 export default function (pi: ExtensionAPI) {
   const config = loadConfig();
-  const scripts = getScripts(config);
+  const currentScripts = () => getScripts(config);
 
   // ── Custom message renderer ──────────────────────────────────────────────
   // Show a clean, user-facing summary in the TUI (from details.displayContent)
@@ -782,7 +906,7 @@ export default function (pi: ExtensionAPI) {
     currentCtx = ctx;
     const state = getConnectionState(ctx);
     if (state?.connected) {
-      const ready = await ensureServerAvailable(scripts);
+      const ready = await ensureServerAvailable(currentScripts());
       if (!ready) {
         persistState(pi, { ...state, connected: false });
         updateStatus(ctx, { ...state, connected: false });
@@ -852,7 +976,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const ready = await ensureServerAvailable(scripts);
+    const ready = await ensureServerAvailable(currentScripts());
     if (!ready) return;
 
     startListener(pi, ctx, config, parsed.name, parsed.label, {
@@ -891,7 +1015,7 @@ export default function (pi: ExtensionAPI) {
 
     const oldName = currentConnection.name;
     const label = parsed.label ?? currentConnection.label;
-    const ready = await ensureServerAvailable(scripts);
+    const ready = await ensureServerAvailable(currentScripts());
     if (!ready) return;
 
     startListener(pi, ctx, config, parsed.name, label, { notifyOnReady: true });
@@ -921,7 +1045,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     const name = currentConnection.name;
-    const result = await execScript(scripts.pi, [
+    const result = await execPiScript(currentScripts(), [
       "send",
       to,
       text,
@@ -955,7 +1079,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     const name = currentConnection.name;
-    const result = await execScript(scripts.pi, [
+    const result = await execPiScript(currentScripts(), [
       "broadcast",
       text,
       "--from",
@@ -974,7 +1098,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function handleList(_args: string, _ctx: ExtensionContext) {
-    const result = await execScript(scripts.pi, ["list", "--json"]);
+    const result = await execPiScript(currentScripts(), ["list", "--json"]);
     if (result.code !== 0) {
       notify(
         "[inter-agent] list failed",
@@ -1004,7 +1128,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function handleStatus(_args: string, _ctx: ExtensionContext) {
-    const result = await execScript(scripts.pi, ["status", "--json"]);
+    const result = await execPiScript(currentScripts(), ["status", "--json"]);
     if (result.code !== 0) {
       notify(
         "[inter-agent] status failed",
@@ -1098,7 +1222,7 @@ export default function (pi: ExtensionAPI) {
         );
       }
       const name = currentConnection.name;
-      const result = await execScript(scripts.pi, [
+      const result = await execPiScript(currentScripts(), [
         "send",
         to,
         text,
@@ -1138,7 +1262,7 @@ export default function (pi: ExtensionAPI) {
         );
       }
       const name = currentConnection.name;
-      const result = await execScript(scripts.pi, [
+      const result = await execPiScript(currentScripts(), [
         "broadcast",
         text,
         "--from",
@@ -1163,7 +1287,7 @@ export default function (pi: ExtensionAPI) {
     description: "List all connected agent sessions on the inter-agent bus",
     parameters: Type.Object({}),
     async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
-      const result = await execScript(scripts.pi, ["list", "--json"]);
+      const result = await execPiScript(currentScripts(), ["list", "--json"]);
       if (result.code !== 0) {
         throw new Error(`List failed: ${scriptFailureMessage(result, "list")}`);
       }
@@ -1235,7 +1359,7 @@ export default function (pi: ExtensionAPI) {
     description: "Check the status of the inter-agent server",
     parameters: Type.Object({}),
     async execute(_toolCallId, _params, _signal, _onUpdate, _ctx) {
-      const result = await execScript(scripts.pi, ["status", "--json"]);
+      const result = await execPiScript(currentScripts(), ["status", "--json"]);
       if (result.code !== 0) {
         throw new Error(
           `Status check failed: ${scriptFailureMessage(result, "status")}`,

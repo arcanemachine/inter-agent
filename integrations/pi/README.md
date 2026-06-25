@@ -12,55 +12,83 @@ Pi extension for connecting to the [inter-agent](https://github.com/arcanemachin
 
 ## Installation
 
-### 1. Install inter-agent
-
-The extension needs the inter-agent package installed locally. Clone it to the default path:
+Install from the repository root as a Pi git package:
 
 ```bash
-git clone https://github.com/arcanemachine/inter-agent ~/.local/share/inter-agent
-cd ~/.local/share/inter-agent
-uv sync --locked
+pi install https://github.com/arcanemachine/inter-agent
 ```
 
-If you clone to a different location, set `interAgent.projectPath` in your Pi settings (see Configuration below).
-
-### 2. Install the Pi extension
-
-From a checkout of this repository, install the bundled Pi extension:
+For local development, install the bundled Pi package from a checkout:
 
 ```bash
 pi install /path/to/inter-agent/integrations/pi
 ```
 
-If you are using the separately packaged Pi extension, install that package instead:
-
-```bash
-pi install https://github.com/arcanemachine/pi-inter-agent
-```
-
-### Direct Load (Development)
+Direct-load the extension during development with:
 
 ```bash
 pi -e /path/to/inter-agent/integrations/pi/src/index.ts
 ```
 
-## Prerequisites
+## Runtime setup
 
-The inter-agent package must be installed on your machine. The extension calls the `inter-agent-pi`, `inter-agent-connect`, and `inter-agent-server` scripts directly from the project's virtual environment. It resolves the project path in this order:
+The Pi package installs the Pi extension assets. The Python inter-agent runtime can come from a checkout, a Pi-managed venv, or existing helper commands on `PATH`. Runtime source is separate from bus state: the managed venv does not change the shared default endpoint (`127.0.0.1:16837`) or the normal inter-agent state directory.
 
-1. `interAgent.projectPath` from `.pi/settings.json` or `~/.pi/agent/settings.json`
-2. `~/.local/share/inter-agent` (default fallback)
+The extension resolves helpers in this order:
 
-If you cloned inter-agent to a location other than `~/.local/share/inter-agent`, you must set `interAgent.projectPath` in your Pi settings. Otherwise the extension will fail with a generic setup message.
+1. `INTER_AGENT_PI_HELPER`, as an exact path to `inter-agent-pi`.
+2. `interAgent.projectPath` from `.pi/settings.json` or `~/.pi/agent/settings.json`, using `<projectPath>/.venv/bin`.
+3. legacy checkout fallback at `~/.local/share/inter-agent`, only when helper scripts already exist there.
+4. Pi-managed runtime at `~/.pi/agent/inter-agent/venv`.
+5. `inter-agent-pi`, `inter-agent-connect`, and `inter-agent-server` on `PATH`.
 
-## Configuration
+If no runtime is found, Pi reports setup needed and points back to this section.
 
-You can override the inter-agent project path and endpoint in your Pi `settings.json`. These are the default values; only set a key when you want a non-default value:
+### Checkout runtime
+
+Use a checkout when developing inter-agent or when you want explicit local control:
+
+```bash
+git clone https://github.com/arcanemachine/inter-agent /path/to/inter-agent
+cd /path/to/inter-agent
+uv sync --locked
+```
+
+Then configure Pi:
 
 ```json
 {
   "interAgent": {
-    "projectPath": "~/.local/share/inter-agent",
+    "projectPath": "/path/to/inter-agent"
+  }
+}
+```
+
+An explicit `projectPath` is fail-fast. If helpers are missing from that checkout, the extension reports the expected path instead of silently falling through to another runtime.
+
+### Managed runtime
+
+Create the Pi-managed venv manually when you do not want a checkout runtime:
+
+```bash
+python3 -m venv ~/.pi/agent/inter-agent/venv
+~/.pi/agent/inter-agent/venv/bin/python -m pip install --upgrade \
+  https://github.com/arcanemachine/inter-agent/archive/refs/heads/main.zip
+~/.pi/agent/inter-agent/venv/bin/inter-agent-pi status --json
+```
+
+The GitHub `main` archive is a temporary pre-release install source. Release packaging should switch this to PyPI, a release tag, or a pinned archive.
+
+After creating the venv, retry the Pi command. If Pi was already running and still reports setup needed, run `/reload` or restart Pi so the extension reloads.
+
+## Configuration
+
+You can override the inter-agent project path and endpoint in your Pi `settings.json`. Only set a key when you want a non-default value:
+
+```json
+{
+  "interAgent": {
+    "projectPath": "/path/to/inter-agent",
     "host": "127.0.0.1",
     "port": 16837,
     "dataDir": "~/.local/state/inter-agent"
@@ -68,7 +96,7 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
 }
 ```
 
-Most users only need to set `projectPath` — if their inter-agent clone is somewhere other than the default `~/.local/share/inter-agent`. Leave `host`, `port`, and `dataDir` unset unless you need a non-default endpoint or state location.
+Most users should leave `host`, `port`, and `dataDir` unset so helpers use the standard shared endpoint and state discovery. Set `projectPath` only when you want Pi to use a specific checkout runtime.
 
 Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, or `dataDir` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
@@ -106,21 +134,19 @@ Tools are agent-callable; they are not user-facing slash commands.
 
 ## Troubleshooting
 
-### `inter-agent status command was not found`
+### Setup needed
 
 Pi may show this during connect or status checks:
 
 ```text
-[inter-agent] connect failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
+[inter-agent] setup needed. See integrations/pi/README.md#runtime-setup
 ```
 
-or:
+Follow [Runtime setup](#runtime-setup), then retry the command. If Pi was already running while you created a runtime, run `/reload` or restart Pi.
 
-```text
-[inter-agent] status failed: inter-agent status command was not found. Check that inter-agent is installed and configured, then try again.
-```
+### Configured checkout missing helpers
 
-The extension runs helper scripts from `<interAgent.projectPath>/.venv/bin`. This error means Pi could not run the helper script. Common causes are:
+If `interAgent.projectPath` is set and helpers are missing, Pi reports the expected `<projectPath>/.venv/bin` path. Common causes are:
 
 - `interAgent.projectPath` points to the wrong clone.
 - The inter-agent virtual environment has not been created.
@@ -132,16 +158,6 @@ Repair the local install and verify the helper directly:
 cd /path/to/inter-agent
 uv sync --locked
 .venv/bin/inter-agent-pi status --json
-```
-
-If you use a non-default clone location, make sure Pi settings contain the matching path:
-
-```json
-{
-  "interAgent": {
-    "projectPath": "/path/to/inter-agent"
-  }
-}
 ```
 
 Relative project-local example for `/workspace/.pi/settings.json`:
@@ -203,27 +219,15 @@ If the server connection closes unexpectedly, the listener reconnects automatica
 
 To verify the extension works end-to-end:
 
-1. **Install inter-agent** (one time):
+1. **Install the extension** (one time):
 
    ```bash
-   git clone https://github.com/arcanemachine/inter-agent ~/.local/share/inter-agent
-   cd ~/.local/share/inter-agent
-   uv sync --locked
+   pi install https://github.com/arcanemachine/inter-agent
    ```
 
-2. **Install the extension** (one time):
+2. **Prepare a runtime** with either `interAgent.projectPath` or the managed venv from [Runtime setup](#runtime-setup).
 
-   ```bash
-   pi install https://github.com/arcanemachine/pi-inter-agent
-   ```
-
-3. **Start Pi with the extension**:
-
-   ```bash
-   pi -e /path/to/pi-inter-agent/src/index.ts
-   ```
-
-4. **Run these commands in Pi** and confirm each works:
+3. **Run these commands in Pi** and confirm each works:
    - `/inter-agent connect test-agent` → should auto-start the server if needed, then show "connected"
    - `/inter-agent status` → should show "State: available"
    - `/inter-agent list` → should show "no agents connected" (or your own session)
@@ -232,12 +236,12 @@ To verify the extension works end-to-end:
    - `/inter-agent rename test-agent-2` → should reconnect under the new name
    - `/inter-agent disconnect` → should show "disconnected"
 
-5. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.
+4. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.
 
 ## Development
 
 ```bash
-cd /path/to/pi/pi-inter-agent
+cd /path/to/inter-agent/integrations/pi
 npm install
 npm run typecheck
 npm run build

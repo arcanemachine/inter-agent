@@ -329,6 +329,10 @@ Create or extract a `pi-inter-agent` npm/Pi package for distribution. The packag
 3. Should Pi distribution be solved in this repository first or through a separate package repository?
 4. Does Pi support installing this nested package directly, or is a separate root package required?
 
+### Recorded result
+
+Milestone 3 is complete. The repository root now has Pi package metadata so `pi install https://github.com/arcanemachine/inter-agent` can load the nested Pi extension. The nested `integrations/pi` package remains installable for local and separate-package workflows. Pi runtime resolution now supports an exact `INTER_AGENT_PI_HELPER` override, explicit `interAgent.projectPath` with fail-fast missing-helper errors, the legacy `~/.local/share/inter-agent` checkout when present, a Pi-managed runtime at `~/.pi/agent/inter-agent/venv`, and helper commands on `PATH`. There is no automatic bootstrap command; missing runtime failures stay short and point to `integrations/pi/README.md#runtime-setup`. The managed runtime uses the same temporary GitHub `main` archive documented for Claude and remains release packaging debt.
+
 ## Milestone 4: Cross-harness interoperability validation
 
 ### Goal
