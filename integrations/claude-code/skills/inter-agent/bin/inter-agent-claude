@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DOCS="integrations/claude-code/README.md#runtime-setup"
+MANAGED_VENV="${INTER_AGENT_CLAUDE_VENV:-$HOME/.claude/data/inter-agent/venv}"
+MANAGED_HELPER="$MANAGED_VENV/bin/inter-agent-claude"
+
+expand_path() {
+  local value="$1"
+  case "$value" in
+    "~") printf '%s\n' "$HOME" ;;
+    "~/"*) printf '%s/%s\n' "$HOME" "${value#~/}" ;;
+    *) printf '%s\n' "$value" ;;
+  esac
+}
+
+fail() {
+  printf '[inter-agent] setup failed: %s. See %s\n' "$1" "$DOCS" >&2
+  exit "${2:-127}"
+}
+
+if [[ "${1:-}" == "bootstrap" ]]; then
+  shift
+  exec "$SCRIPT_DIR/bootstrap-runtime" "$@"
+fi
+
+if [[ -n "${INTER_AGENT_CLAUDE_HELPER:-}" ]]; then
+  helper="$(expand_path "$INTER_AGENT_CLAUDE_HELPER")"
+  if [[ ! -x "$helper" || -d "$helper" ]]; then
+    fail "helper from INTER_AGENT_CLAUDE_HELPER not executable: $helper"
+  fi
+  exec "$helper" "$@"
+fi
+
+if [[ -n "${CLAUDE_PLUGIN_OPTION_PROJECT_PATH:-}" ]]; then
+  project_path="$(expand_path "$CLAUDE_PLUGIN_OPTION_PROJECT_PATH")"
+  helper="$project_path/.venv/bin/inter-agent-claude"
+  if [[ ! -x "$helper" || -d "$helper" ]]; then
+    fail "configured project_path helper not found: $helper"
+  fi
+  exec "$helper" "$@"
+fi
+
+if [[ -x "$MANAGED_HELPER" && ! -d "$MANAGED_HELPER" ]]; then
+  exec "$MANAGED_HELPER" "$@"
+fi
+
+path_helper="$(command -v inter-agent-claude || true)"
+if [[ -n "$path_helper" && "$path_helper" != "$SCRIPT_DIR/inter-agent-claude" ]]; then
+  exec "$path_helper" "$@"
+fi
+
+printf '[inter-agent] setup needed: run /inter-agent bootstrap. See %s\n' "$DOCS" >&2
+exit 127

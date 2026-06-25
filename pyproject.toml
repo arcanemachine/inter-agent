@@ -55,6 +55,7 @@ where = ["src"]
 "share/inter-agent/spec/examples" = ["spec/examples/*.json"]
 "share/inter-agent/integrations/claude-code" = ["integrations/claude-code/README.md"]
 "share/inter-agent/integrations/claude-code/skills/inter-agent" = ["integrations/claude-code/skills/inter-agent/SKILL.md", "integrations/claude-code/skills/inter-agent/bootstrap.md"]
+"share/inter-agent/integrations/claude-code/skills/inter-agent/bin" = ["integrations/claude-code/skills/inter-agent/bin/inter-agent-claude", "integrations/claude-code/skills/inter-agent/bin/bootstrap-runtime"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

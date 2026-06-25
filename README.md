@@ -127,12 +127,17 @@ For development, load the plugin directly instead:
 claude --plugin-dir ./integrations/claude-code
 ```
 
-Both modes require the `inter-agent-claude` command to be on the Claude Code session's `PATH`; plugin installation installs only the Claude Code assets. For a checkout runtime, start Claude Code with that checkout's virtual environment on `PATH` or install the package as an isolated tool:
+The plugin includes a small runtime wrapper. It can use a configured local checkout, a Claude-managed venv, or `inter-agent-claude` on `PATH`.
+
+For a local checkout runtime:
 
 ```bash
-PATH=/path/to/inter-agent/.venv/bin:$PATH claude
-# or: pipx install -e /path/to/inter-agent
+cd /path/to/inter-agent
+uv sync --locked
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
 ```
+
+For a managed runtime, run `/inter-agent bootstrap` in Claude Code. The skill asks for approval before creating `~/.claude/data/inter-agent/venv` and installing the Python runtime. The managed venv is only a runtime source; it does not change the shared default bus endpoint or state directory.
 
 Common Claude Code commands:
 

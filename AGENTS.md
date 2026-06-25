@@ -55,7 +55,7 @@ This file is for coding agents working in this repository.
   - `claude plugin marketplace add /path/to/inter-agent`
   - `claude plugin install inter-agent`
   - `claude plugin details inter-agent`
-- Claude persistent plugin installation installs Claude Code assets only. Until managed runtime setup is implemented, the session still needs `inter-agent-claude` available on `PATH` or equivalent checkout environment.
+- Claude persistent plugin installation installs Claude Code assets and uses a bundled wrapper in `skills/inter-agent/bin/`. Runtime resolution is: `INTER_AGENT_CLAUDE_HELPER`, plugin `project_path` config, Claude-managed venv, then `inter-agent-claude` on `PATH`.
 - The bundled Pi extension can be installed from `integrations/pi`, while separately packaged Pi distribution may use its own repository/package. Pi currently resolves helper commands from `interAgent.projectPath` and defaults that path to `~/.local/share/inter-agent`.
 
 ## Design boundary

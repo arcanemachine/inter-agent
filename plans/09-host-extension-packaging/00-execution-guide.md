@@ -267,15 +267,23 @@ Cons:
 - The plugin must not change the default bus token/data directory to a Claude-specific location.
 - A local development checkout override should remain possible.
 
-### Open decisions
+### Recorded decision
 
-Before implementation, decide:
+Milestone 2 uses a bundled Claude skill wrapper and guided managed-runtime bootstrap rather than a silent install. The wrapper resolves runtime helpers in this order:
 
-1. Should Claude setup remain PATH-based for now?
-2. Should a managed venv be introduced immediately after installability is proven?
-3. If managed venv is introduced, should setup be explicit (`/inter-agent install-deps`), automatic after missing dependency, or documentation-only?
-4. What core install source should the venv use before registry release: git tag, branch, or local checkout?
-5. How should users reset or upgrade the managed venv?
+1. `INTER_AGENT_CLAUDE_HELPER`, an exact executable path override.
+2. Claude plugin `project_path` config, using `<project_path>/.venv/bin/inter-agent-claude`.
+3. Claude-managed venv helper at `~/.claude/data/inter-agent/venv/bin/inter-agent-claude`.
+4. `inter-agent-claude` on PATH.
+5. A short setup-needed message that points to runtime setup docs.
+
+The managed bootstrap creates or reuses `~/.claude/data/inter-agent/venv` only after explicit user approval and a required `--yes` flag. It does not change the default inter-agent bus endpoint or state directory. The temporary pre-release install source is the GitHub `main` archive; future release work should switch managed bootstrap to a stable PyPI release, tag, or pinned archive.
+
+### Recorded result
+
+Milestone 2 is complete. The Claude plugin now ships a skill-local wrapper and gated bootstrap script. The skill invokes the wrapper for Monitor and short-lived commands, documents the `project_path` plugin config and `INTER_AGENT_CLAUDE_HELPER` override, and requires explicit approval before managed runtime installation. Static tests cover wrapper resolution, setup-needed output, bootstrap approval gating, plugin config metadata, and package data. `claude plugin validate --strict .`, `claude plugin validate --strict integrations/claude-code`, and the repository quality gate pass. Local persistent installation with `claude plugin marketplace add /workspace/projects/inter-agent` and `claude plugin install inter-agent --config project_path=/workspace/projects/inter-agent` still exposes the `inter-agent` skill.
+
+The managed bootstrap source remains the GitHub `main` archive as a temporary pre-release choice. Switching to PyPI, a release tag, or a pinned archive is future release packaging work.
 
 ## Milestone 3: Pi setup and distribution parity
 

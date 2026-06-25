@@ -5,5 +5,13 @@
   "author": {
     "name": "Nicholas Moen",
     "email": "arcanemachine@gmail.com"
+  },
+  "userConfig": {
+    "project_path": {
+      "type": "string",
+      "title": "inter-agent project path",
+      "description": "Optional local inter-agent checkout. When set, the plugin uses <project_path>/.venv/bin/inter-agent-claude before the managed runtime or PATH.",
+      "default": ""
+    }
   }
 }

@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOCS="integrations/claude-code/README.md#runtime-setup"
+DEFAULT_SOURCE="https://github.com/arcanemachine/inter-agent/archive/refs/heads/main.zip"
+VENV="${INTER_AGENT_CLAUDE_VENV:-$HOME/.claude/data/inter-agent/venv}"
+SOURCE="${INTER_AGENT_CLAUDE_BOOTSTRAP_SOURCE:-$DEFAULT_SOURCE}"
+PYTHON_OVERRIDE="${INTER_AGENT_CLAUDE_BOOTSTRAP_PYTHON:-}"
+YES=false
+
+expand_path() {
+  local value="$1"
+  case "$value" in
+    "~") printf '%s\n' "$HOME" ;;
+    "~/"*) printf '%s/%s\n' "$HOME" "${value#~/}" ;;
+    *) printf '%s\n' "$value" ;;
+  esac
+}
+
+fail() {
+  printf '[inter-agent] setup failed: %s. See %s\n' "$1" "$DOCS" >&2
+  exit "${2:-1}"
+}
+
+usage() {
+  cat <<EOF
+Usage: inter-agent-claude bootstrap --yes [--source URL_OR_PATH] [--venv PATH] [--python PATH]
+
+Creates the Claude-managed inter-agent runtime venv. Requires --yes so the
+skill can ask the user for approval before installing anything.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --yes)
+      YES=true
+      ;;
+    --source)
+      shift
+      [[ $# -gt 0 ]] || fail "--source requires a value" 2
+      SOURCE="$1"
+      ;;
+    --venv)
+      shift
+      [[ $# -gt 0 ]] || fail "--venv requires a value" 2
+      VENV="$1"
+      ;;
+    --python)
+      shift
+      [[ $# -gt 0 ]] || fail "--python requires a value" 2
+      PYTHON_OVERRIDE="$1"
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      fail "unknown bootstrap option: $1" 2
+      ;;
+  esac
+  shift
+done
+
+if [[ "$YES" != true ]]; then
+  printf '[inter-agent] setup approval required: rerun bootstrap with --yes. See %s\n' "$DOCS" >&2
+  exit 2
+fi
+
+VENV="$(expand_path "$VENV")"
+
+check_python() {
+  "$1" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+    >/dev/null 2>&1
+}
+
+PYTHON=""
+if [[ -n "$PYTHON_OVERRIDE" ]]; then
+  candidate="$(expand_path "$PYTHON_OVERRIDE")"
+  if [[ -x "$candidate" && ! -d "$candidate" ]] && check_python "$candidate"; then
+    PYTHON="$candidate"
+  fi
+fi
+
+if [[ -z "$PYTHON" ]]; then
+  for candidate in python3 python; do
+    resolved="$(command -v "$candidate" || true)"
+    if [[ -n "$resolved" ]] && check_python "$resolved"; then
+      PYTHON="$resolved"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$PYTHON" ]]; then
+  fail "Python 3.10+ not found"
+fi
+
+printf '[inter-agent] installing runtime from %s into %s\n' "$SOURCE" "$VENV"
+
+if ! "$PYTHON" -m venv "$VENV"; then
+  fail "could not create venv at $VENV"
+fi
+
+VENV_PYTHON="$VENV/bin/python"
+if [[ ! -x "$VENV_PYTHON" ]]; then
+  fail "venv python not found: $VENV_PYTHON"
+fi
+
+if ! "$VENV_PYTHON" -m pip install --upgrade "$SOURCE"; then
+  fail "runtime install failed"
+fi
+
+HELPER="$VENV/bin/inter-agent-claude"
+if [[ ! -x "$HELPER" ]]; then
+  fail "installed helper missing: $HELPER"
+fi
+
+printf '[inter-agent] runtime installed in %s\n' "$VENV"

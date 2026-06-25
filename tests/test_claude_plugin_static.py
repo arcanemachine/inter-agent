@@ -30,6 +30,12 @@ def test_claude_marketplace_manifest_points_to_claude_plugin() -> None:
     assert plugin_manifest["author"]["email"] == plugin["author"]["email"]
     assert plugin["category"] == "productivity"
 
+    user_config = plugin_manifest["userConfig"]
+    project_path = user_config["project_path"]
+    assert project_path["type"] == "string"
+    assert project_path["default"] == ""
+    assert ".venv/bin/inter-agent-claude" in project_path["description"]
+
     source = plugin["source"]
     assert source == "./integrations/claude-code"
     assert not source.startswith("/")

@@ -18,9 +18,13 @@ def test_claude_skill_references_bootstrap_guidance() -> None:
     assert "not actionable for" in skill
     assert "user work or coordination, do not reply" in skill
     assert "/inter-agent rename <name>" in skill
-    assert "pipx install -e <path-to-inter-agent>" in bootstrap
-    assert "uv tool install --from <path-to-inter-agent> ." in bootstrap
-    assert "do **not** install" in bootstrap
+    assert "Base directory for this skill" in skill
+    assert "<bin>/inter-agent-claude" in skill
+    assert "/inter-agent bootstrap" in skill
+    assert "CLAUDE_PLUGIN_OPTION_PROJECT_PATH" in bootstrap
+    assert "~/.claude/data/inter-agent/venv" in bootstrap
+    assert "refs/heads/main.zip" in bootstrap
+    assert "--yes" in bootstrap
 
 
 def test_claude_skill_bootstrap_is_packaged() -> None:
@@ -30,3 +34,7 @@ def test_claude_skill_bootstrap_is_packaged() -> None:
 
     assert "integrations/claude-code/skills/inter-agent/SKILL.md" in skill_assets
     assert "integrations/claude-code/skills/inter-agent/bootstrap.md" in skill_assets
+
+    bin_assets = data_files["share/inter-agent/integrations/claude-code/skills/inter-agent/bin"]
+    assert "integrations/claude-code/skills/inter-agent/bin/inter-agent-claude" in bin_assets
+    assert "integrations/claude-code/skills/inter-agent/bin/bootstrap-runtime" in bin_assets

@@ -36,17 +36,34 @@ For development, load the plugin directly from a checkout instead:
 claude --plugin-dir ./integrations/claude-code
 ```
 
-Both modes use the same runtime model: `inter-agent-claude` must be on `PATH` for the Claude Code session. Plugin installation installs the Claude Code assets only; it does not install the Python adapter command.
+Installed plugins can also be configured with a local checkout runtime:
 
-For a checkout runtime, prepare the Python environment and start Claude Code with that checkout's helper scripts on `PATH`:
+```bash
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
+```
+
+If the plugin is already installed, use Claude Code's `/plugin configure` flow to set `project_path`.
+
+## Runtime setup
+
+The skill calls its bundled `skills/inter-agent/bin/inter-agent-claude` wrapper rather than requiring `inter-agent-claude` to be on `PATH`. The wrapper resolves the runtime helper in this order:
+
+1. `INTER_AGENT_CLAUDE_HELPER`, an exact executable path override.
+2. Claude plugin `project_path` config, using `<project_path>/.venv/bin/inter-agent-claude`.
+3. Claude-managed venv helper at `~/.claude/data/inter-agent/venv/bin/inter-agent-claude`.
+4. `inter-agent-claude` on `PATH`.
+
+For a checkout runtime, prepare the Python environment in the checkout and configure `project_path`:
 
 ```bash
 cd /path/to/inter-agent
 uv sync --locked
-PATH=/path/to/inter-agent/.venv/bin:$PATH claude
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
 ```
 
-Alternatively, install the helper as an isolated Python tool, as described in `skills/inter-agent/bootstrap.md`.
+For a managed runtime, run `/inter-agent bootstrap` from Claude Code. The skill will explain that it will create or reuse `~/.claude/data/inter-agent/venv`, install the Python runtime from the GitHub `main` archive, and leave the shared bus endpoint/state defaults unchanged. It must ask for explicit approval before running `inter-agent-claude bootstrap --yes` through the wrapper.
+
+The GitHub `main` archive is a pre-release bootstrap source. Future release work should switch managed bootstrap to a stable PyPI release, tag, or pinned archive.
 
 Then connect from inside Claude Code:
 
@@ -56,7 +73,7 @@ Then connect from inside Claude Code:
 
 The listener auto-starts the local server when needed. Auto-started servers use a 300-second idle timeout. Manually started servers run until explicit shutdown unless started with `--idle-timeout <seconds>`.
 
-The plugin monitor runs the normal `inter-agent-claude` CLI. It uses the same endpoint and state discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
+The plugin monitor runs the bundled wrapper, which delegates to the selected `inter-agent-claude` CLI. The helper uses the same endpoint and state discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
 
 To use a server started from a separate checkout, run that server with the endpoint and state settings you want, then start Claude Code with matching `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR` values if they differ from the defaults. With default settings, Claude Code and Pi use the same `127.0.0.1:16837` bus and platform inter-agent state directory.
 
