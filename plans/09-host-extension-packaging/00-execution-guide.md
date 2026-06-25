@@ -351,6 +351,18 @@ Prove that the setup model keeps cross-harness communication working.
 
 Separate runtime installs must not imply separate buses.
 
+### Recorded result
+
+Milestone 4 is complete. Local live validation used isolated temporary state directories and ports, plus temporary managed-runtime helper directories, to verify bidirectional Claude-to-Pi and Pi-to-Claude delivery for these cases:
+
+1. Claude using `PATH` helpers with Pi using the checkout runtime represented by configured `projectPath`.
+2. Claude using a Claude-managed runtime with Pi using the checkout runtime represented by configured `projectPath`.
+3. Claude and Pi using separate managed runtime directories with zero bus configuration, sharing the default `127.0.0.1:16837` endpoint and platform state directory under the same home directory.
+4. Claude and Pi using separate runtime/home directories with an explicitly shared `INTER_AGENT_PORT` and `INTER_AGENT_DATA_DIR`.
+5. Intentional isolation by putting Claude and Pi on different explicit endpoints/state directories, where cross-bus delivery fails with `UNKNOWN_TARGET`.
+
+The validation did not run the gated Claude bootstrap installer or create a real Pi managed venv from the GitHub archive; those install paths remain documented setup flows. The interoperability result confirms that separate runtime sources do not imply separate buses.
+
 ## Milestone 5: Repository/package split decision
 
 ### Goal

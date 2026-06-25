@@ -6,7 +6,7 @@ The roadmap is the high-level view. Detailed sub-agent-ready work items live und
 
 ## Current immediate priority
 
-Continue `plans/09-host-extension-packaging/00-execution-guide.md` with Milestone 4: cross-harness interoperability validation after the Claude and Pi installability/runtime setup milestones. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
+Continue `plans/09-host-extension-packaging/00-execution-guide.md` with Milestone 5: repository/package split decision after cross-harness interoperability validation. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
 
 ## Scope
 
@@ -185,6 +185,7 @@ Completion criteria:
 - Claude Code persistent plugin installability is proven or blockers are documented.
 - Runtime setup behavior is simplified without changing the shared default bus state/token directory.
 - Pi setup and distribution gaps are reviewed after the Claude installability proof.
+- Cross-harness interoperability is validated across separate runtime sources and shared bus settings.
 - Repository/package split or superproject layout work is deferred unless it is still necessary after installability and setup pain are addressed.
 
 ## Completion standard

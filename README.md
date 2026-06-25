@@ -209,6 +209,14 @@ State files, including the shared token and server lifecycle metadata, use `INTE
 
 If the configured endpoint is unavailable and exactly one live server is found in the configured data directory, client commands use that discovered server. If multiple live servers are found, status output lists them so the endpoint can be set explicitly.
 
+## Cross-harness interoperability
+
+Runtime source and bus state are separate. Claude Code can use a configured checkout, a Claude-managed venv, or `PATH` helpers while Pi uses a configured checkout, a Pi-managed venv, or `PATH` helpers. Those sessions still share the same bus when the endpoint and state settings match.
+
+For normal local use, leave `host`, `port`, and `dataDir` unset in both integrations. Claude Code and Pi then use the shared default bus at `127.0.0.1:16837` with the platform inter-agent state directory. If you intentionally want separate buses, set a different `port` and/or `dataDir` for one integration.
+
+A quick interoperability check is to connect one Claude Code session and one Pi session, run `/inter-agent list` in either host, then send a direct message in each direction.
+
 ## Troubleshooting
 
 ### Pi reports that inter-agent setup is needed
