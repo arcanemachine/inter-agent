@@ -24,6 +24,20 @@ At minimum, confirm:
 
 Do not proceed past this checkpoint without explicit user acceptance.
 
+## Eventual packaging direction
+
+The intended end state is not a permanently tangled repository where the core, Claude Code plugin, and Pi extension all depend on a checkout layout.
+
+The expected direction is tentative: it is understood to be a good direction based on current information, but it should be reviewed again before execution when the final packaging state is determined. The likely shape is a cleaner monorepo-ish or superproject layout with explicit package boundaries:
+
+- the host-agnostic `inter-agent` core is published as a reusable Python package, such as a PyPI package;
+- the Claude Code plugin is independently installable and deployable through Claude Code's plugin system;
+- the Pi extension is independently installable and deployable through Pi's extension system;
+- host extensions remain thin, host-specific adapters that install or invoke the shared core runtime rather than redefining protocol behavior;
+- separate host extension runtimes still default to the same inter-agent bus endpoint and state so cross-harness messaging works without extra configuration.
+
+The current phase is a half step toward that end state. It keeps the combined repository layout long enough to prove persistent extension installability and runtime setup behavior before deciding whether to keep a monorepo, move to a package-oriented superproject, or split repositories.
+
 ## Key model: runtime source and bus state are separate
 
 Keep these two concerns independent.
