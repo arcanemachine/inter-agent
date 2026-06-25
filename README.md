@@ -58,13 +58,39 @@ Run the local wrapper from the repository root:
 
 You can also use the installed console scripts through `uv run`, such as `uv run inter-agent-status`.
 
+The Python checkout provides the server and helper commands used by the host extensions. Installing a host extension installs the host assets only; for now, keep a prepared inter-agent checkout or tool install available for the helper commands.
+
+To run a shared server from a checkout and point extensions at it, prepare the checkout once:
+
+```bash
+git clone <repo-url> /path/to/inter-agent
+cd /path/to/inter-agent
+uv sync --locked
+```
+
+Then either let a host listener auto-start the server, or start it manually:
+
+```bash
+uv run inter-agent-server
+```
+
+Pi and Claude Code sessions can use separate extension installs and still talk to each other as long as their helpers use the same endpoint and state settings. The defaults already share `127.0.0.1:16837` and the platform inter-agent state directory.
+
 ## Use from Pi
 
-Install the Pi extension:
+Install the bundled Pi extension from a checkout of this repository:
+
+```bash
+pi install /path/to/inter-agent/integrations/pi
+```
+
+If you are using the separately packaged Pi extension, install that package instead:
 
 ```bash
 pi install https://github.com/arcanemachine/pi-inter-agent
 ```
+
+The Pi extension runs helper commands from `interAgent.projectPath`. If the inter-agent checkout is somewhere other than `~/.local/share/inter-agent`, set `interAgent.projectPath` in Pi settings to that checkout.
 
 Common Pi commands:
 
@@ -81,10 +107,31 @@ See [`integrations/pi/README.md`](integrations/pi/README.md) for setup, configur
 
 ## Use from Claude Code
 
-Load the Claude Code plugin from a checkout of this repository:
+Install the Claude Code plugin persistently from this repository's marketplace metadata:
+
+```bash
+claude plugin marketplace add /path/to/inter-agent
+claude plugin install inter-agent
+```
+
+From GitHub, use the repository URL as the marketplace source:
+
+```bash
+claude plugin marketplace add https://github.com/arcanemachine/inter-agent
+claude plugin install inter-agent
+```
+
+For development, load the plugin directly instead:
 
 ```bash
 claude --plugin-dir ./integrations/claude-code
+```
+
+Both modes require the `inter-agent-claude` command to be on the Claude Code session's `PATH`; plugin installation installs only the Claude Code assets. For a checkout runtime, start Claude Code with that checkout's virtual environment on `PATH` or install the package as an isolated tool:
+
+```bash
+PATH=/path/to/inter-agent/.venv/bin:$PATH claude
+# or: pipx install -e /path/to/inter-agent
 ```
 
 Common Claude Code commands:

@@ -6,7 +6,7 @@ The roadmap is the high-level view. Detailed sub-agent-ready work items live und
 
 ## Current immediate priority
 
-Work `plans/09-host-extension-packaging/00-execution-guide.md` next. This phase starts with a required user discussion to settle the installability and setup model for the Claude Code and Pi extensions, then proceeds through narrowly scoped milestones. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
+Continue `plans/09-host-extension-packaging/00-execution-guide.md` with Milestone 2: decide and implement the Claude runtime setup model. Milestone 1 proved Claude persistent plugin installation from the repository marketplace metadata. Do not let this work get buried behind other follow-on integration tasks unless the user explicitly redirects.
 
 ## Scope
 

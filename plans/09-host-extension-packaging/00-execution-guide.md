@@ -192,6 +192,12 @@ After install, verify that `/inter-agent` skill commands are available. If `inte
 - The installed plugin exposes the `inter-agent` skill.
 - Any runtime failure due to missing `inter-agent-claude` is documented as a setup issue for Milestone 2.
 
+### Recorded result
+
+Milestone 1 is complete. The repository has root Claude marketplace metadata pointing at the Claude plugin subdirectory with relative source `./integrations/claude-code`. `claude plugin validate --strict .` and `claude plugin validate --strict integrations/claude-code` pass. Local persistent installation with `claude plugin marketplace add /workspace/projects/inter-agent`, `claude plugin install inter-agent`, and `claude plugin details inter-agent` proves the installed plugin exposes the `inter-agent` skill.
+
+The runtime model is unchanged: persistent plugin installation installs Claude Code assets only. `inter-agent-claude` still needs to be available from the Claude Code session environment until Milestone 2 changes that setup story.
+
 ## Milestone 2: Simplify Claude runtime setup
 
 ### Goal
@@ -434,6 +440,4 @@ Stop and ask the user before:
 
 ## Immediate next action
 
-The next worker should not implement immediately. First, review this plan with the user and confirm Milestone 1 as the immediate target.
-
-If accepted, proceed with Milestone 1 only: add the Claude marketplace metadata, document persistent install, test plugin installation, and report whether runtime setup remains the only blocker.
+Work Milestone 2 next: decide and implement the Claude runtime setup model that reduces or removes the manual requirement for `inter-agent-claude` to be on `PATH`. Before changing runtime behavior, confirm the Milestone 2 setup option with the user.

@@ -1,5 +1,9 @@
 {
   "name": "inter-agent",
   "version": "0.1.0",
-  "description": "Cross-platform (Claude Code, Pi coding agent, etc.) inter-agent messaging system."
+  "description": "Cross-platform (Claude Code, Pi coding agent, etc.) inter-agent messaging system.",
+  "author": {
+    "name": "Nicholas Moen",
+    "email": "arcanemachine@gmail.com"
+  }
 }

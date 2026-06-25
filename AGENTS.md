@@ -44,6 +44,20 @@ This file is for coding agents working in this repository.
 - For live-server tests, prefer `unused_tcp_port` over fixed ports to avoid local collisions.
 - For protocol examples, keep example `op` values aligned with schema filenames so validation can stay table-driven.
 
+## Host extension packaging notes
+
+- Keep the core runtime source separate from bus state. Host extensions may use different helper installs, but default interoperability depends on the shared default endpoint and state directory.
+- Claude Code marketplace metadata lives at root `.claude-plugin/marketplace.json`. A marketplace entry can point to a plugin subdirectory with a relative `source`, such as `./integrations/claude-code`; absolute sources are invalid.
+- Claude marketplace metadata should include `$schema`, `name`, `version`, `description`, `owner`, and `plugins`. Include plugin `author` metadata and keep it aligned with `integrations/claude-code/.claude-plugin/plugin.json` so `claude plugin validate --strict` stays clean.
+- Useful Claude CLI checks:
+  - `claude plugin validate --strict .`
+  - `claude plugin validate --strict integrations/claude-code`
+  - `claude plugin marketplace add /path/to/inter-agent`
+  - `claude plugin install inter-agent`
+  - `claude plugin details inter-agent`
+- Claude persistent plugin installation installs Claude Code assets only. Until managed runtime setup is implemented, the session still needs `inter-agent-claude` available on `PATH` or equivalent checkout environment.
+- The bundled Pi extension can be installed from `integrations/pi`, while separately packaged Pi distribution may use its own repository/package. Pi currently resolves helper commands from `interAgent.projectPath` and defaults that path to `~/.local/share/inter-agent`.
+
 ## Design boundary
 
 - `src/inter_agent/core/`: transport/auth/identity/routing/limits.

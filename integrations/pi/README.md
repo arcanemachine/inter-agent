@@ -19,29 +19,29 @@ The extension needs the inter-agent package installed locally. Clone it to the d
 ```bash
 git clone https://github.com/arcanemachine/inter-agent ~/.local/share/inter-agent
 cd ~/.local/share/inter-agent
-uv sync
+uv sync --locked
 ```
 
 If you clone to a different location, set `interAgent.projectPath` in your Pi settings (see Configuration below).
 
 ### 2. Install the Pi extension
 
+From a checkout of this repository, install the bundled Pi extension:
+
 ```bash
-pi install https://github.com/arcanemachine/pi-inter-agent
+pi install /path/to/inter-agent/integrations/pi
 ```
 
-Or from a local clone:
+If you are using the separately packaged Pi extension, install that package instead:
 
 ```bash
-git clone https://github.com/arcanemachine/pi-inter-agent
-cd pi-inter-agent
-pi install /path/to/pi-inter-agent
+pi install https://github.com/arcanemachine/pi-inter-agent
 ```
 
 ### Direct Load (Development)
 
 ```bash
-pi -e /path/to/pi-inter-agent/src/index.ts
+pi -e /path/to/inter-agent/integrations/pi/src/index.ts
 ```
 
 ## Prerequisites
@@ -208,7 +208,7 @@ To verify the extension works end-to-end:
    ```bash
    git clone https://github.com/arcanemachine/inter-agent ~/.local/share/inter-agent
    cd ~/.local/share/inter-agent
-   uv sync
+   uv sync --locked
    ```
 
 2. **Install the extension** (one time):

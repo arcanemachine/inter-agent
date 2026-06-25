@@ -14,13 +14,39 @@ Claude Code uses Monitor for inbound delivery. The listener connects to the loca
 
 The adapter keeps the core protocol host-agnostic: the server handles transport, authentication, routing, and lifecycle; the Claude Code adapter maps plugin commands to core APIs and turns inbound bus messages into Monitor notifications.
 
-## Start Claude Code with the plugin
+## Install or load the plugin
 
-From a checkout of this repository:
+The Claude Code plugin can be installed persistently from this repository's marketplace metadata:
+
+```bash
+claude plugin marketplace add /path/to/inter-agent
+claude plugin install inter-agent
+```
+
+From GitHub, use the repository URL as the marketplace source:
+
+```bash
+claude plugin marketplace add https://github.com/arcanemachine/inter-agent
+claude plugin install inter-agent
+```
+
+For development, load the plugin directly from a checkout instead:
 
 ```bash
 claude --plugin-dir ./integrations/claude-code
 ```
+
+Both modes use the same runtime model: `inter-agent-claude` must be on `PATH` for the Claude Code session. Plugin installation installs the Claude Code assets only; it does not install the Python adapter command.
+
+For a checkout runtime, prepare the Python environment and start Claude Code with that checkout's helper scripts on `PATH`:
+
+```bash
+cd /path/to/inter-agent
+uv sync --locked
+PATH=/path/to/inter-agent/.venv/bin:$PATH claude
+```
+
+Alternatively, install the helper as an isolated Python tool, as described in `skills/inter-agent/bootstrap.md`.
 
 Then connect from inside Claude Code:
 
@@ -31,6 +57,8 @@ Then connect from inside Claude Code:
 The listener auto-starts the local server when needed. Auto-started servers use a 300-second idle timeout. Manually started servers run until explicit shutdown unless started with `--idle-timeout <seconds>`.
 
 The plugin monitor runs the normal `inter-agent-claude` CLI. It uses the same endpoint and state discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
+
+To use a server started from a separate checkout, run that server with the endpoint and state settings you want, then start Claude Code with matching `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR` values if they differ from the defaults. With default settings, Claude Code and Pi use the same `127.0.0.1:16837` bus and platform inter-agent state directory.
 
 ## Commands
 
