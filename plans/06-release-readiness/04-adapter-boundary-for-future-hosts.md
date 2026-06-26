@@ -28,6 +28,10 @@ Confirm that the core/adapter boundary is clear enough for additional host integ
 - Future host integrations have a clear starting point.
 - Completion does not require another host adapter.
 
+## Recorded result
+
+Complete. `ARCHITECTURE.md` now defines the adapter author contract: what adapters may do, what they must preserve, what they must not redefine or bypass, and which typed core APIs are the starting point for future hosts. `README.md` points new adapter authors to that contract, and `IDEAS.md` keeps future host ideas outside completion scope until the user accepts them. No runtime or protocol changes were required.
+
 ## Files likely to change
 
 - `ARCHITECTURE.md`

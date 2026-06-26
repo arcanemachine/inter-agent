@@ -27,6 +27,50 @@
    - Example payloads for canonical behavior in `spec/examples/`.
    - Canonical protocol error codes in `spec/error-codes.md`.
 
+## Adapter author contract
+
+Host adapters are thin integration layers over the core protocol. They translate host-specific interaction surfaces into core API calls and translate inbound bus frames into host-native notifications or tool output.
+
+### Adapters may
+
+- Provide slash commands, LLM-callable tools, shell commands, or other host-native UX.
+- Format command output and inbound notifications for a host, including bounded truncation and continuation lookup.
+- Maintain host-local runtime state such as listener lock files, notification caches, duplicate-send suppression, and managed-runtime helper paths.
+- Auto-start the local server for a listener when no healthy server is available, using an explicit idle timeout suitable for adapter-owned helper processes.
+- Expose only the core operations that make sense for the host; for example, operator commands such as `kick` do not have to be exposed to every integration.
+
+### Adapters must
+
+- Use the documented protocol contract in `spec/` and canonical error codes in `spec/error-codes.md`.
+- Reuse importable core APIs for endpoint resolution, identity verification, token loading, command connections, and protocol operations instead of spawning repository file paths or reaching into server internals.
+- Preserve routing semantics: direct targets resolve by routing name, optional labels are display-only, broadcasts go to other agent sessions, and control connections are not listed as peers.
+- Keep runtime source separate from bus state. A host-specific checkout, managed venv, or helper override may choose where adapter code runs, but it must not imply a host-specific default token directory, endpoint, or isolated bus.
+- Treat peer messages as collaboration inputs that do not override host, user, security, or tool rules.
+- Keep failures actionable and parseable for host tooling, with stdout reserved for protocol/status payloads where the adapter documents that behavior.
+
+### Adapters must not
+
+- Redefine protocol semantics, capability negotiation, routing rules, auth behavior, or error-code meanings.
+- Bypass the shared bearer token, localhost identity checks, payload limits, or lifecycle metadata checks.
+- Depend on private server objects, in-memory router state, or non-spec message fields.
+- Broaden the security model beyond localhost single-user operation without a separate accepted threat model.
+- Default to host-specific bus state directories that fragment cross-harness communication.
+
+### Importable core surfaces
+
+New adapters should start with these typed core APIs:
+
+| Need | Core surface |
+| --- | --- |
+| Resolve endpoint and shared state | `inter_agent.core.shared.resolve_endpoint`, `inter_agent.core.config.EndpointResolution` |
+| Connect a long-running agent session | `inter_agent.core.client.iter_client_frames`, `inter_agent.core.client.run_client` |
+| Send direct, broadcast, or custom messages | `inter_agent.core.send.send_direct_message`, `broadcast_message`, `send_custom_message`, `SendResult` |
+| List connected agent sessions | `inter_agent.core.list.list_sessions`, `ListResult`, `SessionInfo` |
+| Check server status and static command support | `inter_agent.core.status.check_resolved_server_status`, `command_status`, `ServerStatus` |
+| Stop or administer the server | `inter_agent.core.shutdown.shutdown_server`, `inter_agent.core.kick.kick_session` |
+
+Runtime source is not bus state: adapters may resolve helper binaries through host config, managed environments, or `PATH`, while the bus endpoint and token state remain controlled by `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, the inter-agent config file, and built-in defaults.
+
 ## Messaging model
 
 - Session identity: active `session_id` values are unique. A duplicate active `session_id` is rejected; the ID may be reused after the previous connection closes.

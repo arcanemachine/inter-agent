@@ -217,6 +217,12 @@ For normal local use, leave `host`, `port`, and `dataDir` unset in both integrat
 
 A quick interoperability check is to connect one Claude Code session and one Pi session, run `/inter-agent list` in either host, then send a direct message in each direction.
 
+## Build a host adapter
+
+New host adapters should treat the Python core as the protocol and lifecycle layer, not as Pi- or Claude-specific behavior. Start with the typed core helpers documented in [`ARCHITECTURE.md#adapter-author-contract`](ARCHITECTURE.md#adapter-author-contract) for endpoint resolution, listener connections, send/broadcast/list/status, shutdown, and operator commands.
+
+Adapters may provide host-native commands, notifications, managed runtime lookup, output formatting, and continuation caches. Do not redefine protocol semantics, bypass auth or identity checks, depend on private server internals, or default to host-specific bus state that prevents cross-harness communication.
+
 ## Troubleshooting
 
 ### Pi reports that inter-agent setup is needed

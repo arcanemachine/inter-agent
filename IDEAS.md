@@ -41,7 +41,9 @@ Possible follow-up work:
 
 ### Additional host adapters
 
-Other coding-agent hosts can be added once the adapter boundary is stable. New adapters should use core APIs and must not redefine protocol semantics.
+Other coding-agent hosts can be added once the adapter boundary is stable. New host ideas belong here until the user accepts them as completion or follow-on integration scope. New adapters should use core APIs, preserve shared bus defaults, and must not redefine protocol semantics.
+
+Potential future hosts should follow the thin-adapter pattern used by Pi and Claude Code: host-native UX and notification handling around the shared core protocol, with runtime installation kept separate from bus endpoint and token state.
 
 ### Pi extension:
 

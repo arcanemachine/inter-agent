@@ -6,7 +6,7 @@ The roadmap is the high-level view. Detailed sub-agent-ready work items live und
 
 ## Current immediate priority
 
-Phase 9 installability/setup work is complete. Continue release-readiness work in `plans/06-release-readiness/`, starting with `plans/06-release-readiness/04-adapter-boundary-for-future-hosts.md`, unless the user explicitly redirects to repository extraction or another follow-on integration.
+Phase 9 installability/setup work is complete. Continue release-readiness work in `plans/06-release-readiness/`, starting with `plans/06-release-readiness/05-final-completion-review.md`, unless the user explicitly redirects to repository extraction or another follow-on integration.
 
 ## Scope
 
@@ -88,8 +88,7 @@ Goal: prepare the project for dependable use and future evolution.
 
 Plan items:
 
-1. `plans/06-release-readiness/04-adapter-boundary-for-future-hosts.md`
-2. `plans/06-release-readiness/05-final-completion-review.md`
+1. `plans/06-release-readiness/05-final-completion-review.md`
 
 Completion criteria:
 
