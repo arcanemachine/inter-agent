@@ -22,6 +22,8 @@ Items from this list should be addressed as soon as possible.
   - macOS: app files in `~/Library/Application Support/inter-agent/app`, runtime state in `~/Library/Application Support/inter-agent/state`, optional config at `~/Library/Application Support/inter-agent/config.json`.
   - Pi should use platform-appropriate default `projectPath` values and expand `~`, `$VAR`, and `${VAR}` for path-like settings such as `projectPath` and `dataDir`.
 
+- Implement pub/sub channels (the groundwork should have been laid somewhat, but needs to finish being implemented)
+
 ## Misc
 
 - Ensure README instructions are up-to-date - Include server setup and usage instructions before running the extension
