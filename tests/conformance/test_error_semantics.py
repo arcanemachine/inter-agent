@@ -31,13 +31,7 @@ async def test_auth_failure_uses_canonical_code(
         (agent_hello("token", name="Not Valid"), ErrorCode.BAD_NAME),
         ({**agent_hello("token"), "label": 42}, ErrorCode.BAD_LABEL),
         (
-            {
-                "op": "hello",
-                "token": "token",
-                "role": "agent",
-                "session_id": "a",
-                "name": "agent-a",
-            },
+            {k: v for k, v in agent_hello("token").items() if k != "capabilities"},
             ErrorCode.PROTOCOL_ERROR,
         ),
         (agent_hello("token", capabilities=[]), ErrorCode.PROTOCOL_ERROR),
@@ -52,6 +46,8 @@ async def test_handshake_validation_errors_use_canonical_codes(
 ) -> None:
     async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
         payload = dict(hello_payload)
+        if payload.get("_test_secret") == "token":
+            payload["_test_secret"] = context.token
         if payload.get("token") == "token":
             payload["token"] = context.token
         async with websockets.connect(context.url) as ws:

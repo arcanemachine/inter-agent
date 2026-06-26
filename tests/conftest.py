@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from inter_agent.core.server import run_server
-from inter_agent.core.shared import load_or_create_token
+from inter_agent.core.shared import resolve_shared_secret
 
 HOST = "127.0.0.1"
 
@@ -19,6 +19,10 @@ class LiveServer:
     host: str
     port: int
     token: str
+
+    @property
+    def secret(self) -> str:
+        return self.token
 
     @property
     def url(self) -> str:
@@ -39,7 +43,7 @@ async def live_server(
     unused_tcp_port: int,
 ) -> AsyncIterator[LiveServer]:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
+    token = resolve_shared_secret().secret
     server = LiveServer(host=HOST, port=unused_tcp_port, token=token)
     task = asyncio.create_task(run_server(server.host, server.port))
     await asyncio.sleep(0.1)

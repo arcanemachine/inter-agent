@@ -12,6 +12,12 @@
       "title": "inter-agent project path",
       "description": "Optional local inter-agent checkout. When set, the plugin uses <project_path>/.venv/bin/inter-agent-claude before the managed runtime or PATH.",
       "default": ""
+    },
+    "secret": {
+      "type": "string",
+      "title": "inter-agent shared secret",
+      "description": "Optional high-entropy shared secret passed to helpers as INTER_AGENT_SECRET for use across isolated filesystems.",
+      "default": ""
     }
   }
 }

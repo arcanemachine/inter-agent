@@ -62,7 +62,7 @@ The `listen` command auto-starts the server if it is not already running. Listen
 
 Command output is JSON-oriented. Stdout is reserved for protocol or status payloads. Stderr is reserved for local diagnostics.
 
-`status` prints a JSON status object with `state`, `host`, `port`, `server_reachable`, `identity_verified`, `message`, `core_list_supported`, `adapter_list_exposed`, `connected`, and `connected_name` fields. `connected` is true when a live listener is registered for the current Claude Code session; `connected_name` is the routing name that listener uses (or null when not connected).
+`status` prints a JSON status object with `state`, `host`, `port`, `server_reachable`, `message`, `core_list_supported`, `adapter_list_exposed`, `connected`, and `connected_name` fields. `connected` is true when a live listener is registered for the current Claude Code session; `connected_name` is the routing name that listener uses (or null when not connected).
 
 ## Permanent errors
 

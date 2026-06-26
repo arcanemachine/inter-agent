@@ -11,12 +11,13 @@ import pytest
 import websockets
 from websockets.asyncio.client import ClientConnection
 
+from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello, iter_client_frames
 from inter_agent.core.kick import kick_session
 from inter_agent.core.list import SessionInfo, list_sessions
 from inter_agent.core.send import broadcast_message, send_direct_message
 from inter_agent.core.server import run_server
-from inter_agent.core.shared import load_or_create_token
+from inter_agent.core.shared import resolve_shared_secret
 
 HOST = "127.0.0.1"
 
@@ -26,6 +27,10 @@ class ServerContext:
     host: str
     port: int
     token: str
+
+    @property
+    def secret(self) -> str:
+        return self.token
 
     @property
     def url(self) -> str:
@@ -39,7 +44,7 @@ async def running_server(
     unused_tcp_port: int,
 ) -> AsyncIterator[ServerContext]:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
+    token = resolve_shared_secret().secret
     context = ServerContext(host=HOST, port=unused_tcp_port, token=token)
     task = asyncio.create_task(run_server(context.host, context.port))
     await asyncio.sleep(0.1)
@@ -58,8 +63,9 @@ async def connect_agent(
     name: str,
     label: str | None = None,
 ) -> None:
-    await ws.send(json.dumps(build_hello(context.token, session_id, name, label)))
-    response: object = json.loads(await ws.recv())
+    response: object = json.loads(
+        await client_handshake(ws, context.secret, build_hello(session_id, name, label))
+    )
     assert isinstance(response, dict)
     assert response["op"] == "welcome"
 

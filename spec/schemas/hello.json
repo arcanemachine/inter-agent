@@ -2,10 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Hello",
   "type": "object",
-  "required": ["op", "token", "role", "session_id", "name", "capabilities"],
+  "required": ["op", "auth", "role", "session_id", "name", "capabilities"],
   "properties": {
     "op": { "const": "hello" },
-    "token": { "type": "string" },
+    "auth": {
+      "type": "object",
+      "required": ["method", "client_nonce"],
+      "properties": {
+        "method": { "const": "hmac-sha256" },
+        "client_nonce": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
     "role": { "enum": ["agent", "control"] },
     "session_id": {
       "type": "string",

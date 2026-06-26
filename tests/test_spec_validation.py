@@ -82,7 +82,7 @@ def test_hello_capabilities_schema_requires_object_and_allows_extensions() -> No
     validator = Draft202012Validator(_load_json(SPEC_DIR / "schemas" / "hello.json"))
     valid = {
         "op": "hello",
-        "token": "shared-token",
+        "auth": {"method": "hmac-sha256", "client_nonce": "client-nonce"},
         "role": "agent",
         "session_id": "sess-a",
         "name": "agent-a",

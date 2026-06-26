@@ -15,8 +15,9 @@ from websockets.asyncio.client import ClientConnection
 
 from inter_agent.adapters.pi import commands as pi_commands
 from inter_agent.adapters.pi.cli import main as pi_main
+from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello
-from inter_agent.core.shared import control_hello, write_server_identity
+from inter_agent.core.shared import control_hello
 
 
 @dataclass(frozen=True)
@@ -78,12 +79,14 @@ async def connect_agent(
     name: str,
     label: str | None = None,
 ) -> None:
-    response = await send_json(ws, build_hello(server.token, session_id, name, label))
+    response = json.loads(
+        await client_handshake(ws, server.secret, build_hello(session_id, name, label))
+    )
     assert response["op"] == "welcome"
 
 
 async def connect_control(ws: ClientConnection, server: LiveServer, session_id: str) -> None:
-    response = await send_json(ws, control_hello(server.token, session_id))
+    response = json.loads(await client_handshake(ws, server.secret, control_hello(session_id)))
     assert response["op"] == "welcome"
 
 
@@ -108,7 +111,6 @@ async def test_pi_status_reports_available_without_connected_agent(
     assert payload["host"] == live_server.host
     assert payload["port"] == live_server.port
     assert payload["server_reachable"] is True
-    assert payload["identity_verified"] is True
     assert payload["core_list_supported"] is True
     assert payload["adapter_list_exposed"] is True
 
@@ -223,7 +225,8 @@ def test_pi_cli_shutdown_unavailable_identity_returns_failure(
 
     assert result.code == 1
     assert result.stdout == ""
-    assert result.stderr == "No server is running. Start one with inter-agent-server\n"
+    assert result.stderr.startswith("inter-agent-pi: ")
+    assert "Traceback" not in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -244,22 +247,6 @@ def test_pi_cli_unavailable_identity_failures_use_stderr(
     monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
 
     result = run_pi(args)
-
-    assert result.code == 1
-    assert result.stdout == ""
-    assert result.stderr == "No server is running. Start one with inter-agent-server\n"
-
-
-def test_pi_cli_list_connection_failure_returns_error_without_traceback(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    unused_tcp_port: int,
-) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
-    write_server_identity("127.0.0.1", unused_tcp_port)
-
-    result = run_pi(["list"])
 
     assert result.code == 1
     assert result.stdout == ""

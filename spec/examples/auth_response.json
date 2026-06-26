@@ -1,0 +1,4 @@
+{
+  "op": "auth_response",
+  "client_proof": "client-proof-hex"
+}

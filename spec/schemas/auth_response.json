@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuthResponse",
+  "type": "object",
+  "required": ["op", "client_proof"],
+  "properties": {
+    "op": { "const": "auth_response" },
+    "client_proof": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

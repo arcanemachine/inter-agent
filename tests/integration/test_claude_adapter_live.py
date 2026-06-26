@@ -17,6 +17,7 @@ from inter_agent.adapters.claude import commands as claude_commands
 from inter_agent.adapters.claude.cli import main as claude_main
 from inter_agent.adapters.claude.formatting import STDOUT_CAP
 from inter_agent.adapters.claude.listener import Listener
+from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello
 from inter_agent.core.shared import control_hello
 
@@ -80,12 +81,14 @@ async def connect_agent(
     name: str,
     label: str | None = None,
 ) -> None:
-    response = await send_json(ws, build_hello(server.token, session_id, name, label))
+    response = json.loads(
+        await client_handshake(ws, server.secret, build_hello(session_id, name, label))
+    )
     assert response["op"] == "welcome"
 
 
 async def connect_control(ws: ClientConnection, server: LiveServer, session_id: str) -> None:
-    response = await send_json(ws, control_hello(server.token, session_id))
+    response = json.loads(await client_handshake(ws, server.secret, control_hello(session_id)))
     assert response["op"] == "welcome"
 
 
@@ -110,7 +113,6 @@ async def test_claude_status_reports_available_without_connected_agent(
     assert payload["host"] == live_server.host
     assert payload["port"] == live_server.port
     assert payload["server_reachable"] is True
-    assert payload["identity_verified"] is True
     assert payload["core_list_supported"] is True
     assert payload["adapter_list_exposed"] is True
 
@@ -235,7 +237,8 @@ def test_claude_cli_shutdown_unavailable_identity_returns_failure(
 
     assert result.code == 1
     assert result.stdout == ""
-    assert result.stderr == "No server is running. Start one with inter-agent-server\n"
+    assert result.stderr.startswith("inter-agent-claude: ")
+    assert "Traceback" not in result.stderr
 
 
 @pytest.mark.parametrize(

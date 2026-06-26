@@ -18,20 +18,22 @@ import json
 import logging
 import os
 import random
+import socket
 import subprocess
 import sys
 import uuid
-from collections.abc import Sequence
-from typing import TextIO
+from collections.abc import AsyncIterator, Sequence
+from typing import TextIO, cast
 
 import websockets
 
+from inter_agent.core.auth import client_handshake
+from inter_agent.core.client import build_hello
 from inter_agent.core.shared import (
     DEFAULT_HOST,
     DEFAULT_PORT,
-    load_or_create_token,
     resolve_endpoint,
-    verify_server_identity,
+    resolve_shared_secret,
 )
 
 RECONNECT_BACKOFF_MIN_S = 0.5
@@ -59,6 +61,15 @@ log = logging.getLogger("inter-agent.pi.listener")
 
 class PermanentError(Exception):
     """Raised when the server returns an error that reconnecting cannot resolve."""
+
+
+def endpoint_available(host: str, port: int) -> bool:
+    """Return True when the configured TCP endpoint accepts connections."""
+    try:
+        with socket.create_connection((host, port), timeout=0.2):
+            return True
+    except OSError:
+        return False
 
 
 def _print_frame(payload: str, output: TextIO) -> None:
@@ -107,36 +118,33 @@ async def _connect_and_stream(
     Raises PermanentError if the server rejects the connection with a
     permanent error code.
     """
-    token = load_or_create_token()
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
-        hello: dict[str, object] = {
-            "op": "hello",
-            "token": token,
-            "role": "agent",
-            "session_id": os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4())),
-            "name": name,
-            "capabilities": {},
-        }
-        if label is not None:
-            hello["label"] = label
-        await ws.send(json.dumps(hello))
 
-        first = True
+    async def handle_first_frame(text: str) -> bool:
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError:
+            return False
+        if payload.get("op") == "error":
+            code = payload.get("code", "")
+            if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
+                raise PermanentError(f"{code}: {payload.get('message', '')}")
+            return True
+        return False
+
+    async with websockets.connect(f"ws://{host}:{port}") as ws:
+        hello = build_hello(os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4())), name, label)
+        if hasattr(ws, "recv"):
+            text = await client_handshake(ws, resolve_shared_secret().secret, hello)
+        else:
+            await ws.send(json.dumps(hello))
+            iterator = cast(AsyncIterator[str], ws)
+            text = await anext(iterator)
+        _print_frame(text, output)
+        if await handle_first_frame(text):
+            return
         async for raw in ws:
             text = _text_frame(raw)
             _print_frame(text, output)
-
-            if first:
-                first = False
-                try:
-                    payload = json.loads(text)
-                except json.JSONDecodeError:
-                    continue
-                if payload.get("op") == "error":
-                    code = payload.get("code", "")
-                    if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
-                        raise PermanentError(f"{code}: {payload.get('message', '')}")
-                    return  # non-permanent error; let caller reconnect
 
 
 def _jittered_delay(backoff: float) -> float:
@@ -168,7 +176,7 @@ async def run_listener(
 
     while True:
         # Ensure the server is running, auto-starting if needed.
-        if not verify_server_identity(host, port):
+        if not endpoint_available(host, port):
             if not server_started:
                 proc = _start_server(host, port)
                 if proc is None:
@@ -182,7 +190,7 @@ async def run_listener(
             # Wait for the server to come up.
             ready = False
             for _ in range(30):
-                if verify_server_identity(host, port):
+                if endpoint_available(host, port):
                     ready = True
                     break
                 await asyncio.sleep(0.5)

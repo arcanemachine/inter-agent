@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from pathlib import Path
 
 import pytest
 import websockets
-from helpers import agent_hello, connect_agent, recv_json, running_server, send_json
+from helpers import agent_hello, connect_agent, running_server, send_json
 
 from inter_agent.core.errors import ErrorCode
 
@@ -69,29 +68,25 @@ async def test_concurrent_duplicate_name_is_rejected(
             websockets.connect(context.url) as first,
             websockets.connect(context.url) as second,
         ):
-            # Send both hello frames concurrently before reading any response
-            await asyncio.gather(
-                first.send(
-                    json.dumps(
-                        agent_hello(
-                            context.token,
-                            session_id="session-a",
-                            name="collider",
-                        ),
+            # Complete both handshakes concurrently.
+            resp_a, resp_b = await asyncio.gather(
+                send_json(
+                    first,
+                    agent_hello(
+                        context.token,
+                        session_id="session-a",
+                        name="collider",
                     ),
                 ),
-                second.send(
-                    json.dumps(
-                        agent_hello(
-                            context.token,
-                            session_id="session-b",
-                            name="collider",
-                        ),
+                send_json(
+                    second,
+                    agent_hello(
+                        context.token,
+                        session_id="session-b",
+                        name="collider",
                     ),
                 ),
             )
-            resp_a = await recv_json(first)
-            resp_b = await recv_json(second)
 
     # Exactly one welcome, one NAME_TAKEN error
     errors = [r for r in (resp_a, resp_b) if r["op"] == "error"]

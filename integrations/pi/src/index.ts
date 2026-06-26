@@ -36,6 +36,7 @@ interface InterAgentConfig {
   host?: string;
   port?: number | string;
   dataDir?: string;
+  secret?: string;
 }
 
 interface Settings {
@@ -234,6 +235,8 @@ function interAgentEnv(
     env.INTER_AGENT_PORT = String(config.port);
   }
   if (config.dataDir) env.INTER_AGENT_DATA_DIR = config.dataDir;
+  if (config.secret !== undefined)
+    env.INTER_AGENT_SECRET = String(config.secret);
   return env;
 }
 
@@ -468,18 +471,14 @@ function statusMessage(payload: Record<string, unknown>): string {
 }
 
 function shouldAutoStartServer(payload: Record<string, unknown>): boolean {
-  return (
-    statusState(payload) === "unavailable" && payload.identity_verified !== true
-  );
+  return statusState(payload) === "unavailable";
 }
 
 function statusFailureGuidance(payload: Record<string, unknown>): string {
   const message = statusMessage(payload);
   switch (statusState(payload)) {
-    case "identity_check_failed":
-      return `${message}. Try restarting the inter-agent server, then run /inter-agent status if this continues.`;
     case "auth_failed":
-      return `${message}. Try restarting the inter-agent server so clients share the same token.`;
+      return `${message}. Check that server and clients use the same inter-agent secret.`;
     case "protocol_mismatch":
       return `${message}. Another process may be using the inter-agent port; try /inter-agent status or restart the server.`;
     case "unavailable":
@@ -694,7 +693,7 @@ function formatConnectError(code: string, text: string): string {
     case "BAD_NAME":
       return `${code}: ${text}. Use lowercase letters, numbers, and hyphens; start with a letter or number; max 40 characters.`;
     case "AUTH_FAILED":
-      return `${code}: ${text}. Restart the inter-agent server and reconnect clients if tokens changed.`;
+      return `${code}: ${text}. Check that server and clients use the same inter-agent secret.`;
     case "TOO_MANY_CONNECTIONS":
       return `${code}: ${text}. Disconnect another session, then try again.`;
     default:

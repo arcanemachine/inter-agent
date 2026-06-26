@@ -42,7 +42,7 @@ class TestRunListenerReconnect:
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
 
         # Server never available and auto-start fails.
-        monkeypatch.setattr(listener, "verify_server_identity", lambda host, port: False)
+        monkeypatch.setattr(listener, "endpoint_available", lambda host, port: False)
         monkeypatch.setattr(listener, "_start_server", lambda host, port: None)
 
         real_sleep = asyncio.sleep
@@ -71,7 +71,7 @@ class TestRunListenerReconnect:
     ) -> None:
         """The listener exits immediately when the server sends a permanent error."""
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-        monkeypatch.setattr(listener, "verify_server_identity", lambda host, port: True)
+        monkeypatch.setattr(listener, "endpoint_available", lambda host, port: True)
 
         call_count = 0
 
@@ -94,7 +94,7 @@ class TestRunListenerReconnect:
     ) -> None:
         """The listener reconnects when the connection drops normally."""
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-        monkeypatch.setattr(listener, "verify_server_identity", lambda host, port: True)
+        monkeypatch.setattr(listener, "endpoint_available", lambda host, port: True)
 
         call_count = 0
 
@@ -125,7 +125,7 @@ class TestRunListenerReconnect:
     async def test_auto_starts_server_when_not_running(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """The listener auto-starts the server when identity check fails."""
+        """The listener auto-starts the server when the endpoint is unavailable."""
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
 
         verify_calls: list[tuple[str, int]] = []
@@ -134,7 +134,7 @@ class TestRunListenerReconnect:
             verify_calls.append((host, port))
             return len(verify_calls) > 2
 
-        monkeypatch.setattr(listener, "verify_server_identity", fake_verify)
+        monkeypatch.setattr(listener, "endpoint_available", fake_verify)
 
         started: list[bool] = []
 

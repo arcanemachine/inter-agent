@@ -10,6 +10,7 @@ import os
 import random
 import secrets
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -21,13 +22,7 @@ import websockets
 
 from inter_agent.adapters.claude import formatting, state
 from inter_agent.core.client import iter_client_frames
-from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
-    load_or_create_token,
-    resolve_endpoint,
-    verify_server_identity,
-)
+from inter_agent.core.shared import DEFAULT_HOST, DEFAULT_PORT, resolve_endpoint
 
 RECONNECT_BACKOFF_MIN_S = 0.5
 RECONNECT_BACKOFF_MAX_S = 4.0
@@ -55,6 +50,15 @@ _PERMANENT_ERROR_CODES = frozenset(
 )
 
 log = logging.getLogger("inter-agent.claude.listener")
+
+
+def endpoint_available(host: str, port: int) -> bool:
+    """Return True when the configured TCP endpoint accepts connections."""
+    try:
+        with socket.create_connection((host, port), timeout=0.2):
+            return True
+    except OSError:
+        return False
 
 
 class PermanentError(Exception):
@@ -178,8 +182,8 @@ class Listener:
             return 0
 
         try:
-            # Auto-start server if not running.
-            if not verify_server_identity(self.host, self.port):
+            # Auto-start server if the configured endpoint is unavailable.
+            if not endpoint_available(self.host, self.port):
                 self._server_proc = self._start_server()
                 if self._server_proc is None:
                     return 1
@@ -190,7 +194,7 @@ class Listener:
                 for _ in range(30):
                     if self._stop.is_set():
                         return 0
-                    if verify_server_identity(self.host, self.port):
+                    if endpoint_available(self.host, self.port):
                         break
                     await asyncio.sleep(0.5)
                 else:
@@ -293,7 +297,6 @@ class Listener:
         return False
 
     async def _connect_and_serve(self, ppid: int) -> None:
-        token = load_or_create_token()
         async for raw in iter_client_frames(self.host, self.port, self.name, self.label):
             try:
                 payload = json.loads(raw)
@@ -308,7 +311,6 @@ class Listener:
                         "session_id": self.session_id,
                         "name": self.name,
                         "label": self.label,
-                        "token": token,
                         "nonce": self.nonce,
                         "listener_pid": os.getpid(),
                         "host": self.host,

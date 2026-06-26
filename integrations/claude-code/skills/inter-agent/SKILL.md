@@ -20,7 +20,8 @@ path into every Bash or Monitor command. Do not paste `<bin>` literally.
 Commands call `<bin>/inter-agent-claude`, a bundled wrapper that resolves the
 runtime helper from, in order: `INTER_AGENT_CLAUDE_HELPER`, plugin
 `project_path` config, the Claude-managed venv, then `inter-agent-claude` on
-PATH. If setup is needed, read `bootstrap.md` before guessing.
+PATH. Plugin `secret` config is passed to helpers as `INTER_AGENT_SECRET`.
+If setup is needed, read `bootstrap.md` before guessing.
 
 ## Commands
 

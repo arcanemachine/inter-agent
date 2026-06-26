@@ -125,6 +125,13 @@ def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:
     assert "dataDir: resolvePathOption(config.dataDir, baseDir)" in content
 
 
+def test_pi_extension_passes_configured_secret_to_helpers() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert "secret?: string;" in content
+    assert "env.INTER_AGENT_SECRET = String(config.secret)" in content
+
+
 def test_pi_extension_reports_runtime_setup_guidance() -> None:
     """Missing helpers should show short setup guidance and preserve fail-fast
     paths for explicitly configured projectPath values.

@@ -12,16 +12,14 @@ import websockets
 from websockets.asyncio.server import ServerConnection
 from websockets.http11 import Request, Response
 
+from inter_agent.core.auth import build_auth_challenge, client_nonce_from_hello, verify_client_proof
 from inter_agent.core.errors import ErrorCode
 from inter_agent.core.router import RouterMiddleware
 from inter_agent.core.shared import (
     Limits,
-    ServerAlreadyRunningError,
-    claim_server_state,
-    load_or_create_token,
     next_msg_id,
-    remove_server_state,
     resolve_endpoint,
+    resolve_shared_secret,
     utc_now,
     validate_name,
 )
@@ -56,7 +54,7 @@ class BusServer:
     ) -> None:
         self.host = host
         self.port = port
-        self.token = load_or_create_token()
+        self.secret = resolve_shared_secret().secret
         self.limits = limits or Limits()
         self.registry: dict[str, Conn] = {}
         self.middlewares: list[RouterMiddleware] = []
@@ -117,9 +115,39 @@ class BusServer:
             if hello.get("op") != "hello":
                 await self.send_error(ws, ErrorCode.PROTOCOL_ERROR, "first op must be hello")
                 return
-            if hello.get("token") != self.token:
-                await self.send_error(ws, ErrorCode.AUTH_FAILED, "invalid token")
+
+            client_nonce = client_nonce_from_hello(hello)
+            if client_nonce is None:
+                await self.send_error(ws, ErrorCode.AUTH_FAILED, "invalid auth")
                 return
+            challenge = build_auth_challenge(
+                self.secret,
+                client_nonce=client_nonce,
+                hello=hello,
+            )
+            await ws.send(json.dumps(challenge))
+            response_raw = await ws.recv()
+            response = await self.read_object(ws, response_raw, "auth_response")
+            if response is None:
+                return
+            if response.get("op") != "auth_response":
+                await self.send_error(ws, ErrorCode.AUTH_FAILED, "invalid auth response")
+                return
+            client_proof_value = response.get("client_proof")
+            server_nonce_value = challenge.get("server_nonce")
+            if not isinstance(client_proof_value, str) or not isinstance(server_nonce_value, str):
+                await self.send_error(ws, ErrorCode.AUTH_FAILED, "invalid auth response")
+                return
+            if not verify_client_proof(
+                client_proof_value,
+                self.secret,
+                client_nonce=client_nonce,
+                server_nonce=server_nonce_value,
+                hello=hello,
+            ):
+                await self.send_error(ws, ErrorCode.AUTH_FAILED, "invalid auth")
+                return
+
             role_value = hello.get("role")
             session_id_value = hello.get("session_id")
             name_value = hello.get("name")
@@ -132,6 +160,12 @@ class BusServer:
                 return
             if not session_id_value or not isinstance(session_id_value, str):
                 await self.send_error(ws, ErrorCode.BAD_SESSION, "missing session_id")
+                return
+            raw_capabilities = hello.get("capabilities")
+            if not isinstance(raw_capabilities, dict):
+                await self.send_error(
+                    ws, ErrorCode.PROTOCOL_ERROR, "capabilities must be an object"
+                )
                 return
 
             role = role_value
@@ -160,14 +194,7 @@ class BusServer:
                 else:
                     assigned_name = f"control-{session_id[:6]}"
 
-                raw_capabilities = hello.get("capabilities")
-                if not isinstance(raw_capabilities, dict):
-                    await self.send_error(
-                        ws, ErrorCode.PROTOCOL_ERROR, "capabilities must be an object"
-                    )
-                    return
                 capabilities = {str(key): value for key, value in raw_capabilities.items()}
-
                 conn = Conn(
                     ws=ws,
                     session_id=session_id,
@@ -468,7 +495,6 @@ async def run_server(
 ) -> None:
     """Start the core WebSocket bus until the task is cancelled."""
     server = BusServer(host=host, port=port, limits=limits, idle_timeout_s=idle_timeout_s)
-    identity = claim_server_state(host, port)
     print(f"Starting inter-agent-server on {host}:{port}...")
 
     def _request_shutdown() -> None:
@@ -501,7 +527,6 @@ async def run_server(
                 loop.remove_signal_handler(sig)
             except (NotImplementedError, ValueError):
                 pass
-        remove_server_state(host, port, identity.pid)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -523,8 +548,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     endpoint = resolve_endpoint(args.host, args.port)
     try:
         asyncio.run(run_server(endpoint.host, endpoint.port, idle_timeout_s=args.idle_timeout))
-    except ServerAlreadyRunningError as exc:
-        raise SystemExit(str(exc)) from exc
+    except OSError as exc:
+        message = f"could not start inter-agent-server on {endpoint.host}:{endpoint.port}: {exc}"
+        raise SystemExit(message) from exc
     return 0
 
 

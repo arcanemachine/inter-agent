@@ -9,13 +9,8 @@ from dataclasses import dataclass
 
 import websockets
 
-from inter_agent.core.shared import (
-    control_hello,
-    identity_failure_message,
-    load_or_create_token,
-    resolve_endpoint,
-    verify_server_identity_details,
-)
+from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
+from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
 
 
 @dataclass(frozen=True)
@@ -49,13 +44,14 @@ async def kick_session(
     """
     if not name and not session_id:
         raise ValueError("kick requires a name or session_id")
-    verification = verify_server_identity_details(host, port)
-    if not verification.ok:
-        raise SystemExit(identity_failure_message(verification.reason))
-    token = load_or_create_token()
+    secret = resolve_shared_secret().secret
     async with websockets.connect(f"ws://{host}:{port}") as ws:
-        await ws.send(json.dumps(control_hello(token, f"kick-{uuid.uuid4()}")))
-        _ = await ws.recv()
+        try:
+            _ = await client_handshake(ws, secret, control_hello(f"kick-{uuid.uuid4()}"))
+        except AuthError as exc:
+            raise SystemExit(str(exc)) from exc
+        except (AuthProtocolError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise SystemExit(f"server protocol mismatch: {exc}") from exc
         msg: dict[str, object] = {"op": "kick"}
         if name:
             msg["name"] = name

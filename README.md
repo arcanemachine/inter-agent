@@ -19,7 +19,7 @@ Short-term active work lives in [`PLAN.md`](PLAN.md). Accepted prospective direc
 - **Direct messages** — send a message to one connected session by routing name.
 - **Broadcasts** — send a message to every connected agent session when the message is genuinely for everyone.
 - **Peer discovery** — list connected sessions and check server status.
-- **Local operation** — the server binds to `127.0.0.1` and uses a local shared token.
+- **Local operation** — the server binds to `127.0.0.1` and authenticates clients with a shared secret challenge-response.
 - **Adapter-friendly protocol** — any client that can speak JSON over WebSocket can join the bus.
 
 Peer messages are collaboration inputs. They do not override system, developer, user, tool, permission, or security rules in the receiving harness.
@@ -89,7 +89,7 @@ Check the bus from the repository wrapper:
 ./inter-agent list
 ```
 
-Pi and Claude Code sessions can use separate extension installs and still talk to each other as long as their helpers use the same endpoint and state settings. The defaults already share `127.0.0.1:16837` and the platform inter-agent state directory.
+Pi and Claude Code sessions can use separate extension installs and still talk to each other as long as their helpers use the same endpoint and secret. The defaults already share `127.0.0.1:16837` and a generated fallback secret in the platform inter-agent state directory.
 
 ## Installation alternatives
 
@@ -273,21 +273,38 @@ The config file is JSON:
 {
   "host": "127.0.0.1",
   "port": 16837,
-  "dataDir": "/path/to/inter-agent-state"
+  "dataDir": "/path/to/inter-agent-state",
+  "secret": "high-entropy-shared-secret"
 }
 ```
 
+The shared secret resolves in this order:
+
+1. `INTER_AGENT_SECRET`
+2. top-level config key `secret`
+3. generated fallback token file in the inter-agent data directory
+
+Use a high-entropy value for `INTER_AGENT_SECRET` or config `secret`. The raw secret is not sent over the WebSocket; it is used for the initial HMAC-SHA-256 challenge-response. Message payloads are still plaintext over `ws://`.
+
 Config file discovery uses `INTER_AGENT_CONFIG` when set. Otherwise it uses the platform config location: `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux, `~/Library/Application Support/inter-agent/config.json` on macOS, and `%APPDATA%\\inter-agent\\config.json` on Windows when available.
 
-State files, including the shared token and server lifecycle metadata, use `INTER_AGENT_DATA_DIR`, then `dataDir` from config, then the platform state location: `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux, `~/Library/Application Support/inter-agent` on macOS, and `%LOCALAPPDATA%\\inter-agent` on Windows when available, otherwise `%APPDATA%\\inter-agent`.
+State files, including the fallback generated secret, use `INTER_AGENT_DATA_DIR`, then `dataDir` from config, then the platform state location: `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux, `~/Library/Application Support/inter-agent` on macOS, and `%LOCALAPPDATA%\\inter-agent` on Windows when available, otherwise `%APPDATA%\\inter-agent`.
 
-If the configured endpoint is unavailable and exactly one live server is found in the configured data directory, client commands use that discovered server. If multiple live servers are found, status output lists them so the endpoint can be set explicitly.
+Client commands probe the configured endpoint directly. If the endpoint is unavailable, set `INTER_AGENT_HOST` and `INTER_AGENT_PORT` or update the config file to match the server.
 
 ## Cross-harness interoperability
 
-Runtime source and bus state are separate. Claude Code can use a configured checkout, a Claude-managed venv, or `PATH` helpers while Pi uses a configured checkout, a Pi-managed venv, or `PATH` helpers. Those sessions still share the same bus when the endpoint and state settings match.
+Runtime source and bus auth/state are separate. Claude Code can use a configured checkout, a Claude-managed venv, or `PATH` helpers while Pi uses a configured checkout, a Pi-managed venv, or `PATH` helpers. Those sessions still share the same bus when the endpoint and secret match.
 
-For normal local use, leave `host`, `port`, and `dataDir` unset in both integrations. Claude Code and Pi then use the shared default bus at `127.0.0.1:16837` with the platform inter-agent state directory. If you intentionally want separate buses, set a different `port` and/or `dataDir` for one integration.
+For normal local use, leave `host`, `port`, `dataDir`, and `secret` unset in both integrations. Claude Code and Pi then use the shared default bus at `127.0.0.1:16837` with the platform inter-agent state directory. If you intentionally want separate buses, set a different `port`, `dataDir`, and/or `secret` for one integration.
+
+For isolated filesystems such as containers, set the same endpoint and high-entropy secret for the server and every client:
+
+```bash
+export INTER_AGENT_HOST=127.0.0.1
+export INTER_AGENT_PORT=16837
+export INTER_AGENT_SECRET='<high-entropy-shared-secret>'
+```
 
 A quick interoperability check is to connect one Claude Code session and one Pi session, run `/inter-agent list` in either host, then send a direct message in each direction.
 
@@ -295,7 +312,7 @@ A quick interoperability check is to connect one Claude Code session and one Pi 
 
 New host adapters should treat the Python core as the protocol and lifecycle layer, not as Pi- or Claude-specific behavior. Start with the typed core helpers documented in [`ARCHITECTURE.md#adapter-author-contract`](ARCHITECTURE.md#adapter-author-contract) for endpoint resolution, listener connections, send/broadcast/list/status, shutdown, and operator commands.
 
-Adapters may provide host-native commands, notifications, managed runtime lookup, output formatting, and continuation caches. Do not redefine protocol semantics, bypass auth or identity checks, depend on private server internals, or default to host-specific bus state that prevents cross-harness communication.
+Adapters may provide host-native commands, notifications, managed runtime lookup, output formatting, and continuation caches. Do not redefine protocol semantics, bypass auth checks, depend on private server internals, or default to host-specific bus settings that prevent cross-harness communication.
 
 ## Troubleshooting
 
@@ -345,7 +362,7 @@ inter-agent/
 | [`integrations/claude-code/README.md`](integrations/claude-code/README.md) | Claude Code users | Claude Code plugin setup and commands |
 | [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) | CLI users and contributors | Claude Code adapter CLI details |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Contributors | Layers, protocol model, routing, lifecycle |
-| [`SECURITY.md`](SECURITY.md) | Users and contributors | Security model, controls, token rotation |
+| [`SECURITY.md`](SECURITY.md) | Users and contributors | Security model, controls, secret rotation |
 | [`spec/error-codes.md`](spec/error-codes.md) | Protocol developers | Canonical protocol error codes |
 | [`AGENTS.md`](AGENTS.md) | Coding agents | Repository workflow and conventions |
 | [`PLAN.md`](PLAN.md) | Contributors | Current short-term active work |

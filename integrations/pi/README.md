@@ -32,7 +32,7 @@ pi -e /path/to/inter-agent/integrations/pi/src/index.ts
 
 ## Runtime setup
 
-The Pi package installs the Pi extension assets. The Python inter-agent runtime can come from a checkout, a Pi-managed venv, or existing helper commands on `PATH`. Runtime source is separate from bus state: the managed venv does not change the shared default endpoint (`127.0.0.1:16837`) or the normal inter-agent state directory.
+The Pi package installs the Pi extension assets. The Python inter-agent runtime can come from a checkout, a Pi-managed venv, or existing helper commands on `PATH`. Runtime source is separate from bus auth/state: the managed venv does not change the shared default endpoint (`127.0.0.1:16837`) or secret resolution.
 
 The extension resolves helpers in this order:
 
@@ -91,16 +91,17 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
     "projectPath": "/path/to/inter-agent",
     "host": "127.0.0.1",
     "port": 16837,
-    "dataDir": "~/.local/state/inter-agent"
+    "dataDir": "~/.local/state/inter-agent",
+    "secret": "high-entropy-shared-secret"
   }
 }
 ```
 
-Most users should leave `host`, `port`, and `dataDir` unset so helpers use the standard shared endpoint and state discovery. Set `projectPath` only when you want Pi to use a specific checkout runtime.
+Most users should leave `host`, `port`, `dataDir`, and `secret` unset so helpers use the standard shared endpoint and fallback secret state. Set `projectPath` only when you want Pi to use a specific checkout runtime.
 
-Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, or `dataDir` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
+Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, `dataDir`, or `secret` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, and `INTER_AGENT_SECRET`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
-`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores runtime state — the shared bearer token and server lifecycle metadata — kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom state location or to run multiple isolated buses.
+`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores fallback generated secret state, kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom fallback state location. Use `secret` with a high-entropy value when server and clients do not share a filesystem.
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
 
@@ -130,7 +131,7 @@ Tools are agent-callable; they are not user-facing slash commands.
 | `inter_agent_broadcast` | Broadcast only when the user explicitly asks to message everyone |
 | `inter_agent_list`      | List connected agent sessions                                    |
 | `inter_agent_whoami`    | Report this Pi session's local identity                          |
-| `inter_agent_status`    | Check server availability and identity                           |
+| `inter_agent_status`    | Check server availability                                        |
 
 ## Troubleshooting
 

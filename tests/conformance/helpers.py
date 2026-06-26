@@ -6,22 +6,35 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
 import pytest
 from websockets.asyncio.client import ClientConnection
 
+from inter_agent.core.auth import build_auth_response, client_handshake, parse_auth_challenge
+from inter_agent.core.client import build_hello as build_agent_hello
 from inter_agent.core.server import run_server
-from inter_agent.core.shared import Limits, load_or_create_token
+from inter_agent.core.shared import Limits, resolve_shared_secret
+from inter_agent.core.shared import control_hello as build_control_hello
 
 HOST = "127.0.0.1"
 MISSING = object()
+
+
+class HasSecret(Protocol):
+    @property
+    def secret(self) -> str: ...
 
 
 @dataclass(frozen=True)
 class ServerContext:
     host: str
     port: int
-    token: str
+    secret: str
+
+    @property
+    def token(self) -> str:
+        return self.secret
 
     @property
     def url(self) -> str:
@@ -36,8 +49,8 @@ async def running_server(
     limits: Limits | None = None,
 ) -> AsyncIterator[ServerContext]:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    token = load_or_create_token()
-    context = ServerContext(host=HOST, port=unused_tcp_port, token=token)
+    secret = resolve_shared_secret().secret
+    context = ServerContext(host=HOST, port=unused_tcp_port, secret=secret)
     task = asyncio.create_task(run_server(context.host, context.port, limits=limits))
     await asyncio.sleep(0.1)
     try:
@@ -49,42 +62,48 @@ async def running_server(
 
 
 def agent_hello(
-    token: str,
+    _secret: str | None = None,
     *,
     role: object = "agent",
     session_id: object = "a",
     name: object = "agent-a",
     label: object = MISSING,
     capabilities: object = MISSING,
+    client_nonce: str | None = None,
 ) -> dict[str, object]:
-    payload = {
-        "op": "hello",
-        "token": token,
-        "role": role,
-        "session_id": session_id,
-        "name": name,
-        "capabilities": {} if capabilities is MISSING else capabilities,
-    }
-    if label is not MISSING:
+    payload = build_agent_hello(
+        str(session_id),
+        str(name),
+        label if isinstance(label, str) else None,
+        client_nonce=client_nonce,
+    )
+    if _secret is not None:
+        payload["_test_secret"] = _secret
+    payload["role"] = role
+    payload["session_id"] = session_id
+    payload["name"] = name
+    payload["capabilities"] = {} if capabilities is MISSING else capabilities
+    if label is MISSING:
+        payload.pop("label", None)
+    else:
         payload["label"] = label
     return payload
 
 
-def control_hello(
-    token: str,
+def control_hello_payload(
+    _secret: str | None = None,
     *,
     session_id: object = "ctl",
     name: object = "control",
     capabilities: object = MISSING,
 ) -> dict[str, object]:
-    return {
-        "op": "hello",
-        "token": token,
-        "role": "control",
-        "session_id": session_id,
-        "name": name,
-        "capabilities": {} if capabilities is MISSING else capabilities,
-    }
+    payload = build_control_hello(str(session_id))
+    if _secret is not None:
+        payload["_test_secret"] = _secret
+    payload["session_id"] = session_id
+    payload["name"] = name
+    payload["capabilities"] = {} if capabilities is MISSING else capabilities
+    return payload
 
 
 async def recv_json(ws: ClientConnection) -> dict[str, object]:
@@ -93,32 +112,73 @@ async def recv_json(ws: ClientConnection) -> dict[str, object]:
     return {str(key): value for key, value in response.items()}
 
 
+def _client_nonce(hello: dict[str, object]) -> str:
+    auth = hello.get("auth")
+    assert isinstance(auth, dict)
+    nonce = auth.get("client_nonce")
+    assert isinstance(nonce, str)
+    return nonce
+
+
 async def send_json(ws: ClientConnection, payload: object) -> dict[str, object]:
-    await ws.send(json.dumps(payload))
-    return await recv_json(ws)
+    secret: str | None = None
+    outbound = payload
+    if isinstance(payload, dict):
+        outbound = dict(payload)
+        raw_secret = outbound.pop("_test_secret", None)
+        if isinstance(raw_secret, str):
+            secret = raw_secret
+    await ws.send(json.dumps(outbound))
+    response = await recv_json(ws)
+    if (
+        secret is not None
+        and isinstance(outbound, dict)
+        and outbound.get("op") == "hello"
+        and response.get("op") == "auth_challenge"
+    ):
+        challenge = parse_auth_challenge(response)
+        await ws.send(
+            json.dumps(
+                build_auth_response(
+                    secret,
+                    client_nonce=_client_nonce(outbound),
+                    server_nonce=challenge.server_nonce,
+                    hello=outbound,
+                )
+            )
+        )
+        return await recv_json(ws)
+    return response
 
 
 async def connect_agent(
     ws: ClientConnection,
-    context: ServerContext,
+    context: HasSecret,
     session_id: str,
     name: str,
     label: object = MISSING,
 ) -> dict[str, object]:
-    response = await send_json(
-        ws,
-        agent_hello(context.token, session_id=session_id, name=name, label=label),
-    )
+    hello = agent_hello(session_id=session_id, name=name, label=label)
+    response = json.loads(await client_handshake(ws, context.secret, hello))
+    assert isinstance(response, dict)
+    response = {str(key): value for key, value in response.items()}
     assert response["op"] == "welcome"
     return response
 
 
+control_hello = control_hello_payload
+
+
 async def connect_control(
     ws: ClientConnection,
-    context: ServerContext,
+    context: HasSecret,
     session_id: str = "ctl",
 ) -> dict[str, object]:
-    response = await send_json(ws, control_hello(context.token, session_id=session_id))
+    response = json.loads(
+        await client_handshake(ws, context.secret, control_hello_payload(session_id=session_id))
+    )
+    assert isinstance(response, dict)
+    response = {str(key): value for key, value in response.items()}
     assert response["op"] == "welcome"
     return response
 

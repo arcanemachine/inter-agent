@@ -391,7 +391,7 @@ class TestPermanentErrors:
     ) -> None:
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(
-            "inter_agent.adapters.claude.listener.verify_server_identity",
+            "inter_agent.adapters.claude.listener.endpoint_available",
             lambda h, p: True,
         )
         seen_names: list[str] = []
@@ -417,7 +417,7 @@ class TestPermanentErrors:
     ) -> None:
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(
-            "inter_agent.adapters.claude.listener.verify_server_identity",
+            "inter_agent.adapters.claude.listener.endpoint_available",
             lambda h, p: True,
         )
         seen_names: list[str] = []
@@ -533,9 +533,7 @@ class TestAutoStart:
             verify_calls.append((host, port))
             return len(verify_calls) > 2
 
-        monkeypatch.setattr(
-            "inter_agent.adapters.claude.listener.verify_server_identity", fake_verify
-        )
+        monkeypatch.setattr("inter_agent.adapters.claude.listener.endpoint_available", fake_verify)
 
         started: list[bool] = []
 
@@ -565,7 +563,7 @@ class TestAutoStart:
     ) -> None:
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(
-            "inter_agent.adapters.claude.listener.verify_server_identity",
+            "inter_agent.adapters.claude.listener.endpoint_available",
             lambda h, p: False,
         )
         monkeypatch.setattr(Listener, "_start_server", lambda self: None)
@@ -580,7 +578,7 @@ class TestAutoStart:
     ) -> None:
         monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
         monkeypatch.setattr(
-            "inter_agent.adapters.claude.listener.verify_server_identity",
+            "inter_agent.adapters.claude.listener.endpoint_available",
             lambda h, p: False,
         )
 

@@ -73,9 +73,9 @@ Then connect from inside Claude Code:
 
 The listener auto-starts the local server when needed. Auto-started servers use a 300-second idle timeout. Manually started servers run until explicit shutdown unless started with `--idle-timeout <seconds>`.
 
-The plugin monitor runs the bundled wrapper, which delegates to the selected `inter-agent-claude` CLI. The helper uses the same endpoint and state discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
+The plugin monitor runs the bundled wrapper, which delegates to the selected `inter-agent-claude` CLI. The helper uses the same endpoint and secret discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_SECRET`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
 
-To use a server started from a separate checkout, run that server with the endpoint and state settings you want, then start Claude Code with matching `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_DATA_DIR` values if they differ from the defaults. With default settings, Claude Code and Pi use the same `127.0.0.1:16837` bus and platform inter-agent state directory.
+To use a server started from a separate checkout or isolated filesystem, run that server with the endpoint and secret settings you want, then start Claude Code with matching `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_SECRET` values if they differ from the defaults. Installed plugins may also set plugin config `secret`, which the wrapper passes to helpers as `INTER_AGENT_SECRET`. With default settings, Claude Code and Pi use the same `127.0.0.1:16837` bus and platform fallback secret state.
 
 ## Commands
 
@@ -117,7 +117,7 @@ The plugin uses `inter-agent-claude` under the hood. For direct CLI usage and de
 
 ## Security notes
 
-Claude Code support follows the project security model in [`../../SECURITY.md`](../../SECURITY.md): localhost transport, shared bearer token, restrictive local state permissions, and no protection from hostile same-user code.
+Claude Code support follows the project security model in [`../../SECURITY.md`](../../SECURITY.md): localhost plaintext transport, shared-secret challenge-response authentication, restrictive fallback state permissions, and no protection from hostile same-user code.
 
 Claude Code-specific considerations:
 

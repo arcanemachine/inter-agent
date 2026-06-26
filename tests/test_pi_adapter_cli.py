@@ -12,43 +12,10 @@ from inter_agent.adapters.pi import commands, listener
 from inter_agent.adapters.pi.cli import main
 from inter_agent.core.list import ListResult
 from inter_agent.core.send import ProtocolErrorResult, SendResult
-from inter_agent.core.shared import identity_path, write_server_identity
 from inter_agent.core.shutdown import ShutdownResult
 
 
 def test_status_outputs_json(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-
-    code = main(["status", "--json"])
-
-    assert code == 0
-    assert json.loads(capsys.readouterr().out) == {
-        "state": "unavailable",
-        "host": "127.0.0.1",
-        "port": 16837,
-        "configured_host": "127.0.0.1",
-        "configured_port": 16837,
-        "host_source": "default",
-        "port_source": "default",
-        "data_dir": str(tmp_path),
-        "data_dir_source": "env",
-        "config_path": None,
-        "discovered": False,
-        "discovered_servers": [],
-        "hints": [],
-        "server_reachable": False,
-        "identity_verified": False,
-        "message": "No server is running. Start one with inter-agent-server",
-        "core_list_supported": True,
-        "adapter_list_exposed": True,
-    }
-
-
-def test_status_reports_identity_check_failure(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     unused_tcp_port: int,
@@ -56,18 +23,27 @@ def test_status_reports_identity_check_failure(
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
-    write_server_identity("127.0.0.1", unused_tcp_port)
-    identity_payload = json.loads(identity_path(unused_tcp_port).read_text(encoding="utf-8"))
-    identity_payload["port"] = unused_tcp_port + 1
-    identity_path(unused_tcp_port).write_text(json.dumps(identity_payload), encoding="utf-8")
 
-    code = main(["status"])
+    code = main(["status", "--json"])
 
-    payload = json.loads(capsys.readouterr().out)
     assert code == 0
-    assert payload["state"] == "identity_check_failed"
-    assert payload["identity_verified"] is False
-    assert payload["message"] == "server identity metadata does not match requested endpoint"
+    assert json.loads(capsys.readouterr().out) == {
+        "state": "unavailable",
+        "host": "127.0.0.1",
+        "port": unused_tcp_port,
+        "configured_host": "127.0.0.1",
+        "configured_port": unused_tcp_port,
+        "host_source": "default",
+        "port_source": "env",
+        "data_dir": str(tmp_path),
+        "data_dir_source": "env",
+        "config_path": None,
+        "hints": ["start inter-agent-server or check INTER_AGENT_HOST and INTER_AGENT_PORT"],
+        "server_reachable": False,
+        "message": "server connection failed",
+        "core_list_supported": True,
+        "adapter_list_exposed": True,
+    }
 
 
 def test_send_uses_core_api(

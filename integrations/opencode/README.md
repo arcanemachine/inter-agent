@@ -143,30 +143,20 @@ Required client behavior:
      default;
    - config file: `INTER_AGENT_CONFIG` -> platform default;
    - path-like values expand `~`, `$VAR`, and `${VAR}`.
-2. Verify server identity before transmitting the token:
-   - read `server.<port>.meta`;
-   - confirm host and port match the endpoint;
-   - read `server.<port>.pid`;
-   - confirm PID metadata and instance nonce match;
-   - confirm the PID is alive where the platform supports it;
-   - on Linux, compare the procfs process-start marker when present.
-3. Discover a single alternate live endpoint from `server.*.meta` when the
-   configured endpoint fails verification and discovery is allowed.
-4. Read the existing `token` file from the data directory. The client should not
-   create a token; missing token means the server has not been initialized for
-   that data directory.
-5. Open WebSocket connections to `ws://<host>:<port>` only after identity
-   verification and token loading.
-6. Send `hello` as role `agent` for the persistent listener and role `control`
-   for short-lived control operations.
-7. Handle `welcome`, `msg`, and `error` frames according to `spec/` and
-   `spec/error-codes.md`.
-8. Use short-lived control connections for protocol operations such as `send`,
-   `broadcast`, `list`, and `shutdown`; status reporting combines endpoint,
-   identity, and reachability checks with protocol probes where useful.
-9. Preserve the active OpenCode connection name through `from_name` so routine
+2. Resolve the shared secret from `INTER_AGENT_SECRET`, config `secret`, or the
+   fallback generated token file in the data directory.
+3. Open WebSocket connections to `ws://<host>:<port>` and complete the
+   HMAC-SHA-256 challenge-response without sending the raw secret.
+4. Send `hello` as role `agent` for the persistent listener and role `control`
+   for short-lived control operations, then handle `auth_challenge`,
+   `auth_response`, `welcome`, `msg`, and `error` frames according to `spec/`
+   and `spec/error-codes.md`.
+5. Use short-lived control connections for protocol operations such as `send`,
+   `broadcast`, `list`, and `shutdown`; status reporting should combine endpoint
+   reachability with protocol probes where useful.
+6. Preserve the active OpenCode connection name through `from_name` so routine
    sends do not appear to come from `control`.
-10. Validate routing names, ports, and outgoing text limits before sending when
+7. Validate routing names, ports, and outgoing text limits before sending when
     practical.
 
 Permanent protocol errors such as `AUTH_FAILED`, `BAD_NAME`, `NAME_TAKEN`,
@@ -182,8 +172,8 @@ or a documented naming strategy. Names must satisfy the core routing-name rule:
 
 The TUI plugin owns the active listener. It should persist connection state with
 namespaced keys such as `inter-agent:*`, including host, port, name, label,
-connected flag, and last successful connection time. The token must not be stored
-in OpenCode KV or logs.
+connected flag, and last successful connection time. Secrets and proofs must not
+be stored in OpenCode KV or logs unless explicitly configured by the user.
 
 State sharing between `./tui` and `./server` is a required early spike. The
 server plugin must be able to determine the active OpenCode sender identity, or
@@ -289,8 +279,8 @@ Before the full package is built, prove two paths.
 
 1. A local OpenCode TUI plugin loads.
 2. It opens a WebSocket from the OpenCode runtime.
-3. It reads token and server metadata from the configured data directory.
-4. It sends a valid agent `hello` to a live inter-agent server.
+3. It resolves the shared secret and sends a valid agent `hello` to a live inter-agent server.
+4. It completes `auth_challenge` / `auth_response`.
 5. It receives a `welcome` frame.
 6. If practical, it receives one `msg` frame from another inter-agent client.
 
@@ -319,9 +309,7 @@ not practical:
 3. Command/tool-only integration without live receive behavior.
 4. Deferral of OpenCode support.
 
-A degraded identity-verification mode must not be introduced silently. If full
-server identity verification cannot be ported safely, fail closed or use a
-reviewed sidecar/helper design.
+A degraded authentication mode must not be introduced silently. If the challenge-response protocol cannot be ported safely, fail closed or use a reviewed sidecar/helper design.
 
 ## Testing and validation
 
@@ -332,7 +320,7 @@ Required automated coverage:
 - TypeScript unit tests for protocol envelope builders, parsing, error
   classification, config/defaults, path expansion, name validation, inbox
   bounding, formatting, and truncation.
-- Identity metadata fixture tests, including failure reasons.
+- Challenge-response fixture tests, including failure reasons.
 - Mock WebSocket tests for handshake, protocol errors, listener messages, and
   reconnect classification.
 - Live inter-agent protocol tests against a real Python server on an unused port

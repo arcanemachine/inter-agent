@@ -3,16 +3,19 @@ info:
   title: inter-agent protocol
   version: 0.1.0
   description: >
-    Minimal universal-friendly protocol for inter-agent bus. Handshake
-    capabilities are JSON objects: clients declare optional known or extension
-    keys in `hello`, and the server advertises supported baseline capabilities
-    in `welcome`. Unknown client capability keys may be ignored.
+    Minimal universal-friendly protocol for inter-agent bus. Clients start with
+    `hello`, complete an HMAC-SHA-256 challenge-response using a shared secret,
+    then receive `welcome`. Handshake capabilities are JSON objects: clients
+    declare optional known or extension keys in `hello`, and the server advertises
+    supported baseline capabilities in `welcome`. Unknown client capability keys
+    may be ignored.
 channels:
   /:
     publish:
       message:
         oneOf:
           - $ref: '#/components/messages/Hello'
+          - $ref: '#/components/messages/AuthResponse'
           - $ref: '#/components/messages/Send'
           - $ref: '#/components/messages/Broadcast'
           - $ref: '#/components/messages/Ping'
@@ -24,6 +27,7 @@ channels:
     subscribe:
       message:
         oneOf:
+          - $ref: '#/components/messages/AuthChallenge'
           - $ref: '#/components/messages/Welcome'
           - $ref: '#/components/messages/Msg'
           - $ref: '#/components/messages/Pong'
@@ -37,6 +41,10 @@ components:
       $ref: './schemas/envelope.json'
     Hello:
       $ref: './schemas/hello.json'
+    AuthChallenge:
+      $ref: './schemas/auth_challenge.json'
+    AuthResponse:
+      $ref: './schemas/auth_response.json'
     Welcome:
       $ref: './schemas/welcome.json'
     Send:
@@ -71,6 +79,12 @@ components:
     Hello:
       payload:
         $ref: '#/components/schemas/Hello'
+    AuthChallenge:
+      payload:
+        $ref: '#/components/schemas/AuthChallenge'
+    AuthResponse:
+      payload:
+        $ref: '#/components/schemas/AuthResponse'
     Welcome:
       payload:
         $ref: '#/components/schemas/Welcome'

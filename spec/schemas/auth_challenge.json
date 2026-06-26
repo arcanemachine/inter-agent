@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuthChallenge",
+  "type": "object",
+  "required": ["op", "method", "server_nonce", "server_proof"],
+  "properties": {
+    "op": { "const": "auth_challenge" },
+    "method": { "const": "hmac-sha256" },
+    "server_nonce": { "type": "string", "minLength": 1 },
+    "server_proof": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}

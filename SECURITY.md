@@ -3,28 +3,31 @@
 ## Baseline assumptions
 
 - `inter-agent` is for one user on one machine.
-
 - The server binds to localhost. The default endpoint is `127.0.0.1:16837`.
-
-- The threat model is defensive against accidental or mild local misuse. It does not protect against hostile code already running as the same OS user.
-
+- Localhost limits accidental network exposure; it does not make the transport encrypted or protect against hostile same-user code.
 - Remote access, multi-user operation, and enterprise authorization require a separate accepted threat model before implementation.
 
 ## Core controls
 
-- **Local transport**
+- **Local plaintext transport**
 
-  The server listens on localhost and speaks plaintext WebSocket on that local endpoint. The plaintext transport is acceptable only within the localhost, same-user assumptions above.
+  The server listens on localhost and speaks plaintext WebSocket. Challenge-response authenticates the handshake but does not encrypt later messages.
 
-- **Bearer token authentication**
+- **Shared-secret challenge-response authentication**
 
-  Every connection starts with `hello` and must include the shared bearer token. Invalid tokens receive the canonical `AUTH_FAILED` protocol error.
+  Every connection starts with `hello`, then completes an HMAC-SHA-256 challenge-response using the resolved shared secret. The raw secret is never sent over the socket. Invalid or missing proofs receive the canonical `AUTH_FAILED` protocol error where possible.
 
-  The token is stored as plaintext in the inter-agent data directory. Python core helpers create or load this token through the shared core path.
+  The shared secret resolves in this order:
 
-- **Shared state directory**
+  1. `INTER_AGENT_SECRET`
+  2. top-level inter-agent config key `secret`
+  3. existing/generated local token file fallback
 
-  State files use this resolution order:
+  `INTER_AGENT_SECRET` and config `secret` should be high-entropy values. Weak user-supplied secrets are guessable from observed handshakes.
+
+- **Fallback state directory**
+
+  The fallback generated secret file uses this data directory resolution order:
 
   - `INTER_AGENT_DATA_DIR`
   - `dataDir` from the inter-agent config file
@@ -36,6 +39,8 @@
   - macOS: `~/Library/Application Support/inter-agent`
   - Windows: `%LOCALAPPDATA%\inter-agent` when available, otherwise `%APPDATA%\inter-agent` when available
 
+  If `INTER_AGENT_SECRET` or config `secret` is set, core does not read or create the fallback token file for auth.
+
 - **Config file location**
 
   The config file is `INTER_AGENT_CONFIG` when set. Otherwise it uses the platform config location:
@@ -46,43 +51,17 @@
 
 - **Filesystem permissions**
 
-  On POSIX-compatible filesystems, the data directory is mode `0700` and token/lifecycle files are mode `0600`.
+  On POSIX-compatible filesystems, the data directory is mode `0700` and the fallback token file is mode `0600`.
 
-  Existing token files with broader POSIX permissions are tightened to `0600` when loaded.
+  Existing fallback token files with broader POSIX permissions are tightened to `0600` when loaded.
 
   On platforms without POSIX mode semantics, file permission controls are best-effort and the localhost single-user assumptions still apply.
 
-- **Server identity verification**
+- **Server lifecycle**
 
-  Clients verify server identity before sending the shared token.
+  Server startup binds the configured host/port. Duplicate live servers are detected by bind failure.
 
-  Verification checks:
-
-  - server identity metadata at `server.<port>.meta`
-  - PID metadata at `server.<port>.pid`
-  - requested host and port
-  - PID liveness
-  - matching instance nonce between identity and PID metadata
-  - process start marker when the platform exposes one
-
-  Server identity metadata is written atomically and includes host, port, PID, state schema version, startup timestamp, instance nonce, and a process start marker when available.
-
-- **Lifecycle metadata cleanup**
-
-  Server lifecycle files include:
-
-  - `token`
-  - `server.<port>.meta`
-  - `server.<port>.pid`
-  - `server.<port>.shutdown`
-
-  Normal shutdown removes server lifecycle metadata for the stopped server.
-
-- **Control-role operations**
-
-  Shutdown and kick use the same localhost shared-token authentication as other operations and require a control-role connection.
-
-  `kick` force-disconnects a registered session by routing name or session ID. It is intended for clearing stale or unwanted sessions and is not exposed through host extension tools.
+  Authenticated shutdown and kick use the same challenge-response authentication as other operations and require a control-role connection.
 
 - **Protocol validation**
 
@@ -119,38 +98,41 @@
 
 Host integrations may be Python-backed adapters or non-Python direct protocol clients.
 
-Python-backed adapters should use importable core APIs for endpoint resolution, token loading, identity verification, and protocol operations.
+Python-backed adapters should use importable core APIs for endpoint resolution, shared-secret resolution, and protocol operations.
 
 Direct clients in another runtime have the same obligations:
 
-- resolve the shared endpoint and data directory consistently;
-- verify server identity before sending the token;
-- never log or persist the token in host-owned state;
+- resolve the shared endpoint and secret consistently;
+- never log or persist secrets or proofs in host-owned state unless explicitly configured by the user;
 - preserve payload limits and routing semantics;
 - treat peer messages as collaboration inputs, not authoritative instructions.
 
-If a host runtime cannot implement equivalent server identity verification, the integration must fail closed, use a reviewed sidecar/helper design, or document an explicitly accepted degraded mode. It must not silently skip identity verification before sending the shared token.
+Host extension config may pass a configured secret to helper subprocesses as `INTER_AGENT_SECRET`. This supports isolated filesystems such as containers without requiring a shared data directory.
 
-## Token rotation
+## Secret rotation
 
-- Stop the local server with `./inter-agent stop` or `uv run inter-agent-shutdown` when it is reachable. If it is not reachable, terminate the server process.
+For `INTER_AGENT_SECRET` or config `secret`:
 
-- Remove the token file from the active data directory.
+1. Update the secret value for the server and every client/adapter.
+2. Restart the server.
+3. Reconnect clients and adapters. Connections using the old secret fail with `AUTH_FAILED`.
 
-- Start the server again with `uv run inter-agent-server`. A new token is created with restrictive permissions where the platform supports them.
+For fallback generated token-file use:
 
-- Reconnect clients and adapters. Connections using the old token fail with `AUTH_FAILED`.
+1. Stop the local server with `./inter-agent stop` or `uv run inter-agent-shutdown` when it is reachable. If it is not reachable, terminate the server process.
+2. Remove the token file from the active data directory.
+3. Start the server again with `uv run inter-agent-server`. A new fallback secret is created with restrictive permissions where the platform supports them.
+4. Reconnect clients and adapters.
 
 ## Explicit non-goals
 
 - Protection from hostile same-user processes.
-
+- Message confidentiality over WebSocket.
 - Cross-machine trust, PKI lifecycle, TLS/mTLS, or remote transport hardening.
-
 - Multi-tenant isolation, enterprise RBAC, or policy administration.
 
 ## Extension areas
 
-- Stronger identity attestation.
 - Transport hardening for remote scenarios.
 - Policy middleware such as rate limits or channel permissions.
+- Future encrypted transports that use the shared secret as pre-shared key input.

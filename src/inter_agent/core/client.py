@@ -11,28 +11,22 @@ from typing import TextIO
 
 import websockets
 
-from inter_agent.core.shared import (
-    identity_failure_message,
-    load_or_create_token,
-    resolve_endpoint,
-    verify_server_identity_details,
-)
+from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
+from inter_agent.core.auth import build_hello as build_auth_hello
+from inter_agent.core.shared import resolve_endpoint, resolve_shared_secret
 
 
 def build_hello(
-    token: str, session_id: str, name: str, label: str | None = None
+    session_id: str, name: str, label: str | None = None, client_nonce: str | None = None
 ) -> dict[str, object]:
-    payload: dict[str, object] = {
-        "op": "hello",
-        "token": token,
-        "role": "agent",
-        "session_id": session_id,
-        "name": name,
-        "capabilities": {},
-    }
-    if label is not None:
-        payload["label"] = label
-    return payload
+    return build_auth_hello(
+        role="agent",
+        session_id=session_id,
+        name=name,
+        label=label,
+        capabilities={},
+        client_nonce=client_nonce,
+    )
 
 
 def _text_frame(frame: str | bytes) -> str:
@@ -52,14 +46,16 @@ async def iter_client_frames(
     The first yielded frame is the server welcome response. Subsequent frames are
     peer messages or protocol responses received for the connected session.
     """
-    verification = verify_server_identity_details(host, port)
-    if not verification.ok:
-        raise SystemExit(identity_failure_message(verification.reason))
-    token = load_or_create_token()
+    secret = resolve_shared_secret().secret
     session_id = os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4()))
+    hello = build_hello(session_id, name, label)
     async with websockets.connect(f"ws://{host}:{port}") as ws:
-        await ws.send(json.dumps(build_hello(token, session_id, name, label)))
-        yield _text_frame(await ws.recv())
+        try:
+            yield await client_handshake(ws, secret, hello)
+        except AuthError as exc:
+            raise SystemExit(str(exc)) from exc
+        except (AuthProtocolError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise SystemExit(f"server protocol mismatch: {exc}") from exc
         async for msg in ws:
             yield _text_frame(msg)
 

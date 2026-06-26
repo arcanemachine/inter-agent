@@ -11,20 +11,13 @@ from typing import Literal
 import websockets
 from websockets.exceptions import WebSocketException
 
+from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
 from inter_agent.core.config import EndpointResolution
-from inter_agent.core.shared import (
-    control_hello,
-    discover_live_server_identities,
-    identity_failure_message,
-    load_or_create_token,
-    resolve_endpoint,
-    verify_server_identity_details,
-)
+from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
 
 StatusState = Literal[
     "available",
     "unavailable",
-    "identity_check_failed",
     "auth_failed",
     "protocol_mismatch",
 ]
@@ -44,7 +37,6 @@ class ServerStatus:
     state: StatusState
     host: str
     port: int
-    identity_verified: bool
     reachable: bool
     message: str
     configured_host: str | None = None
@@ -54,8 +46,6 @@ class ServerStatus:
     data_dir: str | None = None
     data_dir_source: str | None = None
     config_path: str | None = None
-    discovered: bool = False
-    discovered_servers: tuple[dict[str, object], ...] = ()
     hints: tuple[str, ...] = ()
 
 
@@ -69,7 +59,6 @@ def _status(
     host: str,
     port: int,
     *,
-    identity_verified: bool,
     reachable: bool,
     message: str,
 ) -> ServerStatus:
@@ -77,54 +66,29 @@ def _status(
         state=state,
         host=host,
         port=port,
-        identity_verified=identity_verified,
         reachable=reachable,
         message=message,
     )
 
 
-def _identity_failure(host: str, port: int) -> ServerStatus | None:
-    verification = verify_server_identity_details(host, port)
-    if verification.ok:
-        return None
-
-    state: StatusState = (
-        "unavailable"
-        if verification.reason in ("missing_metadata", "process_not_running")
-        else "identity_check_failed"
-    )
-    return _status(
-        state,
-        host,
-        port,
-        identity_verified=False,
-        reachable=False,
-        message=identity_failure_message(verification.reason),
-    )
+def _json_object(raw: str) -> dict[str, object]:
+    payload: object = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise ValueError("server response must be a JSON object")
+    return {str(key): value for key, value in payload.items()}
 
 
-async def _probe_server(host: str, port: int, token: str) -> ServerStatus:
+async def _probe_server(host: str, port: int, secret: str) -> ServerStatus:
     async with websockets.connect(f"ws://{host}:{port}") as ws:
-        await ws.send(json.dumps(control_hello(token, f"status-{uuid.uuid4()}")))
-        response: object = json.loads(await ws.recv())
+        response_raw = await client_handshake(ws, secret, control_hello(f"status-{uuid.uuid4()}"))
 
-    if not isinstance(response, dict):
-        return _status(
-            "protocol_mismatch",
-            host,
-            port,
-            identity_verified=True,
-            reachable=True,
-            message="server returned an invalid status response",
-        )
-
+    response = _json_object(response_raw)
     op = response.get("op")
     if op == "welcome":
         return _status(
             "available",
             host,
             port,
-            identity_verified=True,
             reachable=True,
             message="server available",
         )
@@ -133,7 +97,6 @@ async def _probe_server(host: str, port: int, token: str) -> ServerStatus:
             "auth_failed",
             host,
             port,
-            identity_verified=True,
             reachable=True,
             message="server authentication failed",
         )
@@ -141,60 +104,46 @@ async def _probe_server(host: str, port: int, token: str) -> ServerStatus:
         "protocol_mismatch",
         host,
         port,
-        identity_verified=True,
         reachable=True,
         message="server returned an unexpected status response",
     )
 
 
 async def check_server_status(host: str, port: int, timeout: float = 0.5) -> ServerStatus:
-    """Check server identity metadata and probe the live WebSocket endpoint."""
-    identity_failure = _identity_failure(host, port)
-    if identity_failure is not None:
-        return identity_failure
-
+    """Probe the live WebSocket endpoint with the resolved shared secret."""
     try:
-        return await asyncio.wait_for(
-            _probe_server(host, port, load_or_create_token()),
-            timeout=timeout,
+        secret = resolve_shared_secret().secret
+        return await asyncio.wait_for(_probe_server(host, port, secret), timeout=timeout)
+    except AuthError:
+        return _status(
+            "auth_failed",
+            host,
+            port,
+            reachable=True,
+            message="server authentication failed",
+        )
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, AuthProtocolError):
+        return _status(
+            "protocol_mismatch",
+            host,
+            port,
+            reachable=True,
+            message="server returned an invalid status response",
         )
     except (OSError, TimeoutError, WebSocketException):
         return _status(
             "unavailable",
             host,
             port,
-            identity_verified=True,
             reachable=False,
             message="server connection failed",
         )
 
 
-def _discovered_server_payloads() -> tuple[dict[str, object], ...]:
-    return tuple(
-        {
-            "host": identity.host,
-            "port": identity.port,
-            "pid": identity.pid,
-        }
-        for identity in discover_live_server_identities()
-    )
-
-
-def _hints(status: ServerStatus, resolution: EndpointResolution) -> tuple[str, ...]:
-    hints: list[str] = []
-    if resolution.discovered and resolution.discovery_message:
-        hints.append(resolution.discovery_message)
-    elif status.state == "unavailable" and len(status.discovered_servers) == 1:
-        server = status.discovered_servers[0]
-        hints.append(
-            "set INTER_AGENT_HOST and INTER_AGENT_PORT or update the inter-agent config "
-            f"to use {server['host']}:{server['port']}"
-        )
-    elif status.state == "unavailable" and len(status.discovered_servers) > 1:
-        hints.append(
-            "multiple live inter-agent servers were found; set INTER_AGENT_PORT explicitly"
-        )
-    return tuple(hints)
+def _hints(status: ServerStatus) -> tuple[str, ...]:
+    if status.state == "unavailable":
+        return ("start inter-agent-server or check INTER_AGENT_HOST and INTER_AGENT_PORT",)
+    return ()
 
 
 async def check_resolved_server_status(
@@ -202,7 +151,6 @@ async def check_resolved_server_status(
 ) -> ServerStatus:
     """Check status and attach endpoint/config diagnostics."""
     status = await check_server_status(resolution.host, resolution.port, timeout=timeout)
-    discovered_servers = _discovered_server_payloads()
     status = replace(
         status,
         configured_host=resolution.configured_host,
@@ -212,10 +160,8 @@ async def check_resolved_server_status(
         data_dir=str(resolution.data_dir),
         data_dir_source=resolution.data_dir_source,
         config_path=str(resolution.config_path) if resolution.config_path is not None else None,
-        discovered=resolution.discovered,
-        discovered_servers=discovered_servers,
     )
-    return replace(status, hints=_hints(status, resolution))
+    return replace(status, hints=_hints(status))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -238,10 +184,7 @@ def _status_payload(status: ServerStatus) -> dict[str, object]:
         "data_dir": status.data_dir,
         "data_dir_source": status.data_dir_source,
         "config_path": status.config_path,
-        "discovered": status.discovered,
-        "discovered_servers": list(status.discovered_servers),
         "hints": list(status.hints),
-        "identity_verified": status.identity_verified,
         "reachable": status.reachable,
         "message": status.message,
     }
@@ -266,11 +209,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"data_dir={status.data_dir}")
         print(f"data_dir_source={status.data_dir_source}")
         print(f"config_path={status.config_path or ''}")
-        print(f"discovered={status.discovered}")
-        print(f"identity_verified={status.identity_verified}")
         print(f"message={status.message}")
-        for server in status.discovered_servers:
-            print(f"discovered_server={server['host']}:{server['port']} pid={server['pid']}")
         for hint in status.hints:
             print(f"hint={hint}")
     return 0

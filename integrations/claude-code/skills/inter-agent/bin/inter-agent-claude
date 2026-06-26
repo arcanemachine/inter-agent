@@ -25,6 +25,10 @@ if [[ "${1:-}" == "bootstrap" ]]; then
   exec "$SCRIPT_DIR/bootstrap-runtime" "$@"
 fi
 
+if [[ -n "${CLAUDE_PLUGIN_OPTION_SECRET:-}" ]]; then
+  export INTER_AGENT_SECRET="$CLAUDE_PLUGIN_OPTION_SECRET"
+fi
+
 if [[ -n "${INTER_AGENT_CLAUDE_HELPER:-}" ]]; then
   helper="$(expand_path "$INTER_AGENT_CLAUDE_HELPER")"
   if [[ ! -x "$helper" || -d "$helper" ]]; then

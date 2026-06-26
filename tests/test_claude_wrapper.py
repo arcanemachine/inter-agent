@@ -112,3 +112,28 @@ def test_claude_bootstrap_source_uses_github_main_archive() -> None:
     assert "https://github.com/arcanemachine/inter-agent/archive/refs/heads/main.zip" in script
     assert "--yes" in script
     assert "Python 3.10+ not found" in script
+
+
+def test_claude_wrapper_passes_plugin_secret_to_helper(tmp_path: Path) -> None:
+    project_path = tmp_path / "checkout"
+    helper = project_path / ".venv" / "bin" / "inter-agent-claude"
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        "printf 'secret:%s\\n' \"${INTER_AGENT_SECRET:-}\"\n",
+        encoding="utf-8",
+    )
+    helper.chmod(0o755)
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={
+            "CLAUDE_PLUGIN_OPTION_PROJECT_PATH": str(project_path),
+            "CLAUDE_PLUGIN_OPTION_SECRET": "plugin-secret",
+        },
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "secret:plugin-secret\n"

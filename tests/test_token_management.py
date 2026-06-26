@@ -1,18 +1,12 @@
 from __future__ import annotations
 
+import json
 import stat
 from pathlib import Path
-from typing import NoReturn
 
 import pytest
 
-import inter_agent.core.client as core_client
-import inter_agent.core.list as core_list
-import inter_agent.core.send as core_send
-import inter_agent.core.shutdown as core_shutdown
-from inter_agent.core.shared import load_or_create_token, token_path
-
-HOST = "127.0.0.1"
+from inter_agent.core.shared import load_or_create_token, resolve_shared_secret, token_path
 
 
 def file_mode(path: Path) -> int:
@@ -48,50 +42,70 @@ def test_existing_token_permissions_are_tightened(
     assert file_mode(path) == 0o600
 
 
-def fail_if_loaded() -> NoReturn:
-    raise AssertionError("token loaded before identity verification")
+def test_env_secret_wins_and_does_not_create_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"secret": "config-secret"}), encoding="utf-8")
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(config_path))
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("INTER_AGENT_SECRET", "env-secret")
+
+    resolution = resolve_shared_secret()
+
+    assert resolution.secret == "env-secret"
+    assert resolution.source == "env"
+    assert not token_path().exists()
 
 
-@pytest.mark.asyncio
-async def test_send_does_not_load_token_without_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+def test_config_secret_wins_over_token_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config_path = tmp_path / "config.json"
+    state_dir = tmp_path / "state"
+    config_path.write_text(
+        json.dumps({"secret": "config-secret", "dataDir": str(state_dir)}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(config_path))
+    monkeypatch.delenv("INTER_AGENT_SECRET", raising=False)
+
+    resolution = resolve_shared_secret()
+
+    assert resolution.secret == "config-secret"
+    assert resolution.source == "config"
+    assert not token_path().exists()
+
+
+def test_fallback_token_file_is_used_without_explicit_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(core_send, "load_or_create_token", fail_if_loaded)
+    monkeypatch.delenv("INTER_AGENT_SECRET", raising=False)
 
-    with pytest.raises(SystemExit, match="No server is running"):
-        await core_send.send_direct_message(HOST, unused_tcp_port, "agent-b", "hello")
+    resolution = resolve_shared_secret()
+    reused = resolve_shared_secret()
+
+    assert resolution.source == "token_file"
+    assert resolution.secret
+    assert reused.secret == resolution.secret
+    assert token_path().exists()
 
 
-@pytest.mark.asyncio
-async def test_list_does_not_load_token_without_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+@pytest.mark.parametrize(
+    "payload,message",
+    [({"secret": ""}, "must not be empty"), ({"secret": 123}, "must be a string")],
+)
+def test_invalid_config_secret_fails_clearly(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    payload: dict[str, object],
+    message: str,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(core_list, "load_or_create_token", fail_if_loaded)
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(config_path))
+    monkeypatch.delenv("INTER_AGENT_SECRET", raising=False)
 
-    with pytest.raises(SystemExit, match="No server is running"):
-        await core_list.list_sessions(HOST, unused_tcp_port)
-
-
-@pytest.mark.asyncio
-async def test_shutdown_does_not_load_token_without_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
-) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(core_shutdown, "load_or_create_token", fail_if_loaded)
-
-    with pytest.raises(SystemExit, match="No server is running"):
-        await core_shutdown.shutdown_server(HOST, unused_tcp_port)
-
-
-@pytest.mark.asyncio
-async def test_connect_does_not_load_token_without_identity(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
-) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(core_client, "load_or_create_token", fail_if_loaded)
-
-    frames = core_client.iter_client_frames(HOST, unused_tcp_port, "agent-a")
-    with pytest.raises(SystemExit, match="No server is running"):
-        await anext(frames)
+    with pytest.raises(SystemExit, match=message):
+        resolve_shared_secret()

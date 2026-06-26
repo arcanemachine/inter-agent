@@ -86,17 +86,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"data_dir={payload['data_dir']}")
             print(f"data_dir_source={payload['data_dir_source']}")
             print(f"config_path={payload['config_path'] or ''}")
-            print(f"discovered={payload['discovered']}")
-            print(f"identity_verified={payload['identity_verified']}")
             print(f"message={payload['message']}")
-            discovered_servers = payload.get("discovered_servers")
-            if isinstance(discovered_servers, list):
-                for server in discovered_servers:
-                    if isinstance(server, dict):
-                        print(
-                            f"discovered_server={server.get('host')}:{server.get('port')} "
-                            f"pid={server.get('pid')}"
-                        )
             hints = payload.get("hints")
             if isinstance(hints, list):
                 for hint in hints:

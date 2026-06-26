@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 BUILTIN_DEFAULT_HOST = "127.0.0.1"
@@ -27,8 +27,15 @@ class EndpointResolution:
     config_path: Path | None
     configured_host: str
     configured_port: int
-    discovered: bool = False
-    discovery_message: str | None = None
+
+
+@dataclass(frozen=True)
+class ExplicitSecretResolution:
+    """Resolved explicit shared secret from environment or config."""
+
+    secret: str
+    source: str
+    config_path: Path | None
 
 
 def _expand_path(raw: str) -> Path:
@@ -133,6 +140,25 @@ def resolve_data_dir_path() -> Path:
     return _platform_data_dir()
 
 
+def resolve_explicit_secret_config() -> ExplicitSecretResolution | None:
+    """Resolve explicit shared secret from environment/config, if configured."""
+    config, path = _load_config()
+
+    env_secret = os.getenv("INTER_AGENT_SECRET")
+    if env_secret is not None:
+        if not env_secret.strip():
+            raise ConfigError("INTER_AGENT_SECRET must not be empty")
+        return ExplicitSecretResolution(secret=env_secret, source="env", config_path=path)
+
+    config_secret = _config_string(config, "secret")
+    if config_secret is not None:
+        if not config_secret.strip():
+            raise ConfigError("inter-agent config key 'secret' must not be empty")
+        return ExplicitSecretResolution(secret=config_secret, source="config", config_path=path)
+
+    return None
+
+
 def resolve_endpoint_config(
     cli_host: str | None = None,
     cli_port: int | None = None,
@@ -192,21 +218,4 @@ def resolve_endpoint_config(
         config_path=path,
         configured_host=host,
         configured_port=port,
-    )
-
-
-def with_discovered_endpoint(
-    resolution: EndpointResolution,
-    *,
-    host: str,
-    port: int,
-    message: str,
-) -> EndpointResolution:
-    """Return a resolution redirected to a discovered live server."""
-    return replace(
-        resolution,
-        host=host,
-        port=port,
-        discovered=True,
-        discovery_message=message,
     )

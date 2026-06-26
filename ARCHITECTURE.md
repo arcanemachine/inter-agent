@@ -5,7 +5,7 @@
 ## Layers
 
 1. **Core protocol (`src/inter_agent/core/`)**
-   - Handshake/auth (`hello` / `welcome`)
+   - Handshake/auth (`hello` / `auth_challenge` / `auth_response` / `welcome`)
    - Presence and identity (`session_id`, routing `name`, display-only `label`)
    - Routing (`send`, `broadcast`, `custom` pass-through)
    - Health and lifecycle (`ping` / `pong`, `bye`, authenticated `shutdown`)
@@ -43,16 +43,16 @@ Host adapters are thin integration layers over the core protocol. They translate
 ### Adapters must
 
 - Use the documented protocol contract in `spec/` and canonical error codes in `spec/error-codes.md`.
-- Reuse importable core APIs for endpoint resolution, identity verification, token loading, command connections, and protocol operations when running in Python. Direct clients in another runtime must port only the client-side behavior needed by the host and keep it aligned with `spec/`, `spec/error-codes.md`, `SECURITY.md`, and the corresponding core APIs.
+- Reuse importable core APIs for endpoint resolution, shared-secret resolution, command connections, and protocol operations when running in Python. Direct clients in another runtime must port only the client-side behavior needed by the host and keep it aligned with `spec/`, `spec/error-codes.md`, `SECURITY.md`, and the corresponding core APIs.
 - Preserve routing semantics: direct targets resolve by routing name, optional labels are display-only, broadcasts go to other agent sessions, and control connections are not listed as peers.
-- Keep runtime source separate from bus state. A host-specific checkout, managed venv, or helper override may choose where adapter code runs, but it must not imply a host-specific default token directory, endpoint, or isolated bus.
+- Keep runtime source separate from bus auth/state. A host-specific checkout, managed venv, or helper override may choose where adapter code runs, but it must not imply a host-specific endpoint, secret, or isolated bus.
 - Treat peer messages as collaboration inputs that do not override host, user, security, or tool rules.
 - Keep failures actionable and parseable for host tooling, with stdout reserved for protocol/status payloads where the adapter documents that behavior.
 
 ### Adapters must not
 
 - Redefine protocol semantics, capability negotiation, routing rules, auth behavior, or error-code meanings.
-- Bypass the shared bearer token, localhost identity checks, payload limits, or lifecycle metadata checks.
+- Bypass shared-secret challenge-response authentication, payload limits, or routing/resource checks.
 - Depend on private server objects, in-memory router state, or non-spec message fields.
 - Broaden the security model beyond localhost single-user operation without a separate accepted threat model.
 - Default to host-specific bus state directories that fragment cross-harness communication.
@@ -63,14 +63,14 @@ Python-backed adapters should start with these typed core APIs. Direct clients i
 
 | Need | Core surface |
 | --- | --- |
-| Resolve endpoint and shared state | `inter_agent.core.shared.resolve_endpoint`, `inter_agent.core.config.EndpointResolution` |
+| Resolve endpoint and shared secret | `inter_agent.core.shared.resolve_endpoint`, `inter_agent.core.config.EndpointResolution`, `inter_agent.core.shared.resolve_shared_secret` |
 | Connect a long-running agent session | `inter_agent.core.client.iter_client_frames`, `inter_agent.core.client.run_client` |
 | Send direct, broadcast, or custom messages | `inter_agent.core.send.send_direct_message`, `broadcast_message`, `send_custom_message`, `SendResult` |
 | List connected agent sessions | `inter_agent.core.list.list_sessions`, `ListResult`, `SessionInfo` |
 | Check server status and static command support | `inter_agent.core.status.check_resolved_server_status`, `command_status`, `ServerStatus` |
 | Stop or administer the server | `inter_agent.core.shutdown.shutdown_server`, `inter_agent.core.kick.kick_session` |
 
-Runtime source is not bus state: adapters may resolve helper binaries through host config, managed environments, or `PATH`, while the bus endpoint and token state remain controlled by `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, the inter-agent config file, and built-in defaults.
+Runtime source is not bus auth/state: adapters may resolve helper binaries through host config, managed environments, or `PATH`, while endpoint and secret resolution remain controlled by `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_SECRET`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, the inter-agent config file, and built-in defaults.
 
 ## Messaging model
 
@@ -89,18 +89,17 @@ Runtime source is not bus state: adapters may resolve helper binaries through ho
 - Manual starts run until explicit shutdown by default. Passing `--idle-timeout <seconds>` opts in to automatic shutdown after that idle period; `--idle-timeout 0` also leaves the timeout disabled.
 - Adapters that auto-start the server, including Pi `/inter-agent-connect` and Claude Code `listen`, pass an explicit 300-second idle timeout, verify the server is reachable before proceeding, and retry for up to 15 seconds after launching the server process.
 
-## Configuration and lifecycle state
+## Configuration and fallback secret state
 
 - The default endpoint is `127.0.0.1:16837`.
 - Endpoint resolution uses explicit CLI options first, then `INTER_AGENT_HOST` / `INTER_AGENT_PORT`, then the inter-agent JSON config file, then built-in defaults.
+- The shared secret resolves from `INTER_AGENT_SECRET`, then top-level config key `secret`, then a generated fallback token file in the data directory.
 - The config file is `INTER_AGENT_CONFIG` when set, otherwise `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux and `~/Library/Application Support/inter-agent/config.json` on macOS.
-- Server state lives under `INTER_AGENT_DATA_DIR`, then the config file `dataDir`, then `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS.
-- The token file, server identity metadata, PID metadata, and reserved shutdown-control metadata are per-user local files with restrictive permissions.
-- Server identity metadata is written atomically and includes host, port, PID, state schema version, startup timestamp, instance nonce, and a platform process start marker when available.
-- Startup refuses to replace live metadata for the same port and removes stale metadata for dead server processes when safe.
-- Authenticated shutdown stops accepting new connections, closes active sessions, and removes server lifecycle metadata during normal shutdown.
-- Status checks report available, unavailable, identity-check-failed, auth-failed, and protocol-mismatch states for host tooling, along with the resolved configuration, discovered live server metadata, and endpoint hints.
-- When client/control commands target an unavailable configured endpoint and exactly one live server is discovered in lifecycle metadata, they use the discovered endpoint. Server startup always binds the resolved configured endpoint and does not use discovery fallback.
+- Fallback secret state lives under `INTER_AGENT_DATA_DIR`, then the config file `dataDir`, then `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS.
+- When `INTER_AGENT_SECRET` or config `secret` is set, core does not read or create the fallback token file for auth.
+- Server startup binds the resolved configured endpoint. Duplicate live servers are detected by bind failure.
+- Authenticated shutdown stops accepting new connections and closes active sessions.
+- Status checks probe the configured endpoint directly and report available, unavailable, auth-failed, and protocol-mismatch states for host tooling, along with resolved configuration and endpoint hints.
 
 ## Capability exchange
 

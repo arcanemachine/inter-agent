@@ -11,13 +11,8 @@ from dataclasses import dataclass
 import websockets
 from websockets.asyncio.client import ClientConnection
 
-from inter_agent.core.shared import (
-    control_hello,
-    identity_failure_message,
-    load_or_create_token,
-    resolve_endpoint,
-    verify_server_identity_details,
-)
+from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
+from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
 
 
 @dataclass(frozen=True)
@@ -51,6 +46,20 @@ def _json_object(raw: str) -> dict[str, object]:
     return {str(key): value for key, value in payload.items()}
 
 
+def _protocol_error_from_payload(
+    raw: str, payload: dict[str, object]
+) -> ProtocolErrorResult | None:
+    if payload.get("op") != "error":
+        return None
+    code = payload.get("code")
+    message = payload.get("message")
+    return ProtocolErrorResult(
+        code=code if isinstance(code, str) else "PROTOCOL_ERROR",
+        message=message if isinstance(message, str) else "protocol error",
+        raw=raw,
+    )
+
+
 def parse_custom_payload(payload: str | None) -> object:
     """Parse a CLI custom payload string into a JSON-compatible value."""
     if payload is None:
@@ -66,15 +75,7 @@ async def _recv_protocol_error(ws: ClientConnection, timeout: float) -> Protocol
         return None
 
     response = _json_object(raw)
-    if response.get("op") != "error":
-        return None
-    code = response.get("code")
-    message = response.get("message")
-    return ProtocolErrorResult(
-        code=code if isinstance(code, str) else "PROTOCOL_ERROR",
-        message=message if isinstance(message, str) else "protocol error",
-        raw=raw,
-    )
+    return _protocol_error_from_payload(raw, response)
 
 
 async def send_message(
@@ -88,13 +89,18 @@ async def send_message(
     response_timeout: float = 0.1,
 ) -> SendResult:
     """Send a direct, broadcast, or custom message through a control connection."""
-    verification = verify_server_identity_details(host, port)
-    if not verification.ok:
-        raise SystemExit(identity_failure_message(verification.reason))
-    token = load_or_create_token()
+    secret = resolve_shared_secret().secret
     async with websockets.connect(f"ws://{host}:{port}") as ws:
-        await ws.send(json.dumps(control_hello(token, f"ctl-{uuid.uuid4()}")))
-        welcome = _text_frame(await ws.recv())
+        try:
+            welcome = await client_handshake(ws, secret, control_hello(f"ctl-{uuid.uuid4()}"))
+        except AuthError as exc:
+            raise SystemExit(str(exc)) from exc
+        except (AuthProtocolError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise SystemExit(f"server protocol mismatch: {exc}") from exc
+        welcome_payload = _json_object(welcome)
+        welcome_error = _protocol_error_from_payload(welcome, welcome_payload)
+        if welcome_error is not None:
+            return SendResult(welcome=welcome, welcome_payload=welcome_payload, error=welcome_error)
         if custom_type is not None:
             msg: dict[str, object] = {
                 "op": "custom",
@@ -118,7 +124,7 @@ async def send_message(
             await ws.send(json.dumps(outbound))
         return SendResult(
             welcome=welcome,
-            welcome_payload=_json_object(welcome),
+            welcome_payload=welcome_payload,
             error=await _recv_protocol_error(ws, response_timeout),
         )
 

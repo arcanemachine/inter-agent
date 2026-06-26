@@ -35,6 +35,10 @@ def test_claude_marketplace_manifest_points_to_claude_plugin() -> None:
     assert project_path["type"] == "string"
     assert project_path["default"] == ""
     assert ".venv/bin/inter-agent-claude" in project_path["description"]
+    secret = user_config["secret"]
+    assert secret["type"] == "string"
+    assert secret["default"] == ""
+    assert "INTER_AGENT_SECRET" in secret["description"]
 
     source = plugin["source"]
     assert source == "./integrations/claude-code"

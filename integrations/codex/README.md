@@ -89,8 +89,8 @@ workflow.
 
 The Codex sidecar would own Codex-specific runtime behavior:
 
-1. Resolve and connect to the shared inter-agent bus endpoint and data directory.
-2. Verify inter-agent server identity before reading or sending the bus token.
+1. Resolve and connect to the shared inter-agent bus endpoint and secret.
+2. Authenticate with inter-agent challenge-response without sending the raw secret.
 3. Connect as a persistent inter-agent agent session with a user-selected routing
    name and optional label.
 4. Maintain a connection to Codex App Server through a local control transport.
@@ -197,10 +197,9 @@ The design must not rely on hidden Codex internals or a forked Codex binary.
 The integration must stay inside the existing inter-agent localhost, same-user
 security model.
 
-- The sidecar must verify inter-agent server identity before sending the
-  inter-agent token.
-- The sidecar must not store the inter-agent token in Codex plugin state, Codex
-  config, logs, transcripts, or injected model-visible context.
+- The sidecar must authenticate with inter-agent challenge-response and must not send the raw shared secret.
+- The sidecar must not store inter-agent secrets or proofs in Codex plugin state, Codex
+  config, logs, transcripts, or injected model-visible context unless explicitly configured by the user.
 - Codex App Server control access must be local-only and use the safest available
   transport for the target platform.
 - Inbound peer messages must be injected as untrusted collaboration context, not
@@ -240,7 +239,7 @@ A design spike is successful when it demonstrates, against a real Codex version:
 - outbound `send`, `broadcast`, `list`, and `status` from Codex;
 - bounded inbox behavior when no thread is selected;
 - reconnection behavior for bus and App Server restarts;
-- no token leakage into Codex-visible state or logs;
+- no secret or proof leakage into Codex-visible state or logs;
 - clear documentation that plugin-only Codex support is insufficient and that
   the sidecar owns automatic delivery.
 

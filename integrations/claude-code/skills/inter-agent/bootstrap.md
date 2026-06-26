@@ -18,8 +18,7 @@ order:
    `~/.claude/data/inter-agent/venv/bin/inter-agent-claude`.
 4. `inter-agent-claude` on PATH.
 
-If none exists, the wrapper prints a short setup-needed message and exits. Do
-not guess alternate commands.
+If plugin config provides `secret`, the wrapper exports it as `INTER_AGENT_SECRET` before running the selected helper. If no helper exists, the wrapper prints a short setup-needed message and exits. Do not guess alternate commands.
 
 ## Configure a local checkout
 
@@ -49,7 +48,7 @@ Bootstrap creates an isolated runtime venv at:
 ```
 
 It installs the inter-agent Python package into that venv and does not change
-the bus endpoint, token, or state directory. Claude, Pi, and other hosts still
+the bus endpoint, secret, or fallback state directory. Claude, Pi, and other hosts still
 use the normal inter-agent defaults unless explicitly configured otherwise:
 
 ```text
@@ -73,7 +72,7 @@ Do not install anything silently. When setup is needed, tell the user:
 - destination: `~/.claude/data/inter-agent/venv`;
 - source: the GitHub archive above;
 - requirement: Python 3.10+ with `venv` support;
-- bus state: unchanged shared inter-agent defaults.
+- bus auth/state: unchanged shared inter-agent defaults.
 
 Ask for explicit approval. Only after the user approves, run:
 

@@ -1,5 +1,5 @@
 {
   "op": "error",
   "code": "AUTH_FAILED",
-  "message": "invalid token"
+  "message": "invalid auth"
 }
