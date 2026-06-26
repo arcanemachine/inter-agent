@@ -369,7 +369,8 @@ mandatory gate unless they become headless and reliable.
 - No Python/`uv` or subprocess bridge for routine first-release operation unless
   the direct-client plan is explicitly changed.
 - No server rewrite in TypeScript.
-- No Codex extension. Codex's no-fork extension surfaces do not currently expose
-  the background delivery and control surface needed for an inter-agent
-  integration comparable to Pi or OpenCode. Any future Codex work should be
-  tracked separately as an App Server sidecar investigation.
+- No Codex work in the OpenCode phase. Codex plugin-only extension surfaces do
+  not expose the persistent background delivery and control surface needed for
+  an inter-agent integration comparable to Pi or OpenCode. Future Codex work
+  should follow the separate App Server sidecar direction documented in
+  `integrations/codex/README.md`.

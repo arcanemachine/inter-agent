@@ -43,7 +43,7 @@ Key OpenCode reference files from the local clone:
 
 - Do not add OpenCode-specific semantics to the core protocol.
 - Do not depend on a patched or forked OpenCode.
-- Do not build Codex support in this phase. Codex does not currently expose a no-fork extension surface that can provide the same background message delivery UX; any future Codex work should be treated as an App Server sidecar investigation, not a Codex extension plan.
+- Do not build Codex support in this phase. Codex plugin-only extension surfaces do not provide the persistent background message delivery UX needed for inter-agent parity; future Codex work should follow the separate App Server sidecar direction documented in `integrations/codex/README.md`.
 - Do not rely on prompt injection as the primary message delivery path. Use notifications and an inbox first; add prompt insertion only if the current OpenCode API supports it cleanly.
 
 ## Design decisions to confirm before implementation
@@ -106,7 +106,7 @@ Key OpenCode reference files from the local clone:
 - The design identifies the TUI plugin as the listener owner.
 - The design identifies the server plugin as the LLM tool owner.
 - The design includes install, identity, state, notification, command, tool, security, and testing decisions.
-- The design states that Codex extension development is out of scope because Codex's no-fork extension surface cannot provide equivalent background delivery.
+- The design states that Codex work is out of scope for the OpenCode phase and points future Codex work to the separate App Server sidecar direction.
 
 ## Files likely to change
 

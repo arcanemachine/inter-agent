@@ -44,8 +44,8 @@ Make OpenCode support installable, documented, and included in the repository's 
 4. Update root `README.md`.
    - List OpenCode as supported only after implementation and validation are complete.
    - While OpenCode is prospective, keep it out of the supported integration list and point interested contributors to `ROADMAP.md` instead.
-   - Remove language that implies a Codex extension is planned.
-   - State prominently that Codex extension support is not planned because Codex's no-fork extension system does not expose the background delivery/control surface required for an inter-agent extension. Any future Codex work should be described separately as an App Server sidecar, not a Codex extension.
+   - Remove language that implies plugin-only Codex extension support is planned.
+   - State prominently that Codex plugin-only extension surfaces do not expose the background delivery/control surface required for inter-agent parity. Future Codex work should follow the separate App Server sidecar direction documented in `integrations/codex/README.md`.
 
 5. Update `ARCHITECTURE.md` if needed.
    - Add OpenCode to the host integration layer only after implementation exists.
@@ -62,12 +62,12 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Remove completed OpenCode work from `PLAN.md` when the active slice is done.
    - Update `ROADMAP.md` with implementation status and any remaining follow-on work.
    - State completion criteria.
-   - State the Codex extension non-goal.
+   - State the Codex plugin-only extension non-goal and point to the App Server sidecar direction.
 
 8. Update `IDEAS.md` if needed.
    - Move OpenCode-only ideas into `ROADMAP.md` only after user acceptance.
    - Copy only active OpenCode work slices into `PLAN.md`.
-   - Keep Codex App Server sidecar as an idea only if the user wants it tracked.
+   - Keep Codex App Server sidecar direction aligned with `ROADMAP.md` and `integrations/codex/README.md`.
 
 9. Integrate checks.
    - Add stable OpenCode checks to `run-checks.sh`.
@@ -82,7 +82,7 @@ Make OpenCode support installable, documented, and included in the repository's 
 ## Acceptance criteria
 
 - OpenCode install, configuration, commands, tools, receive behavior, disconnect, and troubleshooting are documented.
-- Root docs no longer imply that a Codex extension is planned.
+- Root docs no longer imply that plugin-only Codex extension support is planned.
 - Security docs describe OpenCode-specific trust and token-access assumptions.
 - Root quality gate includes OpenCode checks once stable.
 - Manual UAT has been run and recorded in the handoff or completion note.
