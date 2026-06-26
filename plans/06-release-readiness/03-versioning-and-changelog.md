@@ -27,6 +27,10 @@ Define how project versions and notable changes are recorded.
 - Changelog, if present, uses stable release-oriented language.
 - Package metadata and docs agree on the version.
 
+## Recorded result
+
+Complete. `CHANGELOG.md` documents the versioning policy, release-note style, package metadata update checklist, and the distinction between package release versions and the protocol `core.version` capability. `README.md` points maintainers to the version source and changelog. Static tests verify that Python, Pi, Claude Code, and marketplace metadata versions match the package version and that the changelog contains an entry for that version.
+
 ## Files likely to change
 
 - `pyproject.toml`

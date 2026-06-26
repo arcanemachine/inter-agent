@@ -286,7 +286,11 @@ uv run black --check .
 uv run mypy src tests
 ```
 
-The package version lives in `pyproject.toml`. Release notes live in [`CHANGELOG.md`](CHANGELOG.md).
+### Versioning and release notes
+
+The Python package version in `pyproject.toml` is the core release version. Related Pi package metadata, Claude Code plugin metadata, and the root Claude marketplace metadata use the same version for releases that ship from this repository. During unreleased pre-release development, the version may remain unchanged while changes accumulate locally.
+
+Release notes and the maintainer update checklist live in [`CHANGELOG.md`](CHANGELOG.md). Changelog entries should describe stable behavior changes, not session history.
 
 Build and validate release artifacts:
 
