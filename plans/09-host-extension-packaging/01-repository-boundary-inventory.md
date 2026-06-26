@@ -100,7 +100,7 @@ The core package is the runtime dependency. The public superproject coordinates 
 | `LICENSE.md` | All public repos | Keep licensing explicit in every public repo. |
 | `AGENTS.md` | Public superproject and each public repo, cleaned for public contribution context | Private/internal rules stay in `inter-agent-meta`. |
 | `PLAN.md` and `plans/` | Public superproject if kept public; private `inter-agent-meta` for rough/internal planning | Keep only stable public roadmap material in public repos. |
-| `IDEAS.md`, `TODO.md` | Default to `inter-agent-meta` unless curated for public roadmap | Treat as clutter until deliberately cleaned. |
+| `IDEAS.md` | Public superproject if curated; otherwise private `inter-agent-meta` | Keep only accepted public follow-up ideas in public repos. Stale top-level TODO material was removed during final completion review. |
 | `docs/` | Split by subject | Security baseline/threat-model docs likely belong with core security docs unless they are stale or internal. |
 | `dist/`, caches, virtualenvs | No public repo | Generated/local artifacts stay untracked or ignored. |
 

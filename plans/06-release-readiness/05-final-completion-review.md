@@ -30,6 +30,10 @@ Verify that all roadmap goals are satisfied and no completion-scope work remains
 - Required checks pass.
 - The repository is ready for maintainer review.
 
+## Recorded result
+
+Complete. `PLAN.md` now marks the core completion path as complete and separates follow-on work from completed scope. Completion-scope plan items are recorded in `plans/`; exploratory and user-prioritized follow-ups live in `IDEAS.md`. Stale top-level TODO material was either removed as completed/private scratch or merged into `IDEAS.md` so it no longer conflicts with the roadmap. The documented quality gate and release build validation pass, and the repository is ready for maintainer review.
+
 ## Files likely to change
 
 - `PLAN.md`

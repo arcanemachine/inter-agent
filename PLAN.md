@@ -4,9 +4,9 @@
 
 The roadmap is the high-level view. Detailed sub-agent-ready work items live under `plans/`, grouped by the same phases shown here. Phases 1 through 6 are the core completion path. Extra phases after that point are planned follow-on integrations. Ideas outside planned scope live in `IDEAS.md`.
 
-## Current immediate priority
+## Current status
 
-Phase 9 installability/setup work is complete. Continue release-readiness work in `plans/06-release-readiness/`, starting with `plans/06-release-readiness/05-final-completion-review.md`, unless the user explicitly redirects to repository extraction or another follow-on integration.
+The core completion path is complete. Phase 9 installability/setup work is complete, and Phase 6 release-readiness review found no remaining completion-scope plan items. Follow-on integration work, repository extraction, and exploratory protocol ideas remain outside the completed core scope until the user explicitly promotes them.
 
 ## Scope
 
@@ -86,9 +86,7 @@ Completion criteria:
 
 Goal: prepare the project for dependable use and future evolution.
 
-Plan items:
-
-1. `plans/06-release-readiness/05-final-completion-review.md`
+Plan items: complete.
 
 Completion criteria:
 

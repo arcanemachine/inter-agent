@@ -2,9 +2,17 @@
 
 This file holds promising work that is not required for project completion as defined in `PLAN.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
 
-## User-suggested improvements (do not edit these; remove when completed)
+## Prioritized follow-up ideas
 
-- Ensure that the inter-agent server automatically disconnects after the configured timeout.
+These items are user-prioritized follow-ups, but they are not required for the completed core scope until promoted into `PLAN.md`.
+
+1. Implement channel pub/sub routing behind explicit capability flags. See [Channel pub/sub](#channel-pubsub).
+2. Publish or register the Claude Code and Pi extensions in their appropriate distribution and discovery channels, such as Claude Code plugin marketplaces, npm/package registries, and the Pi packages page.
+3. Replace temporary GitHub `main.zip` runtime install sources with stable PyPI, release-tag, or pinned-archive sources.
+4. Refine local install layout and path handling for application files versus runtime state, including platform-appropriate defaults and path expansion for settings such as `projectPath` and `dataDir`.
+5. Investigate Claude Code command autocomplete for `/inter-agent` commands.
+
+## User-suggested improvements (do not edit these; remove when completed)
 
 - In Pi, when connecting to the inter-agent session, add a message to the context so that the agent knows that it has been connected to the session and doesn't need to use the `whoami` command. (This should not prompt a reply from the agent... It should just be part of the "next turn" when the user prompts again).
   - *May* also be able to tweak the user's personal inter-agent handoff sub-skill so that the "whoami" check is no longer *required* to perform a handoff.
@@ -12,14 +20,6 @@ This file holds promising work that is not required for project completion as de
 
 - Show a better error message if running the `start` script when a session has already started.
   - It currently crashes with a decent error message at the end, but the whole process could be a little cleaner.
-
-## Misc. improvements
-
-- Server lifecycle QoL improvements
-  - Manual server starts run until explicit shutdown by default, with `--idle-timeout <seconds>` available when an idle timeout is wanted.
-  - Pi and Claude Code auto-start server paths use an explicit 300-second idle timeout.
-  - How would agents behave if the server connection was lost (e.g. due to a crash)? Would they be notified? Should they attempt to reconnect? This process should be guided.
-    — Implemented: both the Claude Code and Pi listeners now reconnect with bounded backoff and eventual give-up.
 
 ## Host adapters
 
