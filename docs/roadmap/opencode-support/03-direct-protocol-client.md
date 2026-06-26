@@ -1,6 +1,6 @@
 # Direct Protocol Client
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 
@@ -33,7 +33,7 @@ Optional later:
 
 ## Required spike before full implementation
 
-Before building the full client, prove direct WebSocket access from the OpenCode plugin runtime as described in `plans/08-opencode-support/00-execution-guide.md`.
+Before building the full client, prove direct WebSocket access from the OpenCode plugin runtime as described in `docs/roadmap/opencode-support/00-execution-guide.md`.
 
 Minimum proof:
 

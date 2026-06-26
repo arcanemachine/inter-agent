@@ -1,13 +1,14 @@
 # inter-agent for OpenCode
 
-OpenCode support is a planned host-native integration for the `inter-agent`
-localhost message bus. This document is the consolidated design and execution
-reference for that integration. It records the current target architecture,
-known OpenCode integration points, protocol-client requirements, security
+OpenCode support is a prospective host-native integration for the `inter-agent`
+localhost message bus. It has not been implemented or added as a supported
+integration. This document is the consolidated design and execution reference for
+that possible integration. It records the current target architecture, known
+OpenCode integration points, protocol-client requirements, security
 expectations, testing strategy, and decisions that must be confirmed when work
 begins.
 
-The integration is planned as follow-on host work. It is ready to execute from
+The integration is prospective follow-on host work. It is ready to execute from
 these notes when the user chooses to start it.
 
 ## Current conclusion
@@ -349,13 +350,16 @@ mandatory gate unless they become headless and reliable.
 
 ## Documentation locations
 
-- `PLAN.md` records OpenCode as a planned follow-on integration.
-- `plans/08-opencode-support/` contains execution steps and acceptance criteria.
+- `ROADMAP.md` records OpenCode as prospective follow-on work.
+- `docs/roadmap/opencode-support/` contains detailed prospective execution notes.
+- `PLAN.md` should mention OpenCode only when the user activates a concrete
+  implementation slice.
 - This file records the consolidated OpenCode design/reference material.
-- `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` should be updated when an
-  implementation exists or when the documented architecture/security posture
-  changes.
-- New OpenCode-adjacent ideas outside the accepted Phase 8 scope belong in
+- `README.md` should list OpenCode as supported only after an implementation
+  exists and has been validated.
+- `ARCHITECTURE.md` and `SECURITY.md` should be updated when implementation
+  changes the documented architecture or security posture.
+- New OpenCode-adjacent ideas outside the accepted roadmap scope belong in
   `IDEAS.md` until the user promotes them.
 
 ## Non-goals

@@ -37,7 +37,7 @@ Make Claude Code support installable, discoverable, documented, and included in 
 - `README.md`
 - `src/inter_agent/adapters/claude/README.md`
 - `IDEAS.md`
-- `plans/06-release-readiness/02-release-build-validation.md`
+- `docs/archive/plans/06-release-readiness/02-release-build-validation.md`
 - local quality gate script if paths change
 
 ## Checks

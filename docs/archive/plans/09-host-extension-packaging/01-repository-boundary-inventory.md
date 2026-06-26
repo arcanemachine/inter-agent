@@ -99,7 +99,7 @@ The core package is the runtime dependency. The public superproject coordinates 
 | `CHANGELOG.md` | Package-specific; initially `inter-agent-core`, plus extension changelogs when split | Avoid one changelog claiming releases for packages it no longer ships. |
 | `LICENSE.md` | All public repos | Keep licensing explicit in every public repo. |
 | `AGENTS.md` | Public superproject and each public repo, cleaned for public contribution context | Private/internal rules stay in `inter-agent-meta`. |
-| `PLAN.md` and `plans/` | Public superproject if kept public; private `inter-agent-meta` for rough/internal planning | Keep only stable public roadmap material in public repos. |
+| `PLAN.md`, `ROADMAP.md`, and planning archives | Public superproject if kept public; private `inter-agent-meta` for rough/internal planning | Keep active work small and keep only stable public roadmap material in public repos. |
 | `IDEAS.md` | Public superproject if curated; otherwise private `inter-agent-meta` | Keep only accepted public follow-up ideas in public repos. Stale top-level TODO material was removed during final completion review. |
 | `docs/` | Split by subject | Security baseline/threat-model docs likely belong with core security docs unless they are stale or internal. |
 | `dist/`, caches, virtualenvs | No public repo | Generated/local artifacts stay untracked or ignored. |

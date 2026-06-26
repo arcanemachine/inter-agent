@@ -1,10 +1,10 @@
 # Ideas
 
-This file holds promising work that is not required for project completion as defined in `PLAN.md`. Move an idea into the roadmap and phase plans only when it becomes completion scope.
+This file holds promising work that is not active and has not been accepted into the roadmap. Move an idea into `ROADMAP.md` when the user accepts it as medium- or long-term direction. Move only the next concrete slice into `PLAN.md` when work becomes active.
 
 ## Prioritized follow-up ideas
 
-These items are user-prioritized follow-ups, but they are not required for the completed core scope until promoted into `PLAN.md`.
+These items are user-prioritized follow-ups, but they are not active unless promoted into `ROADMAP.md` or copied into `PLAN.md` as a concrete work slice.
 
 1. Implement channel pub/sub routing behind explicit capability flags. See [Channel pub/sub](#channel-pubsub).
 2. Publish or register the Claude Code and Pi extensions in their appropriate distribution and discovery channels, such as Claude Code plugin marketplaces, npm/package registries, and the Pi packages page.
@@ -41,7 +41,7 @@ Possible follow-up work:
 
 ### Additional host adapters
 
-Other coding-agent hosts can be added once the adapter boundary is stable. New host ideas belong here until the user accepts them as completion or follow-on integration scope. New adapters should use core APIs, preserve shared bus defaults, and must not redefine protocol semantics.
+Other coding-agent hosts can be added once the adapter boundary is stable. New host ideas belong here until the user accepts them as roadmap direction or active work. New adapters should use core APIs, preserve shared bus defaults, and must not redefine protocol semantics.
 
 Potential future hosts should follow the thin-adapter pattern used by Pi and Claude Code: host-native UX and notification handling around the shared core protocol, with runtime installation kept separate from bus endpoint and token state.
 
@@ -51,7 +51,7 @@ Potential future hosts should follow the thin-adapter pattern used by Pi and Cla
 
 The current Pi extension (`integrations/pi/`) shells out to the Python CLI (`inter-agent-pi` for commands, `inter-agent-connect` for the listener). This requires Python/venv/uv to be available on the Pi side.
 
-A future refactor could replace the Python CLI bridge with a direct TypeScript WebSocket client, adding `ws` as a runtime dependency and implementing a small client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop. The protocol is simple JSON over WebSocket and token path, identity verification, and frame parsing already exist in the Python core and could be ported. The planned OpenCode direct client under Phase 8 can serve as the first proven JavaScript client shape before any Pi refactor is considered.
+A future refactor could replace the Python CLI bridge with a direct TypeScript WebSocket client, adding `ws` as a runtime dependency and implementing a small client that handles hello handshake, token auth, send/broadcast/list/status/shutdown, and the listener loop. The protocol is simple JSON over WebSocket and token path, identity verification, and frame parsing already exist in the Python core and could be ported. The prospective OpenCode direct client in `ROADMAP.md` can serve as the first proven JavaScript client shape before any Pi refactor is considered.
 
 #### Project path auto-discovery
 

@@ -399,7 +399,7 @@ Milestone 5 is complete. The target direction is a private `inter-agent-meta` wr
 
 The split is driven by deployment ownership. The core package should provide the protocol, server, client helpers, generic CLI, spec, schemas, examples, canonical error codes, and conformance tests. Host extension repositories should provide host-native plugin/extension metadata, UX, wrapper/bootstrap behavior, and any host-specific adapter code while depending on the core package through local directory, GitHub/archive, or PyPI installs as appropriate.
 
-Physical splitting is deferred. The repository boundary inventory and migration sequence are recorded in `plans/09-host-extension-packaging/01-repository-boundary-inventory.md`. As a small safe cleanup, canonical error code documentation moved from top-level `ERROR_CODES.md` to `spec/error-codes.md` so it follows the protocol/core boundary.
+Physical splitting is deferred. The repository boundary inventory and migration sequence are recorded in `docs/archive/plans/09-host-extension-packaging/01-repository-boundary-inventory.md`. As a small safe cleanup, canonical error code documentation moved from top-level `ERROR_CODES.md` to `spec/error-codes.md` so it follows the protocol/core boundary.
 
 ## Documentation updates by milestone
 
@@ -425,8 +425,8 @@ Physical splitting is deferred. The repository boundary inventory and migration 
 
 ### Milestone 5
 
-- `plans/09-host-extension-packaging/01-repository-boundary-inventory.md`: target repository topology, file ownership inventory, migration sequence.
-- PLAN.md: Phase 9 completion status.
+- `docs/archive/plans/09-host-extension-packaging/01-repository-boundary-inventory.md`: target repository topology, file ownership inventory, migration sequence.
+- ROADMAP.md: follow-up extraction direction.
 - README.md and architecture docs if repository/package layout changes.
 - Protocol docs: canonical error code docs live under `spec/`.
 
@@ -475,4 +475,4 @@ Stop and ask the user before:
 
 ## Follow-up guidance
 
-Phase 9 is complete. Use `plans/09-host-extension-packaging/01-repository-boundary-inventory.md` before starting physical repository/package extraction. Follow-up integration, publishing, protocol, or extraction work should be promoted from `IDEAS.md` or added to `PLAN.md` before implementation.
+Phase 9 is complete. Use `docs/archive/plans/09-host-extension-packaging/01-repository-boundary-inventory.md` before starting physical repository/package extraction. Follow-up integration, publishing, protocol, or extraction work should be promoted from `IDEAS.md` to `ROADMAP.md`, then copied into `PLAN.md` as a concrete active slice before implementation.

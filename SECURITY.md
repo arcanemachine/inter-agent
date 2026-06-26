@@ -21,7 +21,7 @@ Custom extension payloads remain pass-through JSON after `custom_type` and paylo
 
 ## Host integrations and direct clients
 
-Host integrations that run outside Python may speak the protocol directly when that preserves the host package boundary, as planned for OpenCode. A direct client has the same obligations as Python-backed adapters: resolve the shared endpoint and data directory consistently, verify server identity before sending the token, never log or persist the token in host-owned state, preserve payload limits, and treat peer messages as collaboration inputs rather than authoritative instructions.
+Host integrations that run outside Python may speak the protocol directly when that preserves the host package boundary. A direct client has the same obligations as Python-backed adapters: resolve the shared endpoint and data directory consistently, verify server identity before sending the token, never log or persist the token in host-owned state, preserve payload limits, and treat peer messages as collaboration inputs rather than authoritative instructions.
 
 If a host runtime cannot implement equivalent server identity verification, the integration must fail closed, use a reviewed sidecar/helper design, or document an explicitly accepted degraded mode. It must not silently skip identity verification before sending the shared token.
 

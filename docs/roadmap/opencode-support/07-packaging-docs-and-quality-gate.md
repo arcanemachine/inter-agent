@@ -1,6 +1,6 @@
 # Packaging, Docs, and Quality Gate
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 
@@ -42,7 +42,8 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Troubleshooting for token, identity metadata, server not running, duplicate names, state collisions, and plugin load errors.
 
 4. Update root `README.md`.
-   - List OpenCode as a supported or planned integration according to implementation status.
+   - List OpenCode as supported only after implementation and validation are complete.
+   - While OpenCode is prospective, keep it out of the supported integration list and point interested contributors to `ROADMAP.md` instead.
    - Remove language that implies a Codex extension is planned.
    - State prominently that Codex extension support is not planned because Codex's no-fork extension system does not expose the background delivery/control surface required for an inter-agent extension. Any future Codex work should be described separately as an App Server sidecar, not a Codex extension.
 
@@ -57,13 +58,15 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Document any degraded identity verification behavior on non-Linux platforms.
    - Document notification and inbox privacy implications.
 
-7. Update `PLAN.md`.
-   - Track OpenCode as a planned follow-on integration according to implementation status.
+7. Update planning docs.
+   - Remove completed OpenCode work from `PLAN.md` when the active slice is done.
+   - Update `ROADMAP.md` with implementation status and any remaining follow-on work.
    - State completion criteria.
    - State the Codex extension non-goal.
 
 8. Update `IDEAS.md` if needed.
-   - Move OpenCode-only ideas into the Phase 8 plan only after user acceptance.
+   - Move OpenCode-only ideas into `ROADMAP.md` only after user acceptance.
+   - Copy only active OpenCode work slices into `PLAN.md`.
    - Keep Codex App Server sidecar as an idea only if the user wants it tracked.
 
 9. Integrate checks.
@@ -93,6 +96,7 @@ Make OpenCode support installable, documented, and included in the repository's 
 - `ARCHITECTURE.md`
 - `SECURITY.md`
 - `PLAN.md`
+- `ROADMAP.md`
 - `IDEAS.md`
 - `run-checks.sh`
 - Release validation scripts if package assets are included in release artifacts

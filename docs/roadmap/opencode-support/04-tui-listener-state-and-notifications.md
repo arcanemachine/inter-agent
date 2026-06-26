@@ -1,6 +1,6 @@
 # TUI Listener, State, and Notifications
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 

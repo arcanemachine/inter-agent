@@ -1,12 +1,12 @@
 # OpenCode Extension Design
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 
 Design OpenCode support as a first-class host-native extension before writing implementation code.
 
-Read `plans/08-opencode-support/00-execution-guide.md` before executing this plan item. Follow the execution guide's order, spike requirement, and stop conditions.
+Read `docs/roadmap/opencode-support/00-execution-guide.md` before executing this plan item. Follow the execution guide's order, spike requirement, and stop conditions.
 
 The OpenCode integration should follow the successful Pi extension UX where OpenCode supports it: host-native commands, LLM-callable tools, a persistent listener, visible notifications, state persistence, and safe handling of incoming peer messages.
 
@@ -113,7 +113,7 @@ Key OpenCode reference files from the local clone:
 - `integrations/opencode/README.md`
 - `integrations/opencode/package.json`
 - `integrations/opencode/src/`
-- `plans/08-opencode-support/`
+- `docs/roadmap/opencode-support/`
 - `README.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`

@@ -1,6 +1,6 @@
 # Command, Tool Surface, and Reaction Policy
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 

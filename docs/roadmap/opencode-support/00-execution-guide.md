@@ -1,27 +1,31 @@
 # OpenCode Support Execution Guide
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 
-This guide is the entry point for executing the planned OpenCode integration.
-It consolidates the current research conclusions and points workers to the
-ordered plan files for implementation details.
+This guide is the entry point for executing the prospective OpenCode integration
+if the user activates that work. It consolidates the current research
+conclusions and points workers to the ordered notes for implementation details.
 
-OpenCode support is planned follow-on host work. The plan is ready for execution
-when the user chooses to start it.
+Status: prospective; not implemented; not active.
+
+Next activation step: copy the direct WebSocket spike and package-target
+validation into `PLAN.md` as the current active work slice.
 
 ## Canonical references
 
 Read these before implementation:
 
 1. `integrations/opencode/README.md` — consolidated design/reference document.
-2. `PLAN.md` — roadmap framing and Phase 8 completion criteria.
-3. `plans/08-opencode-support/01-opencode-extension-design.md` through
-   `07-packaging-docs-and-quality-gate.md` — ordered work items.
-4. `spec/` and `spec/error-codes.md` — authoritative protocol contract.
-5. `SECURITY.md` — localhost, same-user security model.
-6. `ARCHITECTURE.md#adapter-author-contract` — adapter boundaries.
+2. `ROADMAP.md` — roadmap status and activation guidance.
+3. `PLAN.md` — active work only; OpenCode belongs there only after a concrete
+   slice is activated.
+4. `docs/roadmap/opencode-support/01-opencode-extension-design.md` through
+   `07-packaging-docs-and-quality-gate.md` — ordered prospective work notes.
+5. `spec/` and `spec/error-codes.md` — authoritative protocol contract.
+6. `SECURITY.md` — localhost, same-user security model.
+7. `ARCHITECTURE.md#adapter-author-contract` — adapter boundaries.
 
 The OpenCode API assumptions should be re-checked against the target OpenCode
 version before code is written.
@@ -56,8 +60,9 @@ Use this architecture unless the user accepts a plan change:
      behavior.
 
 The Python inter-agent server remains the canonical server implementation.
-OpenCode connects to that local server; it does not require an external hosted
-server and does not rewrite the server in TypeScript.
+The OpenCode integration would connect to that local server; it would not
+require an external hosted server and would not rewrite the server in
+TypeScript.
 
 ## Why OpenCode differs from Pi and Claude Code
 
@@ -84,17 +89,17 @@ Auto-start is deferred because it reintroduces subprocess management,
 Python/`uv` discovery, managed install paths, and host-specific idle-timeout
 policy. Add auto-start only through an accepted follow-up design.
 
-## Required execution order
+## Prospective execution order
 
-Complete these files in order:
+When this roadmap item is activated, complete these files in order:
 
-1. `plans/08-opencode-support/01-opencode-extension-design.md`
-2. `plans/08-opencode-support/02-package-scaffold-and-installation.md`
-3. `plans/08-opencode-support/03-direct-protocol-client.md`
-4. `plans/08-opencode-support/04-tui-listener-state-and-notifications.md`
-5. `plans/08-opencode-support/05-command-tool-surface-and-reaction-policy.md`
-6. `plans/08-opencode-support/06-live-tests-and-fixtures.md`
-7. `plans/08-opencode-support/07-packaging-docs-and-quality-gate.md`
+1. `docs/roadmap/opencode-support/01-opencode-extension-design.md`
+2. `docs/roadmap/opencode-support/02-package-scaffold-and-installation.md`
+3. `docs/roadmap/opencode-support/03-direct-protocol-client.md`
+4. `docs/roadmap/opencode-support/04-tui-listener-state-and-notifications.md`
+5. `docs/roadmap/opencode-support/05-command-tool-surface-and-reaction-policy.md`
+6. `docs/roadmap/opencode-support/06-live-tests-and-fixtures.md`
+7. `docs/roadmap/opencode-support/07-packaging-docs-and-quality-gate.md`
 
 Do not implement later files before earlier acceptance criteria are met, except
 for small scaffold changes required by the current item.
@@ -248,7 +253,7 @@ Before marking the phase complete:
 1. Run OpenCode package checks.
 2. Run `./run-checks.sh` from the project root.
 3. Complete the manual OpenCode UAT checklist in
-   `plans/08-opencode-support/06-live-tests-and-fixtures.md`, or document why
+   `docs/roadmap/opencode-support/06-live-tests-and-fixtures.md`, or document why
    any item could not be completed.
 
 ## Research references

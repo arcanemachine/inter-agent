@@ -6,17 +6,11 @@ Supported user-facing integrations:
 
 | Integration | Entry point | Best for |
 | --- | --- | --- |
-| Pi | `integrations/pi/` | Pi slash commands and LLM-callable tools |
-| Claude Code | `integrations/claude-code/` | Claude Code slash commands, Monitor notifications, and message lookup |
 | Core CLI | `src/inter_agent/core/` | Scripting, testing, and building new adapters |
+| Claude Code | `integrations/claude-code/` | Claude Code slash commands, Monitor notifications, and message lookup |
+| Pi | `integrations/pi/` | Pi slash commands and LLM-callable tools |
 
-Roadmap and exploratory integration notes live in [`PLAN.md`](PLAN.md) and [`IDEAS.md`](IDEAS.md).
-
-Planned follow-on integrations:
-
-| Integration | Planning docs | Notes |
-| --- | --- | --- |
-| OpenCode | `integrations/opencode/README.md`, `plans/08-opencode-support/` | Planned host-native plugin using OpenCode's TypeScript/Bun plugin system and the inter-agent WebSocket protocol directly. |
+Short-term active work lives in [`PLAN.md`](PLAN.md). Accepted prospective direction lives in [`ROADMAP.md`](ROADMAP.md), and exploratory ideas live in [`IDEAS.md`](IDEAS.md). The supported integration list above includes only integrations that have been implemented.
 
 ## Features
 
@@ -262,7 +256,7 @@ inter-agent/
 ├── src/inter_agent/adapters/claude/# Claude Code adapter commands
 ├── integrations/pi/                # Pi extension package
 ├── integrations/claude-code/       # Claude Code plugin assets
-├── integrations/opencode/          # Planned OpenCode integration design
+├── integrations/opencode/          # Prospective OpenCode design notes; not an implementation
 ├── spec/                           # AsyncAPI contract, schemas, examples, and error codes
 ├── tests/                          # Unit, integration, and conformance tests
 └── docs/                           # Design notes and supporting references
@@ -275,13 +269,14 @@ inter-agent/
 | `README.md` | New users | Overview, setup, commands, project layout |
 | [`integrations/pi/README.md`](integrations/pi/README.md) | Pi users | Pi extension setup, commands, tools |
 | [`integrations/claude-code/README.md`](integrations/claude-code/README.md) | Claude Code users | Claude Code plugin setup and commands |
-| [`integrations/opencode/README.md`](integrations/opencode/README.md) | Contributors | Planned OpenCode integration design and execution reference |
 | [`src/inter_agent/adapters/claude/README.md`](src/inter_agent/adapters/claude/README.md) | CLI users and contributors | Claude Code adapter CLI details |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Contributors | Layers, protocol model, routing, lifecycle |
 | [`SECURITY.md`](SECURITY.md) | Users and contributors | Security model, controls, token rotation |
 | [`spec/error-codes.md`](spec/error-codes.md) | Protocol developers | Canonical protocol error codes |
 | [`AGENTS.md`](AGENTS.md) | Coding agents | Repository workflow and conventions |
-| [`PLAN.md`](PLAN.md) | Contributors | Roadmap and completion tracker |
+| [`PLAN.md`](PLAN.md) | Contributors | Current short-term active work |
+| [`ROADMAP.md`](ROADMAP.md) | Contributors | Accepted medium- and long-term direction, including prospective integrations |
+| [`IDEAS.md`](IDEAS.md) | Contributors | Exploratory or unaccepted follow-up ideas |
 
 ## Development
 

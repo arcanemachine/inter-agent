@@ -1,6 +1,6 @@
 # Package Scaffold and Installation
 
-Extra Phase: 8 — OpenCode Support
+Prospective roadmap item — OpenCode Support
 
 ## Purpose
 
