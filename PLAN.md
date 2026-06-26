@@ -140,6 +140,8 @@ Extra notes:
 
 Goal: add OpenCode as a supported host-native integration using OpenCode's plugin system and the inter-agent WebSocket protocol directly.
 
+OpenCode support is a planned follow-on integration with detailed execution notes. The plan is ready to execute when the user chooses to start this host integration work.
+
 Plan items:
 
 1. `plans/08-opencode-support/00-execution-guide.md`

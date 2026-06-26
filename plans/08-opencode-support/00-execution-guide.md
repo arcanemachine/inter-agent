@@ -2,46 +2,91 @@
 
 Extra Phase: 8 — OpenCode Support
 
-## Worker quick start
-
-1. Read this file first, then execute plan files `01` through `07` in order.
-
-2. Complete the required spikes before full implementation.
-
-3. Keep the architecture split:
-   - TUI plugin: listener, commands, notifications, state, inbox.
-   - Server plugin: LLM tools.
-   - Shared TypeScript client: inter-agent WebSocket protocol.
-
-4. Ask the user before changing architecture or changing the core protocol.
-
 ## Purpose
 
-This is the worker-facing guide for executing the OpenCode support plan.
+This guide is the entry point for executing the planned OpenCode integration.
+It consolidates the current research conclusions and points workers to the
+ordered plan files for implementation details.
 
-Follow the plan files in order. Do not jump directly into implementation. The plan assumes a reasonably competent agent who may not have the original research context, so this file states the sequence, required checkpoints, and stop conditions.
+OpenCode support is planned follow-on host work. The plan is ready for execution
+when the user chooses to start it.
 
-## Phase goal
+## Canonical references
 
-Build an OpenCode host-native integration for inter-agent.
+Read these before implementation:
 
-The target user experience is similar to the Pi extension where OpenCode supports it:
+1. `integrations/opencode/README.md` — consolidated design/reference document.
+2. `PLAN.md` — roadmap framing and Phase 8 completion criteria.
+3. `plans/08-opencode-support/01-opencode-extension-design.md` through
+   `07-packaging-docs-and-quality-gate.md` — ordered work items.
+4. `spec/` and `spec/error-codes.md` — authoritative protocol contract.
+5. `SECURITY.md` — localhost, same-user security model.
+6. `ARCHITECTURE.md#adapter-author-contract` — adapter boundaries.
 
-- OpenCode users can connect to the inter-agent bus from inside OpenCode.
-- OpenCode users can send, broadcast, list, check status, disconnect, inspect recent inbound messages, and shut down through documented commands.
-- OpenCode agents can call LLM tools for send, broadcast, list, and status.
-- Incoming messages appear through OpenCode notifications/toasts and are retained in a bounded inbox.
-- The OpenCode plugin speaks the inter-agent WebSocket protocol directly unless an early spike proves this is not practical.
+The OpenCode API assumptions should be re-checked against the target OpenCode
+version before code is written.
 
-## Non-goal: Codex extension
+## Current accepted architecture
 
-Do not implement a Codex extension in this phase.
+Use this architecture unless the user accepts a plan change:
 
-Codex's no-fork extension surfaces do not currently provide the background message delivery and control surface needed for an inter-agent extension comparable to Pi or OpenCode. Any future Codex work should be tracked separately as an App Server sidecar investigation, not as a Codex extension.
+1. **OpenCode TUI plugin**
+   - owns the persistent listener;
+   - registers user-facing commands;
+   - stores connection state and inbox data;
+   - displays incoming messages through notifications/toasts;
+   - cleans up through OpenCode lifecycle APIs.
+
+2. **OpenCode server plugin**
+   - registers LLM-callable inter-agent tools;
+   - uses short-lived control WebSocket connections for protocol operations such
+     as send, broadcast, list, and shutdown;
+   - reports status through endpoint, identity, and reachability checks with
+     protocol probes where useful;
+   - uses the active OpenCode connection name as `from_name` when sending;
+   - provides `inter_agent_inbox` or another accepted model-visible path for
+     recent inbound messages.
+
+3. **Shared TypeScript protocol client**
+   - implements endpoint/config/data-dir resolution, token loading, server
+     identity verification, hello handshake, control operations, listener frame
+     handling, and error mapping;
+   - speaks the existing inter-agent WebSocket protocol directly;
+   - does not depend on Python, `uv`, or subprocess calls for routine OpenCode
+     behavior.
+
+The Python inter-agent server remains the canonical server implementation.
+OpenCode connects to that local server; it does not require an external hosted
+server and does not rewrite the server in TypeScript.
+
+## Why OpenCode differs from Pi and Claude Code
+
+Pi and Claude Code currently use host wrappers plus Python helpers for routine
+transport and adapter behavior. OpenCode should use a direct TypeScript client
+because its plugin runtime already provides Bun, WebSocket, filesystem,
+environment, npm dependency, and lifecycle capabilities.
+
+That makes OpenCode a good place to introduce a reusable JavaScript protocol
+client shape. Pi may later reuse that client in a separate refactor, but Pi
+should not be changed as part of the OpenCode MVP unless the user explicitly
+expands the scope.
+
+## Server lifecycle policy
+
+First release behavior:
+
+- assume the local inter-agent server is already running;
+- make `status` and `connect` report missing or unreachable server state with
+  actionable setup guidance;
+- do not auto-start the server from OpenCode by default.
+
+Auto-start is deferred because it reintroduces subprocess management,
+Python/`uv` discovery, managed install paths, and host-specific idle-timeout
+policy. Add auto-start only through an accepted follow-up design.
 
 ## Required execution order
 
-Complete these plan files in order:
+Complete these files in order:
 
 1. `plans/08-opencode-support/01-opencode-extension-design.md`
 2. `plans/08-opencode-support/02-package-scaffold-and-installation.md`
@@ -51,221 +96,142 @@ Complete these plan files in order:
 6. `plans/08-opencode-support/06-live-tests-and-fixtures.md`
 7. `plans/08-opencode-support/07-packaging-docs-and-quality-gate.md`
 
-Do not implement later files before the acceptance criteria for earlier files are met, except for small scaffolding changes that are explicitly required by the current file.
+Do not implement later files before earlier acceptance criteria are met, except
+for small scaffold changes required by the current item.
 
-## Required early spike
+## Required early spikes
 
-Before building the full TypeScript protocol client, prove that direct WebSocket access from an OpenCode plugin is practical.
+### Direct WebSocket spike
 
-The spike should prove the smallest useful path:
+Before building the full TypeScript protocol client, prove the smallest useful
+path from the OpenCode runtime:
 
-1. A local OpenCode TUI plugin can load.
-2. The plugin can open a WebSocket connection from the OpenCode runtime.
-3. The plugin can read the inter-agent token and server metadata from the configured data directory.
-4. The plugin can send a valid `hello` envelope to a live inter-agent server.
-5. The plugin can receive a `welcome` frame.
-6. If possible, the plugin can receive one `msg` frame from another inter-agent client.
+1. A local OpenCode TUI plugin loads.
+2. The plugin opens a WebSocket.
+3. The plugin reads the inter-agent token and server metadata from the
+   configured data directory.
+4. The plugin sends a valid `hello` envelope to a live inter-agent server.
+5. The plugin receives a `welcome` frame.
+6. If practical, the plugin receives one `msg` frame from another inter-agent
+   client.
 
-If this spike fails, stop and report before implementing the rest of the OpenCode package. Do not silently fall back to a Python CLI bridge without an accepted design change.
+If this spike fails, stop and report. Do not silently fall back to a Python CLI
+bridge.
 
-## Second required spike: server tools and shared state
+### Server tools and shared state spike
 
-Before implementing the full LLM tool surface, prove that the OpenCode server plugin target can perform the required control operations and can determine the active OpenCode sender identity.
-
-The spike should prove:
+Before implementing the full LLM tool surface, prove that the OpenCode server
+plugin target can perform required control operations and can determine the
+active OpenCode sender identity:
 
 1. The `./server` plugin target loads separately from `./tui`.
-2. A server plugin tool can open a short-lived WebSocket control connection or can call a shared helper that does so.
-3. The server plugin can read the active connection identity written by the TUI plugin, or a documented fallback identity config exists.
-4. A tool send uses `from_name` and the recipient sees the OpenCode agent name, not `control`.
-5. If shared state is not available, tools fail clearly instead of sending as `control`.
+2. A server plugin tool can open a short-lived control WebSocket.
+3. The server plugin can read the active connection identity written by the TUI
+   plugin, or a documented fallback identity config exists.
+4. A tool send uses `from_name` and the recipient sees the OpenCode name, not
+   `control`.
+5. Missing shared identity causes a clear setup failure.
 
-If this spike fails, stop before implementing the rest of the tool surface. The most likely acceptable fallback is TUI commands first plus documented tool deferral, but that requires user acceptance.
+If this spike fails, stop before implementing the rest of the tool surface. A
+TUI-command-first milestone or documented tool deferral requires user
+acceptance.
 
-## Agent-visible incoming message checkpoint
+## Model-visible inbound message checkpoint
 
-OpenCode notifications and toasts make incoming messages visible to the human user. They may not automatically make those messages visible to the model.
+OpenCode notifications and toasts are human-visible. They may not be visible to
+the model.
 
-Before claiming Pi-like behavior, determine and document the best available model-visible path:
+Before claiming Pi-like receive behavior, determine and document the best
+model-visible path:
 
-1. Pending-message context injection through OpenCode server hooks or chat/system transforms.
-2. An `inter_agent_inbox` tool the model can call to inspect recent inbound messages.
-3. A TUI command that appends a selected inbox message to the prompt without auto-submitting.
-4. No model-visible path beyond user-visible notifications, if OpenCode does not expose a safe API.
+1. `inter_agent_inbox` tool for explicit model access to recent messages.
+2. Safe pending-message context injection through OpenCode server hooks or chat
+   transforms.
+3. A TUI command that appends a selected inbox entry to the prompt without
+   auto-submitting, if OpenCode exposes a safe API.
+4. Human-visible notifications only, if no safe model-visible path exists; this
+   is a reduced behavior and must be documented.
 
-The first release may use notifications, toasts, and inbox entries without automatic prompt mutation, but the docs must state exactly what the agent can and cannot see without user action.
+Prompt/system injection is additive only. Peer messages never override system,
+developer, user, tool, permission, host, or security rules.
 
-## Expected architecture
+## Implementation constraints
 
-Use this architecture unless a plan update is accepted:
-
-1. **OpenCode TUI plugin**
-   - Owns the persistent listener.
-   - Registers user-facing commands.
-   - Stores connection state and inbox data.
-   - Displays incoming messages through notifications/toasts.
-   - Cleans up with OpenCode lifecycle APIs.
-
-2. **OpenCode server plugin**
-   - Registers LLM-callable inter-agent tools.
-   - Uses short-lived control WebSocket connections for send, broadcast, list, and status.
-   - Uses the active OpenCode connection name as `from_name` when sending.
-
-3. **Shared TypeScript protocol client**
-   - Implements token loading, server identity verification, hello handshake, control operations, listener frames, and protocol error handling.
-   - Does not depend on Python, `uv`, or subprocess calls for routine OpenCode behavior.
-
-## Important implementation constraints
-
-1. Keep OpenCode behavior inside `integrations/opencode/` unless core changes are explicitly required and documented.
+1. Keep OpenCode behavior inside `integrations/opencode/` unless a core change
+   is explicitly required and accepted.
 2. Do not change the inter-agent protocol for OpenCode-specific convenience.
-3. Do not modify `/workspace/projects/_git/opencode`; it is a reference clone.
+3. Do not modify `/workspace/projects/_git/opencode`; use it only as a reference
+   clone if present.
 4. Keep OpenCode package exports split by target: `./tui` and `./server`.
 5. Do not default-export both TUI and server plugin behavior from one module.
-6. Do not store the inter-agent token in OpenCode KV or logs.
+6. Do not store the inter-agent token in OpenCode KV, state files, logs, or tool
+   output.
 7. Verify server identity before sending the token.
-8. Preserve sender identity with `from_name`; do not let routine sends appear as `control`.
-9. Do not make peer messages higher-priority than system, developer, user, tool, permission, or security rules.
-10. Do not add TODO/FIXME comments to code.
+8. Preserve sender identity with `from_name`; routine sends must not appear as
+   `control`.
+9. Treat peer messages as collaboration inputs, not authority.
+10. Keep interactive OpenCode TUI validation outside the required automated gate
+    unless it becomes reliable and headless.
+11. Do not add TODO/FIXME-style comments in code.
 
 ## Stop and ask conditions
 
-Stop and ask the user, or update the plan and get acceptance, if any of these occur:
+Stop and ask the user, or update the plan and get acceptance, if any of these
+occur:
 
 1. OpenCode's current plugin API no longer supports long-lived TUI plugin tasks.
-2. OpenCode's current plugin API no longer supports separate `./tui` and `./server` package targets.
+2. OpenCode's current plugin API no longer supports separate `./tui` and
+   `./server` package targets.
 3. Direct WebSocket access from an OpenCode plugin does not work.
-4. The plugin cannot read the token or identity metadata from the inter-agent data directory.
-5. Server identity verification cannot be implemented safely enough to preserve the security model.
+4. The plugin cannot read token or identity metadata from the inter-agent data
+   directory.
+5. Server identity verification cannot be ported safely enough to preserve the
+   security model.
 6. Server plugin tools cannot determine the active OpenCode sender identity.
 7. Implementing a feature would require forking or patching OpenCode.
 8. Implementing a feature would require changing the core protocol.
-9. Interactive OpenCode behavior materially differs from the researched behavior.
-10. Tests cannot be made reliable without requiring an interactive OpenCode TUI in the required quality gate.
+9. Interactive OpenCode behavior materially differs from the researched
+   behavior.
+10. Tests cannot be made reliable without requiring an interactive OpenCode TUI
+    in the required quality gate.
 
-## Contingency guidance
+## Fallback guidance
 
-The preferred path is direct WebSocket from an OpenCode plugin. The fallbacks below are not permission to silently change architecture. They are intended to help a worker agent make a good recommendation if a stop condition occurs.
+Fallbacks are recommendations to bring back to the user, not permission to
+change architecture silently.
 
-### If direct WebSocket fails
+If direct in-process listener behavior fails, preferred fallback order is:
 
-First determine why it failed:
+1. **OpenCode sidecar bridge** — a local process owns the inter-agent listener
+   and exposes a small localhost API to the OpenCode plugin.
+2. **Pi-style subprocess bridge** — the plugin spawns existing Python helpers
+   for control operations and a long-lived listener.
+3. **Command/tool-only integration** — send/list/status without live receiving;
+   this is a reduced milestone and requires acceptance.
+4. **Deferral** — stop if OpenCode cannot provide stable plugin networking,
+   process integration, or notification behavior.
 
-1. If WebSocket is unavailable in the plugin runtime, re-check whether the failure is specific to the TUI plugin, the server plugin, or the test scaffold.
-2. If WebSocket works but filesystem/token access fails, see the token and metadata fallback below.
-3. If WebSocket works but protocol handshake fails, fix the TypeScript protocol client rather than changing architecture.
+If token or metadata access fails, prefer explicit `dataDir` config or a
+sidecar/helper design over asking users to paste tokens into OpenCode config.
 
-Possible backup designs, in preferred order:
+If full server identity verification cannot be ported, fail closed or propose a
+reviewed degraded mode. Do not skip verification before sending the token.
 
-1. **OpenCode sidecar bridge** — a separate local process owns the inter-agent WebSocket listener and exposes a small localhost API to the OpenCode plugin. This preserves OpenCode notifications/commands but adds another process. Prefer this over a per-command CLI bridge if OpenCode cannot keep a listener alive.
-2. **Pi-style subprocess bridge** — the plugin spawns existing inter-agent Python CLIs for control operations and a long-lived listener process for inbound messages. This is proven by Pi but less desirable because it requires Python/`uv`/project-path configuration and stdout parsing.
-3. **Command-only integration** — expose send, broadcast, list, and status commands/tools without live receiving. This is a major UX regression and should not be accepted as Phase 8 completion without user approval.
-4. **Defer OpenCode support** — if OpenCode cannot provide stable plugin networking or process integration, stop and report.
-
-### If token or metadata access fails
-
-Expected path: read `INTER_AGENT_DATA_DIR`, config `dataDir`, or the platform default state directory directly from the OpenCode plugin runtime.
-
-Possible backup designs:
-
-1. Add explicit OpenCode plugin config for `dataDir`, then retry direct file access.
-2. If sandboxing prevents file access entirely, use a sidecar bridge that reads token/metadata outside OpenCode and exposes only safe local operations to the plugin.
-3. If only token creation fails, require the server or an inter-agent CLI command to be run once before OpenCode connects.
-4. Do not ask users to paste the shared token into OpenCode config unless the security model is reviewed and accepted.
-
-### If server identity verification cannot be fully ported
-
-Expected path: port the Python metadata checks closely enough to preserve `SECURITY.md` behavior.
-
-Possible backup designs:
-
-1. Implement strict verification on Linux and fail closed on unsupported platforms for the first release.
-2. Document a user-enabled degraded mode only after explicit acceptance. The degraded mode must warn that server identity verification is weaker.
-3. Use a sidecar or Python bridge for identity verification if direct TypeScript verification is the only blocker.
-
-Do not silently skip identity verification before sending the token.
-
-### If TUI and server plugin state sharing is difficult
-
-Expected path: store active connection identity in a shared OpenCode/plugin-accessible state location so server tools can send with `from_name`.
-
-Use namespaced keys such as `inter-agent:*` and avoid assuming OpenCode KV is session-local unless verified. If OpenCode exposes a stable session, workspace, or project identifier, include it in the state key. If it does not, prefer an explicit configured connection profile over a global unqualified `active` key.
-
-Possible backup designs, in preferred order:
-
-1. Persist active identity in OpenCode KV or another state file readable by both plugin targets.
-2. Add explicit plugin config for the default sender name, and require it to match the connected listener name.
-3. Make server tools fail with a clear message until a connected identity is available.
-4. Ship TUI commands first and defer LLM tools only if the user accepts a reduced first milestone.
-
-Do not let routine tool sends appear as `control`; that makes peer messages confusing and breaks the intended UX.
-
-### If OpenCode cannot keep a long-lived listener alive
-
-Possible backup designs:
-
-1. Use an external sidecar listener and let the TUI plugin display messages received through a localhost bridge.
-2. Use a Pi-style long-lived child process if OpenCode can spawn and supervise child processes but cannot keep an in-process WebSocket listener.
-3. Fall back to manual inbox polling only as a reduced, user-approved milestone.
-
-This is a high-severity issue because live receiving is part of the Phase 8 completion criteria.
-
-### If multiple OpenCode sessions collide
-
-Expected path: each OpenCode session can connect with its own name and listener without corrupting another session's state.
-
-Possible backup designs:
-
-1. Use a lock file keyed by OpenCode session/workspace identity plus inter-agent name.
-2. Use a process-local listener controller plus server-side `NAME_TAKEN` handling for cross-process duplicates.
-3. Require explicit unique names for concurrent OpenCode sessions.
-4. If OpenCode KV is global, keep per-session state in plugin-owned files keyed by a generated session ID rather than one global KV entry.
-
-Do not use one global unqualified state key for listener state if concurrent OpenCode windows or projects are supported.
-
-### If separate `./tui` and `./server` package targets fail
-
-Possible backup designs:
-
-1. Re-check OpenCode package resolution and install configuration; this may be a packaging bug rather than an API limitation.
-2. Split the integration into two packages, one TUI plugin and one server plugin.
-3. Ship TUI-only support first only if the user accepts deferring LLM tools.
-
-### If prompt injection is not viable
-
-This is not a blocker.
-
-The planned first release does not require prompt injection. Use notifications, toasts, and inbox entries for incoming messages. Add prompt insertion later only if OpenCode exposes a stable API and the behavior is safe.
-
-### If tests require an interactive OpenCode TUI
-
-Do not put interactive OpenCode tests in the required quality gate.
-
-Backup validation strategy:
-
-1. Keep pure TypeScript unit tests in the package gate.
-2. Keep live inter-agent protocol tests outside the interactive TUI.
-3. Use structural package tests for exports and metadata.
-4. Document manual OpenCode UAT separately and run it before declaring the phase complete.
-
-### If implementation would require forking OpenCode or changing the core protocol
-
-Stop.
-
-The accepted plan is no OpenCode fork and no OpenCode-specific core protocol changes. Recommend a reduced integration, sidecar bridge, or deferral instead.
+If TUI/server state sharing is difficult, prefer namespaced shared state or an
+explicit configured identity. Server tools should fail clearly rather than send
+as `control`.
 
 ## Commit boundaries
 
-Make commits at logical milestones:
+When implementation starts, keep commits atomic and use Conventional Commits.
+Good boundaries:
 
 1. Package scaffold and docs.
 2. Direct protocol client and tests.
-3. TUI listener/state/notification behavior.
+3. TUI listener, state, inbox, and notification behavior.
 4. Command and tool surface.
 5. Tests and UAT documentation.
-6. Packaging/docs/quality-gate updates.
-
-Keep commit messages brief and use Conventional Commits style.
+6. Packaging, root docs, and quality-gate updates.
 
 ## Validation expectations
 
@@ -274,19 +240,36 @@ Before handing back each completed plan item:
 1. Run the checks listed in that plan file.
 2. Run `git diff --check`.
 3. Summarize what changed, what was validated, and what remains.
-4. If a check cannot run in the container, say why and provide the closest validation performed.
+4. If a check cannot run in the container, say why and provide the closest
+   validation performed.
 
 Before marking the phase complete:
 
 1. Run OpenCode package checks.
 2. Run `./run-checks.sh` from the project root.
-3. Complete the manual OpenCode UAT checklist in `plans/08-opencode-support/06-live-tests-and-fixtures.md` or document exactly why any item could not be completed.
+3. Complete the manual OpenCode UAT checklist in
+   `plans/08-opencode-support/06-live-tests-and-fixtures.md`, or document why
+   any item could not be completed.
 
 ## Research references
 
-The plan was based on local research of the OpenCode clone under `/workspace/projects/_git/opencode`.
+The plan is based on OpenCode plugin documentation, local reference research,
+the existing Pi TypeScript extension, and the inter-agent protocol/security
+model.
 
-Key files to re-check if OpenCode behavior is uncertain:
+Useful OpenCode docs to re-check:
+
+- `https://opencode.ai/docs/plugins/`
+- `https://opencode.ai/docs/custom-tools/`
+- `https://opencode.ai/docs/commands/`
+- `https://opencode.ai/docs/config/`
+- `https://opencode.ai/docs/sdk/`
+- `https://opencode.ai/docs/server/`
+- `https://opencode.ai/docs/agents/`
+- `https://opencode.ai/docs/ecosystem/`
+
+If a local OpenCode clone is available under `/workspace/projects/_git/opencode`,
+re-check these files when API behavior is uncertain:
 
 - `packages/plugin/src/tui.ts`
 - `packages/plugin/src/index.ts`
@@ -295,5 +278,3 @@ Key files to re-check if OpenCode behavior is uncertain:
 - `packages/opencode/src/plugin/install.ts`
 - `packages/opencode/src/cli/cmd/tui/feature-plugins/system/notifications.ts`
 - `packages/opencode/src/cli/cmd/tui/attention.ts`
-
-Use targeted research if these files have changed or if the local OpenCode version differs from the researched version.

@@ -13,11 +13,12 @@
    - Introspection (`list` capability)
    - Importable command APIs for server start, connect, send, broadcast, list, and status checks.
 
-2. **Adapters (`src/inter_agent/adapters/`)**
+2. **Adapters (`src/inter_agent/adapters/`) and host integrations (`integrations/`)**
    - Host-specific command UX and integration.
-   - Call importable core command APIs rather than spawning core scripts by file path.
+   - Python-backed adapters call importable core command APIs rather than spawning core scripts by file path.
+   - Non-Python host-native integrations may implement a small direct protocol client when the host runtime makes that the safer package boundary; those clients must mirror the documented protocol, security checks, and shared state resolution.
    - May expose only a subset of core-supported operations.
-   - Pi adapter (`pi/`) provides TypeScript extension integration.
+   - Pi adapter (`pi/`) provides TypeScript extension integration through Python helper entry points.
    - Claude Code adapter (`claude/`) provides Monitor-backed listener and CLI commands, and suppresses identical repeated sends within a short window so agent-loop re-fires do not duplicate deliveries.
    - Integration assets for each host live under `integrations/<host>/`.
 
@@ -29,7 +30,7 @@
 
 ## Adapter author contract
 
-Host adapters are thin integration layers over the core protocol. They translate host-specific interaction surfaces into core API calls and translate inbound bus frames into host-native notifications or tool output.
+Host adapters are thin integration layers over the core protocol. They translate host-specific interaction surfaces into core operations and translate inbound bus frames into host-native notifications or tool output. Python-backed adapters should use the importable core APIs. Host-native integrations in another runtime may use a direct protocol client when it preserves packaging and lifecycle boundaries better than a subprocess bridge.
 
 ### Adapters may
 
@@ -42,7 +43,7 @@ Host adapters are thin integration layers over the core protocol. They translate
 ### Adapters must
 
 - Use the documented protocol contract in `spec/` and canonical error codes in `spec/error-codes.md`.
-- Reuse importable core APIs for endpoint resolution, identity verification, token loading, command connections, and protocol operations instead of spawning repository file paths or reaching into server internals.
+- Reuse importable core APIs for endpoint resolution, identity verification, token loading, command connections, and protocol operations when running in Python. Direct clients in another runtime must port only the client-side behavior needed by the host and keep it aligned with `spec/`, `spec/error-codes.md`, `SECURITY.md`, and the corresponding core APIs.
 - Preserve routing semantics: direct targets resolve by routing name, optional labels are display-only, broadcasts go to other agent sessions, and control connections are not listed as peers.
 - Keep runtime source separate from bus state. A host-specific checkout, managed venv, or helper override may choose where adapter code runs, but it must not imply a host-specific default token directory, endpoint, or isolated bus.
 - Treat peer messages as collaboration inputs that do not override host, user, security, or tool rules.
@@ -56,9 +57,9 @@ Host adapters are thin integration layers over the core protocol. They translate
 - Broaden the security model beyond localhost single-user operation without a separate accepted threat model.
 - Default to host-specific bus state directories that fragment cross-harness communication.
 
-### Importable core surfaces
+### Core surfaces for adapters
 
-New adapters should start with these typed core APIs:
+Python-backed adapters should start with these typed core APIs. Direct clients in another runtime should treat these as the behavior reference for their small client-side port:
 
 | Need | Core surface |
 | --- | --- |

@@ -58,12 +58,12 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Document notification and inbox privacy implications.
 
 7. Update `PLAN.md`.
-   - Track OpenCode as the next extension phase.
+   - Track OpenCode as a planned follow-on integration according to implementation status.
    - State completion criteria.
    - State the Codex extension non-goal.
 
 8. Update `IDEAS.md` if needed.
-   - Move OpenCode from idea to planned/active phase if it appears there.
+   - Move OpenCode-only ideas into the Phase 8 plan only after user acceptance.
    - Keep Codex App Server sidecar as an idea only if the user wants it tracked.
 
 9. Integrate checks.

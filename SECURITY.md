@@ -19,6 +19,12 @@
 
 Custom extension payloads remain pass-through JSON after `custom_type` and payload-size validation.
 
+## Host integrations and direct clients
+
+Host integrations that run outside Python may speak the protocol directly when that preserves the host package boundary, as planned for OpenCode. A direct client has the same obligations as Python-backed adapters: resolve the shared endpoint and data directory consistently, verify server identity before sending the token, never log or persist the token in host-owned state, preserve payload limits, and treat peer messages as collaboration inputs rather than authoritative instructions.
+
+If a host runtime cannot implement equivalent server identity verification, the integration must fail closed, use a reviewed sidecar/helper design, or document an explicitly accepted degraded mode. It must not silently skip identity verification before sending the shared token.
+
 ## Token rotation
 
 1. Stop the local server with `uv run inter-agent-pi shutdown` when it is reachable, or terminate the server process if it is not reachable.
