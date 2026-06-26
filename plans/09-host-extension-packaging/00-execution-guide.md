@@ -426,7 +426,7 @@ Physical splitting is deferred. The repository boundary inventory and migration 
 ### Milestone 5
 
 - `plans/09-host-extension-packaging/01-repository-boundary-inventory.md`: target repository topology, file ownership inventory, migration sequence.
-- PLAN.md: Phase 9 completion and next priority.
+- PLAN.md: Phase 9 completion status.
 - README.md and architecture docs if repository/package layout changes.
 - Protocol docs: canonical error code docs live under `spec/`.
 
@@ -473,6 +473,6 @@ Stop and ask the user before:
 - publishing package names or marketplace entries;
 - declaring Claude or Pi installation complete without live verification.
 
-## Immediate next action
+## Follow-up guidance
 
-Phase 9 is complete. Resume release-readiness work in `plans/06-release-readiness/`, starting with `plans/06-release-readiness/03-versioning-and-changelog.md`, unless the user explicitly redirects to repository extraction or another follow-on integration.
+Phase 9 is complete. Use `plans/09-host-extension-packaging/01-repository-boundary-inventory.md` before starting physical repository/package extraction. Follow-up integration, publishing, protocol, or extraction work should be promoted from `IDEAS.md` or added to `PLAN.md` before implementation.
