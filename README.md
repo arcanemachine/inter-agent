@@ -43,7 +43,9 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for protocol, routing, lifecycle, and a
 
 ## Quick start from a checkout
 
-The preferred local setup is to clone this repository once, prepare its Python runtime, then install the host plugins from that checkout. This keeps the runtime source easy to inspect and update while preserving the shared default bus state.
+The preferred local setup is to clone this repository once, prepare its Python runtime with `uv`, then install the host plugins from that checkout. This keeps the runtime source easy to inspect and update while preserving the shared default bus state.
+
+`uv` is preferred because it uses the repository lockfile and matches the project quality gate.
 
 ```bash
 git clone https://github.com/arcanemachine/inter-agent.git /path/to/inter-agent
@@ -91,7 +93,46 @@ Pi and Claude Code sessions can use separate extension installs and still talk t
 
 The Python runtime provides the server and helper commands used by host extensions. Host extensions may use a prepared checkout, a managed venv, or helper commands on `PATH`; these are runtime sources only and do not change the shared default bus endpoint or state directory.
 
-You can also use the installed console scripts through `uv run`, such as `uv run inter-agent-status`.
+### Preferred: checkout with uv
+
+Use `uv` when working from this repository:
+
+```bash
+git clone https://github.com/arcanemachine/inter-agent.git /path/to/inter-agent
+cd /path/to/inter-agent
+uv sync --locked
+uv run inter-agent-status
+```
+
+### Without uv: standard Python venv
+
+`uv` is not required by the protocol or server. A standard Python virtual environment can run the core package as long as dependencies and console scripts are installed:
+
+```bash
+git clone https://github.com/arcanemachine/inter-agent.git /path/to/inter-agent
+cd /path/to/inter-agent
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install .
+inter-agent-status
+```
+
+On Windows, activate the venv with the platform shell's normal activation command, for example:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### From a built package
+
+A wheel or source distribution can also be installed into any compatible Python environment:
+
+```bash
+python -m pip install inter_agent-*.whl
+inter-agent-status
+```
+
+Host extension helper discovery must be able to find the installed helper commands, either through a configured checkout/runtime path or `PATH`.
 
 ## Use from Pi
 
@@ -107,7 +148,7 @@ Alternatively, install from the repository URL:
 pi install https://github.com/arcanemachine/inter-agent
 ```
 
-The Pi extension resolves helper commands from an override, a configured checkout, a Pi-managed venv, or `PATH`. If you use a checkout runtime, set `interAgent.projectPath` in Pi settings to that checkout and run `uv sync --locked` there. If no runtime is found, Pi shows a short setup-needed message; see [`integrations/pi/README.md#runtime-setup`](integrations/pi/README.md#runtime-setup).
+The Pi extension resolves helper commands from an override, a configured checkout, a Pi-managed venv, or `PATH`. If you use a checkout runtime, set `interAgent.projectPath` in Pi settings to that checkout and prepare the Python environment there. `uv sync --locked` is preferred; a standard `.venv` with `python -m pip install .` can also provide the helper commands. If no runtime is found, Pi shows a short setup-needed message; see [`integrations/pi/README.md#runtime-setup`](integrations/pi/README.md#runtime-setup).
 
 Common Pi commands:
 
@@ -146,11 +187,21 @@ claude --plugin-dir ./integrations/claude-code
 
 The plugin includes a small runtime wrapper. It can use a configured local checkout, a Claude-managed venv, or `inter-agent-claude` on `PATH`.
 
-For a local checkout runtime:
+For a local checkout runtime, prepare the checkout first. `uv` is preferred:
 
 ```bash
 cd /path/to/inter-agent
 uv sync --locked
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
+```
+
+Without `uv`, install the package into a standard venv in the checkout before pointing Claude Code at it:
+
+```bash
+cd /path/to/inter-agent
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install .
 claude plugin install inter-agent --config project_path=/path/to/inter-agent
 ```
 
