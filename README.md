@@ -41,53 +41,70 @@ The server can be started manually or auto-started by the Pi and Claude Code lis
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for protocol, routing, lifecycle, and adapter boundary details.
 
-## Install for local development
+## Quick start from a checkout
+
+The preferred local setup is to clone this repository once, prepare its Python runtime, then install the host plugins from that checkout. This keeps the runtime source easy to inspect and update while preserving the shared default bus state.
 
 ```bash
-git clone <repo-url> inter-agent
-cd inter-agent
+git clone https://github.com/arcanemachine/inter-agent.git /path/to/inter-agent
+cd /path/to/inter-agent
 uv sync --locked
 ```
 
-Run the local wrapper from the repository root:
+Install the Pi extension from the checkout:
+
+```bash
+pi install /path/to/inter-agent/integrations/pi
+```
+
+Install the Claude Code plugin from the checkout marketplace metadata:
+
+```bash
+claude plugin marketplace add /path/to/inter-agent
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
+```
+
+Then connect from each host with a unique routing name:
+
+```text
+/inter-agent connect pi-one
+/inter-agent connect claude-one
+```
+
+Either host listener can auto-start the local server. You can also start it manually from the checkout:
+
+```bash
+cd /path/to/inter-agent
+uv run inter-agent-server
+```
+
+Check the bus from the repository wrapper:
 
 ```bash
 ./inter-agent status
 ./inter-agent list
 ```
 
-You can also use the installed console scripts through `uv run`, such as `uv run inter-agent-status`.
+Pi and Claude Code sessions can use separate extension installs and still talk to each other as long as their helpers use the same endpoint and state settings. The defaults already share `127.0.0.1:16837` and the platform inter-agent state directory.
+
+## Installation alternatives
 
 The Python runtime provides the server and helper commands used by host extensions. Host extensions may use a prepared checkout, a managed venv, or helper commands on `PATH`; these are runtime sources only and do not change the shared default bus endpoint or state directory.
 
-To run a shared server from a checkout and point extensions at it, prepare the checkout once:
-
-```bash
-git clone <repo-url> /path/to/inter-agent
-cd /path/to/inter-agent
-uv sync --locked
-```
-
-Then either let a host listener auto-start the server, or start it manually:
-
-```bash
-uv run inter-agent-server
-```
-
-Pi and Claude Code sessions can use separate extension installs and still talk to each other as long as their helpers use the same endpoint and state settings. The defaults already share `127.0.0.1:16837` and the platform inter-agent state directory.
+You can also use the installed console scripts through `uv run`, such as `uv run inter-agent-status`.
 
 ## Use from Pi
 
-Install the Pi extension from this repository:
-
-```bash
-pi install https://github.com/arcanemachine/inter-agent
-```
-
-For local development, install the bundled Pi package from a checkout:
+Install the bundled Pi package from a prepared checkout:
 
 ```bash
 pi install /path/to/inter-agent/integrations/pi
+```
+
+Alternatively, install from the repository URL:
+
+```bash
+pi install https://github.com/arcanemachine/inter-agent
 ```
 
 The Pi extension resolves helper commands from an override, a configured checkout, a Pi-managed venv, or `PATH`. If you use a checkout runtime, set `interAgent.projectPath` in Pi settings to that checkout and run `uv sync --locked` there. If no runtime is found, Pi shows a short setup-needed message; see [`integrations/pi/README.md#runtime-setup`](integrations/pi/README.md#runtime-setup).
@@ -107,14 +124,14 @@ See [`integrations/pi/README.md`](integrations/pi/README.md) for setup, configur
 
 ## Use from Claude Code
 
-Install the Claude Code plugin persistently from this repository's marketplace metadata:
+Install the Claude Code plugin persistently from a prepared checkout:
 
 ```bash
 claude plugin marketplace add /path/to/inter-agent
-claude plugin install inter-agent
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
 ```
 
-From GitHub, use the repository URL as the marketplace source:
+Alternatively, use the repository URL as the marketplace source:
 
 ```bash
 claude plugin marketplace add https://github.com/arcanemachine/inter-agent
@@ -203,9 +220,9 @@ The config file is JSON:
 }
 ```
 
-Config file discovery uses `INTER_AGENT_CONFIG` when set. Otherwise it uses the platform config location: `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux and `~/Library/Application Support/inter-agent/config.json` on macOS.
+Config file discovery uses `INTER_AGENT_CONFIG` when set. Otherwise it uses the platform config location: `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux, `~/Library/Application Support/inter-agent/config.json` on macOS, and `%APPDATA%\\inter-agent\\config.json` on Windows when available.
 
-State files, including the shared token and server lifecycle metadata, use `INTER_AGENT_DATA_DIR`, then `dataDir` from config, then the platform state location: `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux and `~/Library/Application Support/inter-agent` on macOS.
+State files, including the shared token and server lifecycle metadata, use `INTER_AGENT_DATA_DIR`, then `dataDir` from config, then the platform state location: `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux, `~/Library/Application Support/inter-agent` on macOS, and `%LOCALAPPDATA%\\inter-agent` on Windows when available, otherwise `%APPDATA%\\inter-agent`.
 
 If the configured endpoint is unavailable and exactly one live server is found in the configured data directory, client commands use that discovered server. If multiple live servers are found, status output lists them so the endpoint can be set explicitly.
 
