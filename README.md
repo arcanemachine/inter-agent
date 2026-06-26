@@ -1,5 +1,7 @@
 # inter-agent
 
+**TLDR:** This system allows multiple coding harness sessions to talk directly to each other, even across harnesses (e.g. Claude Code to Pi)!
+
 `inter-agent` is a localhost message bus for AI coding-agent sessions. It lets sessions in supported coding harnesses send direct messages, share occasional announcements, and coordinate through one small WebSocket protocol.
 
 Supported user-facing integrations:
@@ -159,6 +161,8 @@ Common Pi commands:
 /inter-agent broadcast "build is green for everyone"
 ```
 
+> TIP: You can also just tell Pi to talk to other agents directly, or send broadcasts.
+
 Use direct `send` for normal coordination. Use `broadcast` only when the message is intended for all connected sessions.
 
 See [`integrations/pi/README.md`](integrations/pi/README.md) for setup, configuration, commands, tools, and troubleshooting.
@@ -216,6 +220,8 @@ Common Claude Code commands:
 /inter-agent messages <msg_id>
 /inter-agent broadcast "build is green for everyone"
 ```
+
+> TIP: You can also just tell Claude to talk to other agents directly, or send broadcasts.
 
 The Claude Code listener delivers incoming messages through Monitor notifications. Long incoming messages are truncated in the notification and can be retrieved with `messages <msg_id>`.
 
