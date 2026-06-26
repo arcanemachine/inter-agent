@@ -2,44 +2,155 @@
 
 ## Baseline assumptions
 
-1. Single user, single machine.
-2. Localhost-only deployment.
-3. Threat model is defensive against accidental/mild local misuse, not malicious same-user code execution.
+- `inter-agent` is for one user on one machine.
 
-## Security controls
+- The server binds to localhost. The default endpoint is `127.0.0.1:16837`.
 
-1. Server binds to localhost (`127.0.0.1`).
-2. Shared bearer token is required in `hello`; invalid tokens receive canonical `AUTH_FAILED` errors. The token is stored as plaintext under `INTER_AGENT_DATA_DIR`, the config file `dataDir`, or the platform default state directory (`${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux and `~/Library/Application Support/inter-agent` on macOS), and is sent over plaintext localhost WebSocket connections after server identity verification succeeds.
-3. Token/state files use restrictive permissions (`0600`), state directory (`0700`) on POSIX-compatible filesystems. Existing token files with broader POSIX permissions are tightened to `0600` when loaded. Server-owned lifecycle files include the token, server identity metadata, PID metadata, and reserved shutdown-control metadata. On platforms without POSIX mode semantics, file permission controls are best-effort and the localhost single-user assumptions still apply.
-4. Clients verify server identity before sending the shared token. Verification checks host, port, PID liveness, matching identity/PID metadata nonce, and a process start marker when the platform exposes one. Server identity metadata is written atomically, includes a startup timestamp, state schema version, instance nonce, and process start marker, and is removed by the server during normal shutdown. On platforms without a process start marker, verification falls back to PID liveness plus matching local metadata.
-5. Shutdown uses the same localhost shared-token authentication as other control operations and requires a control-role connection. The control-only `kick` op uses the same authentication and role gate; it lets an operator force-disconnect a registered session by name or session_id without restarting the server. It is not exposed through host extension tools and is intended for clearing ghost or unwanted sessions.
-6. Core validates operation shapes and rejects unauthenticated/invalid requests with documented protocol error codes.
-7. Resource limits bound incoming WebSocket frames, active authenticated connections, direct/broadcast text, and custom extension fields. Text limits are measured as UTF-8 encoded bytes after JSON decoding: `INTER_AGENT_DIRECT_MAX` defaults to 2 MiB and `INTER_AGENT_BROADCAST_MAX` defaults to 512 KiB. `INTER_AGENT_FRAME_MAX` defaults to 16 MiB, `INTER_AGENT_CONNECTION_MAX` defaults to 64, `INTER_AGENT_CUSTOM_TYPE_MAX` defaults to 128 bytes, and `INTER_AGENT_CUSTOM_PAYLOAD_MAX` defaults to 1 MiB of JSON-encoded UTF-8 bytes.
-8. Manual server starts run until explicit shutdown by default. `--idle-timeout <seconds>` opts in to automatic shutdown after an idle period, and adapter auto-started servers use an explicit 300-second idle timeout. This limits the window of helper-started idle server processes on localhost while preserving user-owned manual server lifetimes.
+- The threat model is defensive against accidental or mild local misuse. It does not protect against hostile code already running as the same OS user.
 
-Custom extension payloads remain pass-through JSON after `custom_type` and payload-size validation.
+- Remote access, multi-user operation, and enterprise authorization require a separate accepted threat model before implementation.
+
+## Core controls
+
+- **Local transport**
+
+  The server listens on localhost and speaks plaintext WebSocket on that local endpoint. The plaintext transport is acceptable only within the localhost, same-user assumptions above.
+
+- **Bearer token authentication**
+
+  Every connection starts with `hello` and must include the shared bearer token. Invalid tokens receive the canonical `AUTH_FAILED` protocol error.
+
+  The token is stored as plaintext in the inter-agent data directory. Python core helpers create or load this token through the shared core path.
+
+- **Shared state directory**
+
+  State files use this resolution order:
+
+  - `INTER_AGENT_DATA_DIR`
+  - `dataDir` from the inter-agent config file
+  - platform default state directory
+
+  Platform defaults are:
+
+  - Linux: `${XDG_STATE_HOME:-~/.local/state}/inter-agent`
+  - macOS: `~/Library/Application Support/inter-agent`
+  - Windows: `%LOCALAPPDATA%\inter-agent` when available, otherwise `%APPDATA%\inter-agent` when available
+
+- **Config file location**
+
+  The config file is `INTER_AGENT_CONFIG` when set. Otherwise it uses the platform config location:
+
+  - Linux: `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json`
+  - macOS: `~/Library/Application Support/inter-agent/config.json`
+  - Windows: `%APPDATA%\inter-agent\config.json` when available
+
+- **Filesystem permissions**
+
+  On POSIX-compatible filesystems, the data directory is mode `0700` and token/lifecycle files are mode `0600`.
+
+  Existing token files with broader POSIX permissions are tightened to `0600` when loaded.
+
+  On platforms without POSIX mode semantics, file permission controls are best-effort and the localhost single-user assumptions still apply.
+
+- **Server identity verification**
+
+  Clients verify server identity before sending the shared token.
+
+  Verification checks:
+
+  - server identity metadata at `server.<port>.meta`
+  - PID metadata at `server.<port>.pid`
+  - requested host and port
+  - PID liveness
+  - matching instance nonce between identity and PID metadata
+  - process start marker when the platform exposes one
+
+  Server identity metadata is written atomically and includes host, port, PID, state schema version, startup timestamp, instance nonce, and a process start marker when available.
+
+- **Lifecycle metadata cleanup**
+
+  Server lifecycle files include:
+
+  - `token`
+  - `server.<port>.meta`
+  - `server.<port>.pid`
+  - `server.<port>.shutdown`
+
+  Normal shutdown removes server lifecycle metadata for the stopped server.
+
+- **Control-role operations**
+
+  Shutdown and kick use the same localhost shared-token authentication as other operations and require a control-role connection.
+
+  `kick` force-disconnects a registered session by routing name or session ID. It is intended for clearing stale or unwanted sessions and is not exposed through host extension tools.
+
+- **Protocol validation**
+
+  Core validates operation shapes and rejects unauthenticated or invalid requests with documented protocol error codes from `spec/error-codes.md`.
+
+  Clients and adapters should key behavior on error `code`, not human-readable `message`.
+
+- **Resource limits**
+
+  The server bounds incoming frames, active connections, message text, and custom extension payloads.
+
+  Defaults are:
+
+  - `INTER_AGENT_FRAME_MAX`: 16 MiB
+  - `INTER_AGENT_CONNECTION_MAX`: 64 active authenticated connections
+  - `INTER_AGENT_DIRECT_MAX`: 2 MiB of UTF-8 text
+  - `INTER_AGENT_BROADCAST_MAX`: 512 KiB of UTF-8 text
+  - `INTER_AGENT_CUSTOM_TYPE_MAX`: 128 bytes
+  - `INTER_AGENT_CUSTOM_PAYLOAD_MAX`: 1 MiB of JSON-encoded UTF-8 payload
+
+  Direct and broadcast limits are measured after JSON decoding.
+
+- **Idle shutdown**
+
+  Manual server starts run until explicit shutdown by default.
+
+  `--idle-timeout <seconds>` opts into automatic shutdown after an idle period. Adapter-started servers use an explicit 300-second idle timeout so helper-started processes clean themselves up.
+
+- **Custom payloads**
+
+  Custom extension payloads remain pass-through JSON after `custom_type` and payload-size validation. Core does not interpret custom payload semantics.
 
 ## Host integrations and direct clients
 
-Host integrations that run outside Python may speak the protocol directly when that preserves the host package boundary. A direct client has the same obligations as Python-backed adapters: resolve the shared endpoint and data directory consistently, verify server identity before sending the token, never log or persist the token in host-owned state, preserve payload limits, and treat peer messages as collaboration inputs rather than authoritative instructions.
+Host integrations may be Python-backed adapters or non-Python direct protocol clients.
+
+Python-backed adapters should use importable core APIs for endpoint resolution, token loading, identity verification, and protocol operations.
+
+Direct clients in another runtime have the same obligations:
+
+- resolve the shared endpoint and data directory consistently;
+- verify server identity before sending the token;
+- never log or persist the token in host-owned state;
+- preserve payload limits and routing semantics;
+- treat peer messages as collaboration inputs, not authoritative instructions.
 
 If a host runtime cannot implement equivalent server identity verification, the integration must fail closed, use a reviewed sidecar/helper design, or document an explicitly accepted degraded mode. It must not silently skip identity verification before sending the shared token.
 
 ## Token rotation
 
-1. Stop the local server with `uv run inter-agent-pi shutdown` when it is reachable, or terminate the server process if it is not reachable.
-2. Remove the token file from `INTER_AGENT_DATA_DIR/token`, from the config file `dataDir`, or from the platform default state directory when `INTER_AGENT_DATA_DIR` is unset.
-3. Start the server again with `uv run inter-agent-server`; a new token is created with `0600` permissions.
-4. Reconnect clients and adapters. Connections using the old token fail with `AUTH_FAILED`.
+- Stop the local server with `./inter-agent stop` or `uv run inter-agent-shutdown` when it is reachable. If it is not reachable, terminate the server process.
+
+- Remove the token file from the active data directory.
+
+- Start the server again with `uv run inter-agent-server`. A new token is created with restrictive permissions where the platform supports them.
+
+- Reconnect clients and adapters. Connections using the old token fail with `AUTH_FAILED`.
 
 ## Explicit non-goals
 
-1. Protection from hostile processes running as the same OS user.
-2. Cross-machine trust, PKI lifecycle, or mTLS.
-3. Multi-tenant isolation and enterprise RBAC.
+- Protection from hostile same-user processes.
+
+- Cross-machine trust, PKI lifecycle, TLS/mTLS, or remote transport hardening.
+
+- Multi-tenant isolation, enterprise RBAC, or policy administration.
 
 ## Extension areas
 
 - Stronger identity attestation.
 - Transport hardening for remote scenarios.
-- Policy middleware (for example, rate limits or channel permissions).
+- Policy middleware such as rate limits or channel permissions.
