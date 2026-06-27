@@ -36,6 +36,7 @@ This file is for coding agents working in this repository.
 6. Keep docs evergreen and scoped:
    - Agent process belongs in `AGENTS.md`.
    - User-oriented product docs belong in `README.md`.
+   - Todo items (e.g. bugs, necessary fixes) belong in `TODO.md`.
    - Short-term active work belongs in `PLAN.md`.
    - Accepted medium- and long-term direction belongs in `ROADMAP.md`.
    - Exploratory ideas belong in `docs/IDEAS.md`.
