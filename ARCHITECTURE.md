@@ -106,7 +106,7 @@ Runtime source is not bus auth/state: adapters may resolve helper binaries throu
 - `hello.capabilities` is a required JSON object where clients may declare known or extension capability keys.
 - Unknown client capability keys are tolerated and may be ignored; client declarations do not enable unimplemented features.
 - `welcome.capabilities` advertises server-supported baseline capabilities: `core.version` is `0.1`, `channels` is `false`, and `rate_limit` is `false`.
-- Future channel routing and policy negotiation ideas remain in `IDEAS.md` until promoted into the plan.
+- Future channel routing and policy negotiation ideas remain in `docs/IDEAS.md` until promoted into the plan.
 
 ## Evolution touchpoints
 

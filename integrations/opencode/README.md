@@ -348,7 +348,7 @@ mandatory gate unless they become headless and reliable.
 - `ARCHITECTURE.md` and `SECURITY.md` should be updated when implementation
   changes the documented architecture or security posture.
 - New OpenCode-adjacent ideas outside the accepted roadmap scope belong in
-  `IDEAS.md` until the user promotes them.
+  `docs/IDEAS.md` until the user promotes them.
 
 ## Non-goals
 

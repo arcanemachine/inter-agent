@@ -64,7 +64,7 @@ Make OpenCode support installable, documented, and included in the repository's 
    - State completion criteria.
    - State the Codex plugin-only extension non-goal and point to the App Server sidecar direction.
 
-8. Update `IDEAS.md` if needed.
+8. Update `docs/IDEAS.md` if needed.
    - Move OpenCode-only ideas into `ROADMAP.md` only after user acceptance.
    - Copy only active OpenCode work slices into `PLAN.md`.
    - Keep Codex App Server sidecar direction aligned with `ROADMAP.md` and `integrations/codex/README.md`.
@@ -97,7 +97,7 @@ Make OpenCode support installable, documented, and included in the repository's 
 - `SECURITY.md`
 - `PLAN.md`
 - `ROADMAP.md`
-- `IDEAS.md`
+- `docs/IDEAS.md`
 - `run-checks.sh`
 - Release validation scripts if package assets are included in release artifacts
 

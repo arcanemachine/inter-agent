@@ -2,14 +2,14 @@
 
 `ROADMAP.md` records accepted medium- and long-term direction. It is not the active task list and does not describe supported product behavior unless explicitly marked as implemented.
 
-Use [`PLAN.md`](PLAN.md) for the current short-term work. Use [`IDEAS.md`](IDEAS.md) for exploratory ideas that have not been accepted into the roadmap.
+Use [`PLAN.md`](PLAN.md) for the current short-term work. Use [`docs/IDEAS.md`](docs/IDEAS.md) for exploratory ideas that have not been accepted into the roadmap.
 
 ## Documentation boundaries
 
 - `README.md` describes what users can do now.
 - `PLAN.md` describes immediate active work only.
 - `ROADMAP.md` describes accepted direction and prospective follow-on work.
-- `IDEAS.md` holds exploratory ideas and rough follow-ups.
+- `docs/IDEAS.md` holds exploratory ideas and rough follow-ups.
 - Archived execution notes live under `docs/archive/plans/`.
 - Prospective implementation notes may live under `docs/roadmap/` when they are detailed enough to preserve.
 
@@ -111,7 +111,7 @@ Start any physical repository/package extraction by copying a concrete, reviewab
 
 ## Other follow-up areas
 
-Other follow-up ideas remain in `IDEAS.md` until accepted into this roadmap or copied into `PLAN.md` as active work. Current idea areas include:
+Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap or copied into `PLAN.md` as active work. Current idea areas include:
 
 - extension publishing/discovery channels;
 - stable runtime install sources;

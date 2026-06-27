@@ -11,7 +11,7 @@ This file is for coding agents working in this repository.
 5. Keep informational documents evergreen (`README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `ROADMAP.md`, `AGENTS.md`).
 6. Write docs as stable descriptions of what the project is and how it works; avoid temporary status language and date-specific status notes.
 7. Use precise project terminology. Prefer `sub-agent` for delegated coding-agent work; avoid overloaded role names.
-8. Use `PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction. Keep exploratory work in `IDEAS.md` until it is promoted into the roadmap or active plan.
+8. Use `PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction. Keep exploratory work in `docs/IDEAS.md` until it is promoted into the roadmap or active plan.
 9. When active plan work is completed, update or remove the relevant plan item. Update `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` only for behavior or architecture that now exists.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
 11. Match existing project style and conventions in code, tests, docs, and commits.
@@ -38,7 +38,7 @@ This file is for coding agents working in this repository.
    - User-oriented product docs belong in `README.md`.
    - Short-term active work belongs in `PLAN.md`.
    - Accepted medium- and long-term direction belongs in `ROADMAP.md`.
-   - Exploratory ideas belong in `IDEAS.md`.
+   - Exploratory ideas belong in `docs/IDEAS.md`.
    - Security model and assumptions belong in `SECURITY.md`.
 
 ## Workflow notes

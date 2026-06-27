@@ -12,7 +12,7 @@ Supported user-facing integrations:
 | Claude Code | `integrations/claude-code/` | Claude Code slash commands, Monitor notifications, and message lookup |
 | Pi | `integrations/pi/` | Pi slash commands and LLM-callable tools |
 
-Short-term active work lives in [`PLAN.md`](PLAN.md). Accepted prospective direction lives in [`ROADMAP.md`](ROADMAP.md), and exploratory ideas live in [`IDEAS.md`](IDEAS.md). The supported integration list above includes only integrations that have been implemented.
+Short-term active work lives in [`PLAN.md`](PLAN.md). Accepted prospective direction lives in [`ROADMAP.md`](ROADMAP.md), and exploratory ideas live in [`docs/IDEAS.md`](docs/IDEAS.md). The supported integration list above includes only integrations that have been implemented.
 
 ## Features
 
@@ -367,7 +367,7 @@ inter-agent/
 | [`AGENTS.md`](AGENTS.md) | Coding agents | Repository workflow and conventions |
 | [`PLAN.md`](PLAN.md) | Contributors | Current short-term active work |
 | [`ROADMAP.md`](ROADMAP.md) | Contributors | Accepted medium- and long-term direction, including prospective integrations |
-| [`IDEAS.md`](IDEAS.md) | Contributors | Exploratory or unaccepted follow-up ideas |
+| [`docs/IDEAS.md`](docs/IDEAS.md) | Contributors | Exploratory or unaccepted follow-up ideas |
 
 ## Development
 

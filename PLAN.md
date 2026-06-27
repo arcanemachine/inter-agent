@@ -2,7 +2,7 @@
 
 `PLAN.md` is for short-term work that is actively being done or ready to be done next in the current session. It is intentionally small.
 
-Use [`ROADMAP.md`](ROADMAP.md) for accepted medium- and long-term direction. Use [`IDEAS.md`](IDEAS.md) for exploratory or unaccepted ideas.
+Use [`ROADMAP.md`](ROADMAP.md) for accepted medium- and long-term direction. Use [`docs/IDEAS.md`](docs/IDEAS.md) for exploratory or unaccepted ideas.
 
 ## Current active work
 
@@ -13,7 +13,7 @@ No active implementation work is currently tracked here.
 1. Keep `README.md` focused on present, implemented behavior.
 2. Keep prospective or not-yet-implemented work out of the supported integration list.
 3. Track accepted medium- and long-term direction in `ROADMAP.md`.
-4. Track rough or exploratory ideas in `IDEAS.md` until the user accepts them for the roadmap or active plan.
+4. Track rough or exploratory ideas in `docs/IDEAS.md` until the user accepts them for the roadmap or active plan.
 5. When a roadmap item becomes active, copy only the next concrete slice into this file.
 6. When an active item is completed, remove it from this file and update product docs only for behavior that now exists.
 
