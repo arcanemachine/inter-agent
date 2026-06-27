@@ -48,8 +48,8 @@ Bootstrap creates an isolated runtime venv at:
 ```
 
 It installs the inter-agent Python package into that venv and does not change
-the bus endpoint, secret, or fallback state directory. Claude, Pi, and other hosts still
-use the normal inter-agent defaults unless explicitly configured otherwise:
+the bus endpoint or secret discovery. Claude, Pi, and other hosts still use the
+normal inter-agent defaults unless explicitly configured otherwise:
 
 ```text
 127.0.0.1:16837
@@ -72,7 +72,7 @@ Do not install anything silently. When setup is needed, tell the user:
 - destination: `~/.claude/data/inter-agent/venv`;
 - source: the GitHub archive above;
 - requirement: Python 3.10+ with `venv` support;
-- bus auth/state: unchanged shared inter-agent defaults.
+- bus endpoint/secret discovery: unchanged shared inter-agent defaults.
 
 Ask for explicit approval. Only after the user approves, run:
 

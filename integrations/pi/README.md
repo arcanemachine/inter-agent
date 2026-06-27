@@ -1,6 +1,8 @@
 # pi-inter-agent
 
-Pi extension for connecting to the [inter-agent](https://github.com/arcanemachine/inter-agent) message bus.
+Pi extension for connecting Pi sessions to the [inter-agent](https://github.com/arcanemachine/inter-agent) message bus.
+
+Connect each Pi session once, then Pi can use the extension tools to send messages, ask other connected agents questions, and coordinate work. You can use slash commands directly, but normal agent-to-agent coordination can happen through the LLM-callable tools after connection.
 
 ## Features
 
@@ -12,16 +14,29 @@ Pi extension for connecting to the [inter-agent](https://github.com/arcanemachin
 
 ## Installation
 
-Install from the repository root as a Pi git package:
+Recommended local setup uses one prepared inter-agent checkout for the Python runtime and this Pi extension:
+
+```bash
+git clone https://github.com/arcanemachine/inter-agent /path/to/inter-agent
+cd /path/to/inter-agent
+uv sync --locked
+pi install /path/to/inter-agent/integrations/pi
+```
+
+Then set the checkout path in `.pi/settings.json` for the current workspace or `~/.pi/agent/settings.json` globally:
+
+```json
+{
+  "interAgent": {
+    "projectPath": "/path/to/inter-agent"
+  }
+}
+```
+
+You can also install from the repository root as a Pi git package:
 
 ```bash
 pi install https://github.com/arcanemachine/inter-agent
-```
-
-For local development, install the bundled Pi package from a checkout:
-
-```bash
-pi install /path/to/inter-agent/integrations/pi
 ```
 
 Direct-load the extension during development with:
@@ -32,7 +47,7 @@ pi -e /path/to/inter-agent/integrations/pi/src/index.ts
 
 ## Runtime setup
 
-The Pi package installs the Pi extension assets. The Python inter-agent runtime can come from a checkout, a Pi-managed venv, or existing helper commands on `PATH`. Runtime source is separate from bus auth/state: the managed venv does not change the shared default endpoint (`127.0.0.1:16837`) or secret resolution.
+The Pi package installs the Pi extension assets. The Python inter-agent runtime can come from a checkout, a Pi-managed venv, or existing helper commands on `PATH`. Runtime source is separate from bus auth/state: all runtime options use the same default endpoint (`127.0.0.1:16837`) and secret discovery.
 
 The extension resolves helpers in this order:
 
@@ -68,7 +83,7 @@ An explicit `projectPath` is fail-fast. If helpers are missing from that checkou
 
 ### Managed runtime
 
-Create the Pi-managed venv manually when you do not want a checkout runtime:
+Create the Pi-managed venv manually when you do not want Pi to use a checkout runtime:
 
 ```bash
 python3 -m venv ~/.pi/agent/inter-agent/venv
@@ -77,9 +92,7 @@ python3 -m venv ~/.pi/agent/inter-agent/venv
 ~/.pi/agent/inter-agent/venv/bin/inter-agent-pi status --json
 ```
 
-The GitHub `main` archive is a temporary pre-release install source. Release packaging should switch this to PyPI, a release tag, or a pinned archive.
-
-After creating the venv, retry the Pi command. If Pi was already running and still reports setup needed, run `/reload` or restart Pi so the extension reloads.
+After creating the venv, retry the Pi command. If Pi was already running and still reports setup needed, run `/reload` or restart Pi so the extension reloads. The GitHub `main` archive is a pre-release install source until stable package releases are available.
 
 ## Configuration
 
@@ -97,11 +110,11 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
 }
 ```
 
-Most users should leave `host`, `port`, `dataDir`, and `secret` unset so helpers use the standard shared endpoint and fallback secret state. Set `projectPath` only when you want Pi to use a specific checkout runtime.
+When Pi shares the same local inter-agent state directory as the server, leave `host`, `port`, `dataDir`, and `secret` unset so helpers use the standard endpoint and generated fallback secret. For separate harnesses, containers, or isolated filesystems, set the same reachable endpoint and high-entropy `secret` everywhere. Set `projectPath` when you want Pi to use a specific checkout runtime.
 
 Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, `dataDir`, or `secret` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, and `INTER_AGENT_SECRET`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
-`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores fallback generated secret state, kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom fallback state location. Use `secret` with a high-entropy value when server and clients do not share a filesystem.
+`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores fallback generated secret state, kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom fallback state location. Use `secret` to connect Pi to a server whose fallback state it cannot share, such as a server in another container. When set, use the same high-entropy value everywhere.
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
 

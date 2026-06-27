@@ -83,8 +83,8 @@ name-conflict, and Monitor wrapper details. Do not manually run
 
 Do not install anything silently. Explain that bootstrap will create or reuse
 `~/.claude/data/inter-agent/venv`, install the inter-agent Python runtime from
-GitHub, and leave the shared bus endpoint/state defaults unchanged. Ask for
-explicit user approval. After approval, run:
+GitHub, and leave the shared bus endpoint and secret discovery unchanged. Ask
+for explicit user approval. After approval, run:
 
 ```bash
 <bin>/inter-agent-claude bootstrap --yes

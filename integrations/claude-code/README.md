@@ -8,6 +8,8 @@ This directory contains the Claude Code plugin assets for `inter-agent`:
 
 The Python adapter implementation lives in `src/inter_agent/adapters/claude/` and is exposed through the `inter-agent-claude` command.
 
+Connect each Claude Code session once, then Claude can use `/inter-agent` to message other connected agents, ask questions, coordinate tasks, and receive replies as Monitor notifications.
+
 ## How it works
 
 Claude Code uses Monitor for inbound delivery. The listener connects to the local inter-agent WebSocket bus as an agent session and writes bounded notification lines to stdout. Claude Code surfaces those lines in the active session. The `/inter-agent connect` skill invokes a single Monitor running `inter-agent-claude listen --name <name>` and honors the requested routing name.
@@ -16,11 +18,14 @@ The adapter keeps the core protocol host-agnostic: the server handles transport,
 
 ## Install or load the plugin
 
-The Claude Code plugin can be installed persistently from this repository's marketplace metadata:
+Recommended local setup uses one prepared inter-agent checkout for the Python runtime and this Claude Code plugin:
 
 ```bash
+git clone https://github.com/arcanemachine/inter-agent /path/to/inter-agent
+cd /path/to/inter-agent
+uv sync --locked
 claude plugin marketplace add /path/to/inter-agent
-claude plugin install inter-agent
+claude plugin install inter-agent --config project_path=/path/to/inter-agent
 ```
 
 From GitHub, use the repository URL as the marketplace source:
@@ -34,12 +39,6 @@ For development, load the plugin directly from a checkout instead:
 
 ```bash
 claude --plugin-dir ./integrations/claude-code
-```
-
-Installed plugins can also be configured with a local checkout runtime:
-
-```bash
-claude plugin install inter-agent --config project_path=/path/to/inter-agent
 ```
 
 If the plugin is already installed, use Claude Code's `/plugin configure` flow to set `project_path`.
@@ -75,7 +74,7 @@ The listener auto-starts the local server when needed. Auto-started servers use 
 
 The plugin monitor runs the bundled wrapper, which delegates to the selected `inter-agent-claude` CLI. The helper uses the same endpoint and secret discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_SECRET`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
 
-To use a server started from a separate checkout or isolated filesystem, run that server with the endpoint and secret settings you want, then start Claude Code with matching `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_SECRET` values if they differ from the defaults. Installed plugins may also set plugin config `secret`, which the wrapper passes to helpers as `INTER_AGENT_SECRET`. With default settings, Claude Code and Pi use the same `127.0.0.1:16837` bus and platform fallback secret state.
+No secret setup is needed when Claude Code and the server share the same local inter-agent state directory. For separate harnesses, containers, or isolated filesystems, run the server with the endpoint and high-entropy secret you want, then start Claude Code with matching `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, and `INTER_AGENT_SECRET` values if they differ from the defaults. Installed plugins may also set plugin config `secret`, which the wrapper passes to helpers as `INTER_AGENT_SECRET`.
 
 ## Commands
 
