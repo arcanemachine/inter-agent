@@ -138,7 +138,7 @@ def test_pi_extension_reports_runtime_setup_guidance() -> None:
     """
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
-    assert 'const RUNTIME_SETUP_DOCS = "integrations/pi/README.md#runtime-setup"' in content
+    assert 'const RUNTIME_SETUP_DOCS = "integrations/pi/README.md"' in content
     assert "const helper = process.env.INTER_AGENT_PI_HELPER;" in content
     assert "config.projectPathExplicit && config.projectPath" in content
     assert "missingConfiguredRuntimeMessage(binDir)" in content

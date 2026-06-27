@@ -153,16 +153,23 @@ Tools are agent-callable; they are not user-facing slash commands.
 Pi may show this during connect or status checks:
 
 ```text
-[inter-agent] setup needed. See integrations/pi/README.md#runtime-setup
+[inter-agent] setup needed. See integrations/pi/README.md
 ```
 
 Follow [Runtime setup](#runtime-setup), then retry the command. If Pi was already running while you created a runtime, run `/reload` or restart Pi.
 
 ### Configured checkout missing helpers
 
-If `interAgent.projectPath` is set and helpers are missing, Pi reports the expected `<projectPath>/.venv/bin` path. Common causes are:
+If `interAgent.projectPath` is set and helpers are missing, Pi reports the expected `<projectPath>/.venv/bin` path:
+
+```text
+[inter-agent] connect failed: inter-agent runtime was not found at /path/to/inter-agent/.venv/bin. See integrations/pi/README.md
+```
+
+Common causes are:
 
 - `interAgent.projectPath` points to the wrong clone.
+- The path exists on the host but not inside the environment where Pi is running.
 - The inter-agent virtual environment has not been created.
 - The virtual environment was created at another filesystem path, leaving stale script shebangs.
 

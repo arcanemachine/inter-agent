@@ -51,7 +51,7 @@ const MANAGED_RUNTIME_VENV = join(
   "inter-agent",
   "venv",
 );
-const RUNTIME_SETUP_DOCS = "integrations/pi/README.md#runtime-setup";
+const RUNTIME_SETUP_DOCS = "integrations/pi/README.md";
 
 function expandHome(path: string): string {
   if (path === "~") return homedir();

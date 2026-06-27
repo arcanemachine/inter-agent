@@ -122,14 +122,14 @@ secret: generated fallback token
 For separate harnesses, containers, isolated filesystems, or multiple independent buses, export the same values anywhere that starts the server or clients:
 
 ```bash
-export INTER_AGENT_HOST=127.0.0.1
+export INTER_AGENT_HOST=0.0.0.0
 export INTER_AGENT_PORT=16838
 export INTER_AGENT_SECRET='<high-entropy-shared-secret>'
 ```
 
 Then start the server and harnesses normally. Pi, Claude Code, and the core CLI read these environment variables.
 
-If a harness is launched by another parent process, make sure that process has the environment too. In containers, `127.0.0.1` means “inside this container”; use a reachable host or container address when needed.
+If a harness is launched by another parent process, make sure that process has the environment too. In containers, `127.0.0.1` means “inside this container”; use a reachable host (e.g. a LAN IP) or container address when needed.
 
 ## Troubleshooting
 
