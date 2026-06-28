@@ -88,7 +88,7 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
     assert "do not reply and do not comment on it in chat" in content
-    assert "Record only. Do not respond to this sent-message confirmation" in content
+    assert "This is a confirmation of a message you just sent. Do not reply to it." in content
     assert "broadcast unless the user asks" in content
     assert "Get explicit user approval before destructive" in content
 
@@ -103,7 +103,7 @@ def test_pi_extension_separates_display_from_agent_context() -> None:
     assert '"inter-agent-message"' in content
     assert "displayContent" in content
     # Internal-only instruction stays in LLM content, never shown in the TUI.
-    assert "Record only. Do not respond to this sent-message confirmation" in content
+    assert "This is a confirmation of a message you just sent. Do not reply to it." in content
 
 
 def test_pi_extension_supports_user_driven_rename() -> None:

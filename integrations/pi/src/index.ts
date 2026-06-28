@@ -355,7 +355,7 @@ function showOutgoingInContext(
       customType: "inter-agent-message",
       content: `[inter-agent message sent by the current agent (${from}) ${toInfo}]
 
-Record only. Do not respond to this sent-message confirmation.
+This is a confirmation of a message you just sent. Do not reply to it.
 
 ${text}`,
       display: true,
