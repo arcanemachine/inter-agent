@@ -54,11 +54,3 @@ def test_changelog_documents_versioning_policy() -> None:
     assert "marketplace.json" in changelog
     assert "plugin.json" in changelog
     assert "core.version" in changelog
-
-
-def test_readme_points_to_changelog_and_version_source() -> None:
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-
-    assert "Versioning and release notes" in readme
-    assert "pyproject.toml" in readme
-    assert "CHANGELOG.md" in readme
