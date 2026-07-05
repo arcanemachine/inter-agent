@@ -318,10 +318,12 @@ function sendToContext(
   text: string,
   toInfo: string,
 ) {
+  const neutralReceipt =
+    'If no peer reply or user-facing action is needed, do not summarize or discuss the peer message in chat. To avoid an empty assistant turn, respond only with a neutral receipt such as: "Inter-agent message received; no reply needed."';
   const replyInstruction =
     toInfo === "broadcast"
-      ? `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination; do not broadcast unless the user asks. If it does not, do not reply and do not comment on it in chat.`
-      : `Peer message. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination. If it does not, do not reply and do not comment on it in chat.`;
+      ? `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination; do not broadcast unless the user asks. ${neutralReceipt}`
+      : `Peer message. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination. ${neutralReceipt}`;
   pi.sendMessage(
     {
       customType: "inter-agent-message",

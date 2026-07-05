@@ -87,7 +87,9 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Keep inter-agent communication purposeful and brief" in content
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
-    assert "do not reply and do not comment on it in chat" in content
+    assert "do not summarize or discuss the peer message in chat" in content
+    assert "To avoid an empty assistant turn" in content
+    assert "Inter-agent message received; no reply needed." in content
     assert "This is historical context only" in content
     assert "Do not reply to it or comment on it" in content
     assert 'deliverAs: "nextTurn"' in content
