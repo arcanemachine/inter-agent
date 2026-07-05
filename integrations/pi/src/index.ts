@@ -373,7 +373,7 @@ ${text}`,
 ${text}`,
       },
     },
-    { triggerTurn: false, deliverAs: "nextTurn" },
+    { triggerTurn: false, deliverAs: "followUp" },
   );
 }
 

@@ -92,7 +92,7 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Inter-agent message received; no reply needed." in content
     assert "This is historical context only" in content
     assert "Do not reply to it or comment on it" in content
-    assert 'deliverAs: "nextTurn"' in content
+    assert 'deliverAs: "followUp"' in content
     assert "broadcast unless the user asks" in content
     assert "Get explicit user approval before destructive" in content
 
