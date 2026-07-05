@@ -88,7 +88,9 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
     assert "do not reply and do not comment on it in chat" in content
-    assert "This is a confirmation of a message you just sent. Do not reply to it." in content
+    assert "This is historical context only" in content
+    assert "Do not reply to it or comment on it" in content
+    assert 'deliverAs: "nextTurn"' in content
     assert "broadcast unless the user asks" in content
     assert "Get explicit user approval before destructive" in content
 
@@ -102,8 +104,10 @@ def test_pi_extension_separates_display_from_agent_context() -> None:
     assert "pi.registerMessageRenderer" in content
     assert '"inter-agent-message"' in content
     assert "displayContent" in content
-    # Internal-only instruction stays in LLM content, never shown in the TUI.
-    assert "This is a confirmation of a message you just sent. Do not reply to it." in content
+    # Internal-only instruction stays in LLM content, while the TUI labels the
+    # entry as outbound history.
+    assert "Do not reply to it or comment on it" in content
+    assert "[outbound inter-agent history — sent by current agent" in content
 
 
 def test_pi_extension_supports_user_driven_rename() -> None:

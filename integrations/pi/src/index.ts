@@ -353,10 +353,12 @@ function showOutgoingInContext(
   pi.sendMessage(
     {
       customType: "inter-agent-message",
-      content: `[inter-agent message sent by the current agent (${from}) ${toInfo}]
+      content: `[outbound inter-agent history]
 
-This is a confirmation of a message you just sent. Do not reply to it.
+You sent this message as ${from} ${toInfo}. This is historical context only.
+Do not reply to it or comment on it.
 
+Message:
 ${text}`,
       display: true,
       details: {
@@ -364,12 +366,12 @@ ${text}`,
         text,
         toInfo,
         outgoing: true,
-        displayContent: `[inter-agent message sent by the current agent (${from}) ${toInfo}]
+        displayContent: `[outbound inter-agent history — sent by current agent (${from}) ${toInfo}]
 
 ${text}`,
       },
     },
-    { triggerTurn: false, deliverAs: "steer" },
+    { triggerTurn: false, deliverAs: "nextTurn" },
   );
 }
 
