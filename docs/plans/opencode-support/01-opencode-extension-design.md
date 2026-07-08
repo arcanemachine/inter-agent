@@ -6,7 +6,7 @@ Prospective roadmap item — OpenCode Support
 
 Design OpenCode support as a first-class host-native extension before writing implementation code.
 
-Read `docs/roadmap/opencode-support/00-execution-guide.md` before executing this plan item. Follow the execution guide's order, spike requirement, and stop conditions.
+Read `docs/plans/opencode-support/00-execution-guide.md` before executing this plan item. Follow the execution guide's order, spike requirement, and stop conditions.
 
 The OpenCode integration should follow the successful Pi extension UX where OpenCode supports it: host-native commands, LLM-callable tools, a persistent listener, visible notifications, state persistence, and safe handling of incoming peer messages.
 
@@ -61,7 +61,7 @@ Key OpenCode reference files from the local clone:
 
 3. **Protocol strategy**
    - Implement a direct TypeScript client for the inter-agent WebSocket protocol.
-   - Port only the client-side pieces needed by OpenCode: token loading, server identity verification, hello handshake, control operations, listener loop, error handling, and message formatting.
+   - Port only the client-side pieces needed by OpenCode: shared-secret loading, TLS/certificate trust, challenge-response server proof verification, control operations, listener loop, error handling, and message formatting.
    - Keep subprocess CLI fallback out of the first implementation unless a spike proves direct WebSocket is not viable.
 
 4. **Session identity**
@@ -83,8 +83,8 @@ Key OpenCode reference files from the local clone:
 
 7. **Security model**
    - Stay within inter-agent's local, same-user, localhost threat model.
-   - Verify server identity before sending the shared token.
-   - Read tokens and state from the configured inter-agent data directory.
+   - Verify the server proof before sending `auth_response`; never send the raw shared secret.
+   - Read fallback secret, TLS certificate, and state from the configured inter-agent data directory.
    - Keep any plugin-owned state files restrictive where OpenCode APIs allow it.
 
 ## Work
@@ -113,7 +113,7 @@ Key OpenCode reference files from the local clone:
 - `integrations/opencode/README.md`
 - `integrations/opencode/package.json`
 - `integrations/opencode/src/`
-- `docs/roadmap/opencode-support/`
+- `docs/plans/opencode-support/`
 - `README.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`

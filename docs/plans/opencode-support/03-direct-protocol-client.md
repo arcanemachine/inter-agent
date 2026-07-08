@@ -9,7 +9,7 @@ Implement a direct TypeScript client for the inter-agent protocol so the OpenCod
 ## Scope
 
 - Client-side protocol envelopes needed by OpenCode.
-- Token loading and server identity verification.
+- Shared-secret loading, TLS/certificate trust, and challenge-response server proof verification.
 - Agent listener connection and short-lived control connections.
 - Error handling aligned with `spec/error-codes.md`.
 - Tests for protocol and error behavior.
@@ -33,16 +33,18 @@ Optional later:
 
 ## Required spike before full implementation
 
-Before building the full client, prove direct WebSocket access from the OpenCode plugin runtime as described in `docs/roadmap/opencode-support/00-execution-guide.md`.
+Before building the full client, prove direct WebSocket access from the OpenCode plugin runtime as described in `docs/plans/opencode-support/00-execution-guide.md`.
 
 Minimum proof:
 
 1. Load a local OpenCode TUI plugin.
 2. Open a WebSocket from that plugin.
-3. Read the inter-agent token and server metadata from the configured data directory.
-4. Send a valid `hello` envelope to a live inter-agent server.
-5. Receive a `welcome` frame.
-6. Receive one `msg` frame if practical.
+3. Read the inter-agent shared secret from environment/config/token-file resolution.
+4. Resolve `ws://` or `wss://` using the same effective TLS defaults as core.
+5. Send a valid `hello` envelope to a live inter-agent server.
+6. Complete `auth_challenge` / `auth_response` without sending the raw shared secret.
+7. Receive a `welcome` frame.
+8. Receive one `msg` frame if practical.
 
 If this proof fails, stop and report. Do not continue with a Python CLI bridge unless the design is explicitly updated and accepted.
 
@@ -72,23 +74,22 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
    - Default data directory: `INTER_AGENT_DATA_DIR`, config `dataDir`, or the platform default state directory.
    - Default direct, broadcast, frame, custom, and connection limits should match the core defaults where the client validates locally.
 
-3. Implement token loading.
-   - Read the existing token from the inter-agent data directory.
-   - If the token does not exist, decide whether the OpenCode extension may create it or should instruct the user to start the server first.
+3. Implement shared-secret loading.
+   - Resolve `INTER_AGENT_SECRET`, config `secret`, or fallback token file with the same effective precedence as core.
+   - If the fallback token does not exist, decide whether the OpenCode extension may create it or should instruct the user to start the server first.
    - Match restrictive file permissions where the runtime allows it.
-   - Never log the token.
+   - Never log the shared secret or HMAC proofs.
 
-4. Implement server identity verification.
-   - Read `server.<port>.meta` and `server.<port>.pid` from the data directory.
-   - Confirm host and port match the configured endpoint.
-   - Confirm metadata nonce matches.
-   - Confirm the server PID is live where the current platform supports it.
-   - On Linux, port the `/proc/<pid>/stat` start-marker check where practical.
-   - On platforms where full verification is unavailable, fail closed unless the design explicitly accepts a documented degraded mode.
+4. Implement TLS and server proof handling.
+   - Resolve `INTER_AGENT_TLS`, config `tls`, and loopback/non-loopback defaults.
+   - Resolve `INTER_AGENT_TLS_CERT` / config `tlsCert` and trust the configured/default certificate for `wss://` connections.
+   - Build `hello` with HMAC auth metadata.
+   - Verify the server proof from `auth_challenge` before sending `auth_response`.
+   - Do not depend on `server.<port>.meta` or `server.<port>.pid` files unless a future core server metadata feature is accepted; those files are not part of the current implemented core.
 
 5. Implement protocol envelope builders.
-   - `buildAgentHello({ token, sessionId, name, label })`
-   - `buildControlHello({ token, sessionId })`
+   - `buildAgentHello({ sessionId, name, label })`
+   - `buildControlHello({ sessionId })`
    - `buildSend({ to, text, fromName })`
    - `buildBroadcast({ text, fromName })`
    - `buildList()`
@@ -96,8 +97,7 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 
 6. Implement control operations.
    - Open WebSocket.
-   - Verify identity before sending token.
-   - Send control `hello`.
+   - Send control `hello` and complete challenge-response authentication without sending the raw shared secret.
    - Wait for `welcome` or `error`.
    - Send operation.
    - For operations that can return protocol errors, wait briefly for an error frame before reporting success.
@@ -105,8 +105,7 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 
 7. Implement the persistent listener primitive.
    - Open WebSocket.
-   - Verify identity before token transmission.
-   - Send agent `hello` with session ID, name, label, and capabilities.
+   - Send agent `hello` with session ID, name, label, and capabilities, then complete challenge-response authentication without sending the raw shared secret.
    - Emit structured callbacks for `welcome`, `msg`, `error`, and close.
    - Do not perform OpenCode UI work in the low-level client module.
 
@@ -129,7 +128,7 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 
 10. Add tests.
    - Unit-test envelope builders.
-   - Unit-test token and identity parsing against fixture files.
+   - Unit-test shared-secret resolution and TLS config/certificate handling against fixture files.
    - Unit-test error classification.
    - Add a mock WebSocket server test if practical in the OpenCode package.
    - Add a live inter-agent server test later under the integration-test plan.
@@ -137,7 +136,7 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 ## Acceptance criteria
 
 - OpenCode shared client code can connect to a live inter-agent server without invoking Python or shelling out to inter-agent CLIs.
-- Token loading and identity verification follow the core security model.
+- Shared-secret loading, TLS behavior, and challenge-response server proof verification follow the core security model.
 - Control operations produce stable typed results for TUI commands and server tools.
 - The listener primitive can receive direct and broadcast `msg` frames.
 - Permanent protocol errors stop reconnect attempts.
@@ -147,7 +146,7 @@ If this proof fails, stop and report. Do not continue with a Python CLI bridge u
 
 - `integrations/opencode/src/client.ts`
 - `integrations/opencode/src/protocol.ts`
-- `integrations/opencode/src/identity.ts`
+- `integrations/opencode/src/identity.ts` if retained for local sender identity/state rather than server metadata
 - `integrations/opencode/src/errors.ts`
 - `integrations/opencode/src/config.ts`
 - `integrations/opencode/src/format.ts`

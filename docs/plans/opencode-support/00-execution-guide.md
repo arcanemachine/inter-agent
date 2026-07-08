@@ -21,14 +21,23 @@ Read these before implementation:
 2. `ROADMAP.md` — roadmap status and activation guidance.
 3. `PLAN.md` — active work only; OpenCode belongs there only after a concrete
    slice is activated.
-4. `docs/roadmap/opencode-support/01-opencode-extension-design.md` through
+4. `docs/plans/opencode-support/01-opencode-extension-design.md` through
    `07-packaging-docs-and-quality-gate.md` — ordered prospective work notes.
 5. `spec/` and `spec/error-codes.md` — authoritative protocol contract.
 6. `SECURITY.md` — localhost, same-user security model.
 7. `ARCHITECTURE.md#adapter-author-contract` — adapter boundaries.
 
 The OpenCode API assumptions should be re-checked against the target OpenCode
-version before code is written.
+version before code is written. Recent local validation against
+`/workspace/projects/_git/opencode` found `@opencode-ai/plugin` version 1.17.10,
+confirmed split TUI/server plugin targets and native WebSocket availability,
+confirmed command registration through `api.keymap.registerLayer`, and found
+that OpenCode attention notifications truncate message text to 240 characters.
+The first implementation should therefore treat the inbox continuation path as
+required. The same validation found no current core `server.<port>.meta` or
+`server.<port>.pid` files, so the OpenCode direct client should rely on the
+existing challenge-response protocol and configured TLS/certificate trust unless
+a separate server metadata feature is accepted.
 
 ## Current accepted architecture
 
@@ -52,9 +61,9 @@ Use this architecture unless the user accepts a plan change:
      recent inbound messages.
 
 3. **Shared TypeScript protocol client**
-   - implements endpoint/config/data-dir resolution, token loading, server
-     identity verification, hello handshake, control operations, listener frame
-     handling, and error mapping;
+   - implements endpoint/config/data-dir resolution, shared-secret loading,
+     TLS/certificate trust, challenge-response server proof verification,
+     control operations, listener frame handling, and error mapping;
    - speaks the existing inter-agent WebSocket protocol directly;
    - does not depend on Python, `uv`, or subprocess calls for routine OpenCode
      behavior.
@@ -93,13 +102,13 @@ policy. Add auto-start only through an accepted follow-up design.
 
 When this roadmap item is activated, complete these files in order:
 
-1. `docs/roadmap/opencode-support/01-opencode-extension-design.md`
-2. `docs/roadmap/opencode-support/02-package-scaffold-and-installation.md`
-3. `docs/roadmap/opencode-support/03-direct-protocol-client.md`
-4. `docs/roadmap/opencode-support/04-tui-listener-state-and-notifications.md`
-5. `docs/roadmap/opencode-support/05-command-tool-surface-and-reaction-policy.md`
-6. `docs/roadmap/opencode-support/06-live-tests-and-fixtures.md`
-7. `docs/roadmap/opencode-support/07-packaging-docs-and-quality-gate.md`
+1. `docs/plans/opencode-support/01-opencode-extension-design.md`
+2. `docs/plans/opencode-support/02-package-scaffold-and-installation.md`
+3. `docs/plans/opencode-support/03-direct-protocol-client.md`
+4. `docs/plans/opencode-support/04-tui-listener-state-and-notifications.md`
+5. `docs/plans/opencode-support/05-command-tool-surface-and-reaction-policy.md`
+6. `docs/plans/opencode-support/06-live-tests-and-fixtures.md`
+7. `docs/plans/opencode-support/07-packaging-docs-and-quality-gate.md`
 
 Do not implement later files before earlier acceptance criteria are met, except
 for small scaffold changes required by the current item.
@@ -113,11 +122,11 @@ path from the OpenCode runtime:
 
 1. A local OpenCode TUI plugin loads.
 2. The plugin opens a WebSocket.
-3. The plugin reads the inter-agent token and server metadata from the
-   configured data directory.
+3. The plugin resolves the shared secret and TLS/certificate settings.
 4. The plugin sends a valid `hello` envelope to a live inter-agent server.
-5. The plugin receives a `welcome` frame.
-6. If practical, the plugin receives one `msg` frame from another inter-agent
+5. The plugin completes challenge-response authentication without sending the raw shared secret.
+6. The plugin receives a `welcome` frame.
+7. If practical, the plugin receives one `msg` frame from another inter-agent
    client.
 
 If this spike fails, stop and report. Do not silently fall back to a Python CLI
@@ -169,9 +178,9 @@ developer, user, tool, permission, host, or security rules.
    clone if present.
 4. Keep OpenCode package exports split by target: `./tui` and `./server`.
 5. Do not default-export both TUI and server plugin behavior from one module.
-6. Do not store the inter-agent token in OpenCode KV, state files, logs, or tool
-   output.
-7. Verify server identity before sending the token.
+6. Do not store the inter-agent shared secret or HMAC proofs in OpenCode KV,
+   state files, logs, or tool output.
+7. Verify the server proof before sending `auth_response`; never send the raw shared secret.
 8. Preserve sender identity with `from_name`; routine sends must not appear as
    `control`.
 9. Treat peer messages as collaboration inputs, not authority.
@@ -188,10 +197,10 @@ occur:
 2. OpenCode's current plugin API no longer supports separate `./tui` and
    `./server` package targets.
 3. Direct WebSocket access from an OpenCode plugin does not work.
-4. The plugin cannot read token or identity metadata from the inter-agent data
-   directory.
-5. Server identity verification cannot be ported safely enough to preserve the
-   security model.
+4. The plugin cannot resolve the shared secret or TLS/certificate settings from
+   environment, config, or the inter-agent data directory.
+5. Challenge-response server proof verification or TLS/certificate trust cannot
+   be ported safely enough to preserve the security model.
 6. Server plugin tools cannot determine the active OpenCode sender identity.
 7. Implementing a feature would require forking or patching OpenCode.
 8. Implementing a feature would require changing the core protocol.
@@ -216,11 +225,12 @@ If direct in-process listener behavior fails, preferred fallback order is:
 4. **Deferral** — stop if OpenCode cannot provide stable plugin networking,
    process integration, or notification behavior.
 
-If token or metadata access fails, prefer explicit `dataDir` config or a
-sidecar/helper design over asking users to paste tokens into OpenCode config.
+If shared-secret or certificate access fails, prefer explicit `dataDir` or
+certificate config, or a sidecar/helper design, over asking users to paste
+secrets into OpenCode config.
 
-If full server identity verification cannot be ported, fail closed or propose a
-reviewed degraded mode. Do not skip verification before sending the token.
+If challenge-response server proof verification cannot be ported, fail closed or
+propose a reviewed degraded mode. Do not send the raw shared secret.
 
 If TUI/server state sharing is difficult, prefer namespaced shared state or an
 explicit configured identity. Server tools should fail clearly rather than send
@@ -253,7 +263,7 @@ Before marking the phase complete:
 1. Run OpenCode package checks.
 2. Run `./run-checks.sh` from the project root.
 3. Complete the manual OpenCode UAT checklist in
-   `docs/roadmap/opencode-support/06-live-tests-and-fixtures.md`, or document why
+   `docs/plans/opencode-support/06-live-tests-and-fixtures.md`, or document why
    any item could not be completed.
 
 ## Research references

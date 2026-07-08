@@ -11,7 +11,7 @@ Use [`PLAN.md`](PLAN.md) for the current short-term work. Use [`docs/IDEAS.md`](
 - `ROADMAP.md` describes accepted direction and prospective follow-on work.
 - `docs/IDEAS.md` holds exploratory ideas and rough follow-ups.
 - Archived execution notes live under `docs/archive/plans/`.
-- Prospective implementation notes may live under `docs/roadmap/` when they are detailed enough to preserve.
+- Prospective implementation notes may live under `docs/plans/` when they are detailed enough to preserve.
 
 Prospective integrations must not be listed as supported in `README.md`. When a prospective integration is implemented and validated, update `README.md`, `ARCHITECTURE.md`, `SECURITY.md`, package docs, and this roadmap so the integration is no longer described as prospective.
 
@@ -28,7 +28,7 @@ Future agents should determine work state from these markers:
 
 The current implemented baseline is:
 
-- localhost WebSocket message bus with bearer-token authentication;
+- local WebSocket message bus with shared-secret challenge-response authentication and optional TLS transport;
 - protocol schemas, examples, canonical error codes, and conformance coverage;
 - Python core server and helper commands;
 - Pi extension and adapter;
@@ -38,9 +38,23 @@ The current implemented baseline is:
 
 Completed execution notes are archived under `docs/archive/plans/` for reference. They are historical records, not active backlog items.
 
+## Prospective protocol follow-ons
+
+### Pub/sub channels
+
+Status: accepted direction; not implemented; not active.
+
+Next activation step: convert `docs/plans/pubsub-channels/00-design-seed.md` into a concrete protocol/spec/test implementation plan, then copy only the first implementation slice into `PLAN.md`.
+
+Pub/sub channels are the next protocol feature to settle before new host integrations are added. The initial direction is lightweight named channels with explicit subscribe, unsubscribe, publish, and diagnostic list behavior. Direct messages and broadcast remain unchanged.
+
+Reference material:
+
+- `docs/plans/pubsub-channels/00-design-seed.md`
+
 ## Prospective follow-on integrations
 
-Near-term package/release readiness for the current implemented integrations, including stable PyPI release sources for the core runtime, remains the priority before starting new host-integration implementation. OpenCode is the accepted prospective host-integration direction ahead of Codex. Codex should be investigated after the current release work and OpenCode work are addressed.
+Near-term package/release readiness for the current implemented integrations, including stable PyPI release sources for the core runtime, remains important. Pub/sub channels should be addressed before new host-integration implementation. OpenCode is the accepted prospective host-integration direction ahead of Codex. Codex should be investigated after the current release work, pub/sub channel work, and OpenCode work are addressed.
 
 ### OpenCode support
 
@@ -53,7 +67,7 @@ OpenCode support has a researched design, but no OpenCode plugin package has bee
 Reference material:
 
 - `integrations/opencode/README.md` — consolidated prospective design/reference document.
-- `docs/roadmap/opencode-support/` — detailed prospective execution notes.
+- `docs/plans/opencode-support/` — detailed prospective execution notes.
 
 Current design direction:
 
@@ -73,13 +87,14 @@ When OpenCode support is implemented and validated, update `README.md` to list i
 
 Status: prospective; not implemented; not active.
 
-Next activation step: after current release/PyPI package work and OpenCode work, copy a Codex App Server sidecar spike into `PLAN.md` as the active slice.
+Next activation step: after current release/PyPI package work, pub/sub channel work, and OpenCode work, copy a Codex App Server sidecar spike into `PLAN.md` as the active slice.
 
 Codex support should not be planned as a plugin-only extension. Current Codex plugin surfaces can bundle skills, MCP servers, app connector metadata, and lifecycle hooks, but they do not provide a persistent background runtime that can own an inter-agent listener or push inbound messages into the Codex TUI automatically.
 
 Reference material:
 
 - `integrations/codex/README.md` — prospective App Server sidecar design/reference document.
+- `docs/plans/codex-support/00-validation-spike.md` — first validation-spike plan.
 
 Current design direction:
 
@@ -106,6 +121,7 @@ The recorded split direction is:
 Reference material:
 
 - `docs/archive/plans/09-host-extension-packaging/01-repository-boundary-inventory.md`
+- `docs/plans/repo-split/00-first-slices.md`
 
 Start any physical repository/package extraction by copying a concrete, reviewable slice into `PLAN.md`.
 
@@ -117,6 +133,6 @@ Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap
 - stable runtime install sources;
 - Pi direct WebSocket client refactor informed by the prospective OpenCode client;
 - Codex App Server sidecar support after current release/PyPI package work and OpenCode work;
-- channel/pub-sub protocol extensions;
+- pub/sub channel implementation after the design seed is converted to a concrete plan;
 - policy middleware examples;
 - remote transport mode with a separate threat model.

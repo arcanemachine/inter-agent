@@ -245,8 +245,9 @@ A design spike is successful when it demonstrates, against a real Codex version:
 
 ## Sequencing
 
-Codex support is prospective follow-on work. The immediate project priority is
-release/PyPI package readiness for the current implemented integrations.
-OpenCode is the accepted prospective host-integration direction ahead of Codex.
-After the current package release work and OpenCode work are addressed, a Codex
-App Server sidecar spike is the appropriate next Codex step.
+Codex support is prospective follow-on work. The immediate sequencing is
+release/PyPI package readiness for the current implemented integrations,
+pub/sub channel work, and OpenCode support. OpenCode is the accepted prospective
+host-integration direction ahead of Codex. After the current package release
+work, pub/sub channel work, and OpenCode work are addressed, a Codex App Server
+sidecar spike is the appropriate next Codex step.

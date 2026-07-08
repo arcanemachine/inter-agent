@@ -54,8 +54,8 @@ Make OpenCode support installable, documented, and included in the repository's 
 
 6. Update `SECURITY.md` if needed.
    - Document OpenCode plugin trust assumptions.
-   - Document token file access from a Bun plugin.
-   - Document any degraded identity verification behavior on non-Linux platforms.
+   - Document fallback token-file and TLS certificate access from a Bun plugin.
+   - Document challenge-response server proof verification and any accepted degraded behavior.
    - Document notification and inbox privacy implications.
 
 7. Update planning docs.

@@ -42,7 +42,9 @@ Expected module roles:
 - `server.ts` — OpenCode server plugin entry point and LLM tool registration.
 - `client.ts` — shared direct WebSocket operations.
 - `protocol.ts` — protocol envelope builders and parsers.
-- `identity.ts` — token loading and server identity verification.
+- `identity.ts` — local sender identity/state helpers if needed.
+- `auth.ts` — shared-secret loading and challenge-response proof helpers if split from `protocol.ts`.
+- `tls.ts` — TLS/certificate config helpers if split from `config.ts`.
 - `config.ts` — plugin settings and defaults.
 - `state.ts` — active connection state persistence.
 - `inbox.ts` — recent inbound message storage and truncation continuation records.

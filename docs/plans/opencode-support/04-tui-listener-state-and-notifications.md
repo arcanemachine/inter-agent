@@ -42,7 +42,7 @@ Implement the OpenCode TUI plugin behavior that keeps a session connected to the
    - Use namespaced keys such as `inter-agent:*`.
    - Verify whether OpenCode KV is global, workspace-scoped, project-scoped, or session-scoped before relying on it for active listener state.
    - If concurrent OpenCode sessions would collide in KV, use a generated session ID or plugin-owned state file for per-session listener state.
-   - Do not store the shared token in OpenCode KV.
+   - Do not store the shared secret or HMAC proofs in OpenCode KV.
    - Keep inbox metadata small and bounded.
    - Recover defensively from malformed or stale KV entries.
 
