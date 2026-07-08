@@ -27,7 +27,9 @@ def test_server_main_default_idle_timeout_is_disabled(
         port: int,
         limits: object | None = None,
         idle_timeout_s: float | None = None,
+        **kwargs: object,
     ) -> None:
+        del limits, kwargs
         calls.append((host, port, idle_timeout_s))
 
     monkeypatch.setattr(core_server, "run_server", fake_run_server)
@@ -46,7 +48,9 @@ def test_server_main_passes_explicit_idle_timeout(
         port: int,
         limits: object | None = None,
         idle_timeout_s: float | None = None,
+        **kwargs: object,
     ) -> None:
+        del limits, kwargs
         calls.append((host, port, idle_timeout_s))
 
     monkeypatch.setattr(core_server, "run_server", fake_run_server)

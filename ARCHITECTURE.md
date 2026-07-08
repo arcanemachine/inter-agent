@@ -1,10 +1,11 @@
 # Architecture
 
-`inter-agent` is a localhost WebSocket message bus for AI coding sessions.
+`inter-agent` is a local WebSocket message bus for AI coding sessions.
 
 ## Layers
 
 1. **Core protocol (`src/inter_agent/core/`)**
+   - Transport (`ws://` / `wss://`) with host-based TLS defaults and explicit enable/disable
    - Handshake/auth (`hello` / `auth_challenge` / `auth_response` / `welcome`)
    - Presence and identity (`session_id`, routing `name`, display-only `label`)
    - Routing (`send`, `broadcast`, `custom` pass-through)
@@ -89,11 +90,13 @@ Runtime source is not bus auth/state: adapters may resolve helper binaries throu
 - Manual starts run until explicit shutdown by default. Passing `--idle-timeout <seconds>` opts in to automatic shutdown after that idle period; `--idle-timeout 0` also leaves the timeout disabled.
 - Adapters that auto-start the server, including Pi `/inter-agent-connect` and Claude Code `listen`, pass an explicit 300-second idle timeout, verify the server is reachable before proceeding, and retry for up to 15 seconds after launching the server process.
 
-## Configuration and fallback secret state
+## Configuration, TLS, and fallback secret state
 
 - The default endpoint is `127.0.0.1:16837`.
 - Endpoint resolution uses explicit CLI options first, then `INTER_AGENT_HOST` / `INTER_AGENT_PORT`, then the inter-agent JSON config file, then built-in defaults.
 - The shared secret resolves from `INTER_AGENT_SECRET`, then top-level config key `secret`, then a generated fallback token file in the data directory.
+- TLS defaults to off for loopback hosts (`127.0.0.1`, `localhost`, `::1`) and on for non-loopback hosts. Enable or disable TLS explicitly with CLI flags `--tls` / `--no-tls`, `INTER_AGENT_TLS`, or the `tls` config key.
+- TLS certificate and key resolve from CLI `--tls-cert` / `--tls-key`, then `INTER_AGENT_TLS_CERT` / `INTER_AGENT_TLS_KEY`, then `tlsCert` / `tlsKey` config keys. If TLS is enabled and no certificate/key is configured, the server generates `tls-cert.pem` and `tls-key.pem` in the data directory with restrictive permissions. Clients trust the generated/default certificate from the same data directory or the certificate configured via `INTER_AGENT_TLS_CERT` / `tlsCert`.
 - The config file is `INTER_AGENT_CONFIG` when set, otherwise `${XDG_CONFIG_HOME:-~/.config}/inter-agent/config.json` on Linux and `~/Library/Application Support/inter-agent/config.json` on macOS.
 - Fallback secret state lives under `INTER_AGENT_DATA_DIR`, then the config file `dataDir`, then `${XDG_STATE_HOME:-~/.local/state}/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS.
 - When `INTER_AGENT_SECRET` or config `secret` is set, core does not read or create the fallback token file for auth.

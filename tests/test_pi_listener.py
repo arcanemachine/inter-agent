@@ -43,7 +43,7 @@ class TestRunListenerReconnect:
 
         # Server never available and auto-start fails.
         monkeypatch.setattr(listener, "endpoint_available", lambda host, port: False)
-        monkeypatch.setattr(listener, "_start_server", lambda host, port: None)
+        monkeypatch.setattr(listener, "_start_server", lambda host, port, **kwargs: None)
 
         real_sleep = asyncio.sleep
 
@@ -76,8 +76,14 @@ class TestRunListenerReconnect:
         call_count = 0
 
         async def fake_connect_and_stream(
-            host: str, port: int, name: str, label: str | None, output: io.TextIOBase
+            host: str,
+            port: int,
+            name: str,
+            label: str | None,
+            output: io.TextIOBase,
+            **kwargs: object,
         ) -> None:
+            del kwargs
             nonlocal call_count
             call_count += 1
             raise PermanentError("NAME_TAKEN: name already in use")
@@ -99,8 +105,14 @@ class TestRunListenerReconnect:
         call_count = 0
 
         async def fake_connect_and_stream(
-            host: str, port: int, name: str, label: str | None, output: io.TextIOBase
+            host: str,
+            port: int,
+            name: str,
+            label: str | None,
+            output: io.TextIOBase,
+            **kwargs: object,
         ) -> None:
+            del kwargs
             nonlocal call_count
             call_count += 1
             output.write(json.dumps({"op": "welcome", "assigned_name": name}) + "\n")
@@ -141,15 +153,22 @@ class TestRunListenerReconnect:
         class FakeProc:
             pid = 12345
 
-        def fake_start_server(host: str, port: int) -> FakeProc:
+        def fake_start_server(host: str, port: int, **kwargs: object) -> FakeProc:
+            del kwargs
             started.append(True)
             return FakeProc()
 
         monkeypatch.setattr(listener, "_start_server", fake_start_server)
 
         async def fake_connect_and_stream(
-            host: str, port: int, name: str, label: str | None, output: io.TextIOBase
+            host: str,
+            port: int,
+            name: str,
+            label: str | None,
+            output: io.TextIOBase,
+            **kwargs: object,
         ) -> None:
+            del kwargs
             raise asyncio.CancelledError()
 
         monkeypatch.setattr(listener, "_connect_and_stream", fake_connect_and_stream)
@@ -207,7 +226,7 @@ class TestConnectAndStream:
             async def __aexit__(self, *args: object) -> None:
                 pass
 
-        monkeypatch.setattr(ws_module, "connect", lambda url: FakeConnectWithData())
+        monkeypatch.setattr(ws_module, "connect", lambda url, **kwargs: FakeConnectWithData())
 
         out = io.StringIO()
         from inter_agent.adapters.pi.listener import _connect_and_stream
@@ -247,7 +266,7 @@ class TestConnectAndStream:
             async def __aexit__(self, *args: object) -> None:
                 pass
 
-        monkeypatch.setattr(ws_module, "connect", lambda url: FakeConnectWithError())
+        monkeypatch.setattr(ws_module, "connect", lambda url, **kwargs: FakeConnectWithError())
 
         out = io.StringIO()
         from inter_agent.adapters.pi.listener import _connect_and_stream

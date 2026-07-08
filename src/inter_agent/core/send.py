@@ -7,12 +7,14 @@ import sys
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import websockets
 from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
 from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
+from inter_agent.core.transport import client_ssl_context, websocket_uri
 
 
 @dataclass(frozen=True)
@@ -87,10 +89,15 @@ async def send_message(
     payload: object | None,
     from_name: str | None = None,
     response_timeout: float = 0.1,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> SendResult:
     """Send a direct, broadcast, or custom message through a control connection."""
     secret = resolve_shared_secret().secret
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
+    async with websockets.connect(websocket_uri(host, port, tls), ssl=ssl_context) as ws:
         try:
             welcome = await client_handshake(ws, secret, control_hello(f"ctl-{uuid.uuid4()}"))
         except AuthError as exc:
@@ -130,20 +137,53 @@ async def send_message(
 
 
 async def send_direct_message(
-    host: str, port: int, to: str, text: str, from_name: str | None = None
+    host: str,
+    port: int,
+    to: str,
+    text: str,
+    from_name: str | None = None,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> SendResult:
     """Send a direct text message to one routing name."""
     return await send_message(
-        host, port, to, text, custom_type=None, payload=None, from_name=from_name
+        host,
+        port,
+        to,
+        text,
+        custom_type=None,
+        payload=None,
+        from_name=from_name,
+        tls=tls,
+        data_dir=data_dir,
+        tls_cert_path=tls_cert_path,
     )
 
 
 async def broadcast_message(
-    host: str, port: int, text: str, from_name: str | None = None
+    host: str,
+    port: int,
+    text: str,
+    from_name: str | None = None,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> SendResult:
     """Broadcast a text message to all other connected agent sessions."""
     return await send_message(
-        host, port, to=None, text=text, custom_type=None, payload=None, from_name=from_name
+        host,
+        port,
+        to=None,
+        text=text,
+        custom_type=None,
+        payload=None,
+        from_name=from_name,
+        tls=tls,
+        data_dir=data_dir,
+        tls_cert_path=tls_cert_path,
     )
 
 
@@ -153,9 +193,23 @@ async def send_custom_message(
     to: str | None,
     custom_type: str,
     payload: object,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> SendResult:
     """Send a custom protocol envelope through a control connection."""
-    return await send_message(host, port, to, text=None, custom_type=custom_type, payload=payload)
+    return await send_message(
+        host,
+        port,
+        to,
+        text=None,
+        custom_type=custom_type,
+        payload=payload,
+        tls=tls,
+        data_dir=data_dir,
+        tls_cert_path=tls_cert_path,
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -164,6 +218,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("text", nargs="?")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
     parser.add_argument("--to", dest="to_option")
     parser.add_argument("--text", dest="text_option")
     parser.add_argument("--custom-type")
@@ -178,10 +235,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     to = args.to_option or args.to
     text = args.text_option if args.text_option is not None else args.text
     payload = parse_custom_payload(args.payload) if args.custom_type is not None else None
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    endpoint = resolve_endpoint(
+        args.host, args.port, allow_discovery=True, tls=args.tls, tls_cert_path=args.tls_cert
+    )
     result = asyncio.run(
         send_message(
-            endpoint.host, endpoint.port, to, text, args.custom_type, payload, args.from_name
+            endpoint.host,
+            endpoint.port,
+            to,
+            text,
+            args.custom_type,
+            payload,
+            args.from_name,
+            tls=endpoint.tls,
+            data_dir=endpoint.data_dir,
+            tls_cert_path=endpoint.tls_cert_path,
         )
     )
     if result.error is not None:

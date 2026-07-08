@@ -53,6 +53,11 @@ def test_status_outputs_json(
         "port": unused_tcp_port,
         "configured_host": "127.0.0.1",
         "configured_port": unused_tcp_port,
+        "scheme": "ws",
+        "tls": False,
+        "tls_source": "default",
+        "tls_cert_path": None,
+        "tls_cert_source": None,
         "host_source": "default",
         "port_source": "env",
         "data_dir": str(tmp_path),
@@ -74,8 +79,14 @@ def test_send_suppresses_duplicate_within_window(
     calls: list[tuple[str, int, str, str, str | None]] = []
 
     async def fake_send(
-        host: str, port: int, to: str, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        to: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         calls.append((host, port, to, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
@@ -95,8 +106,13 @@ def test_broadcast_suppresses_duplicate_within_window(
     calls: list[tuple[str, int, str, str | None]] = []
 
     async def fake_broadcast(
-        host: str, port: int, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         calls.append((host, port, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
@@ -115,8 +131,14 @@ def test_send_uses_core_api(
     calls: list[tuple[str, int, str, str, str | None]] = []
 
     async def fake_send(
-        host: str, port: int, to: str, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        to: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         calls.append((host, port, to, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
@@ -134,8 +156,14 @@ def test_send_protocol_error_returns_failure(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     async def fake_send(
-        host: str, port: int, to: str, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        to: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         return SendResult(
             welcome='{"op": "welcome"}',
             welcome_payload={"op": "welcome"},
@@ -168,8 +196,13 @@ def test_broadcast_uses_core_api(
     calls: list[tuple[str, int, str, str | None]] = []
 
     async def fake_broadcast(
-        host: str, port: int, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         calls.append((host, port, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
@@ -187,8 +220,14 @@ def test_send_requires_connected_listener(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     async def fake_send(
-        host: str, port: int, to: str, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        to: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         raise AssertionError("send should not be called")
 
     monkeypatch.setattr(core_send, "send_direct_message", fake_send)
@@ -206,8 +245,13 @@ def test_broadcast_requires_connected_listener(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     async def fake_broadcast(
-        host: str, port: int, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         raise AssertionError("broadcast should not be called")
 
     monkeypatch.setattr(core_send, "broadcast_message", fake_broadcast)
@@ -226,7 +270,8 @@ def test_list_uses_core_api(
 ) -> None:
     calls: list[tuple[str, int]] = []
 
-    async def fake_list(host: str, port: int) -> ListResult:
+    async def fake_list(host: str, port: int, **kwargs: object) -> ListResult:
+        del kwargs
         calls.append((host, port))
         return ListResult(
             raw_response='{"op": "list_ok", "sessions": []}',
@@ -249,8 +294,14 @@ def test_send_uses_connected_name_instead_of_from_argument(
     calls: list[tuple[str, int, str, str, str | None]] = []
 
     async def fake_send(
-        host: str, port: int, to: str, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        to: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         calls.append((host, port, to, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
@@ -269,8 +320,13 @@ def test_broadcast_uses_connected_name_instead_of_from_argument(
     calls: list[tuple[str, int, str, str | None]] = []
 
     async def fake_broadcast(
-        host: str, port: int, text: str, from_name: str | None = None
+        host: str,
+        port: int,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
     ) -> SendResult:
+        del kwargs
         calls.append((host, port, text, from_name))
         return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
 
@@ -345,7 +401,8 @@ def test_shutdown_uses_core_api(
 ) -> None:
     calls: list[tuple[str, int]] = []
 
-    async def fake_shutdown(host: str, port: int) -> core_shutdown.ShutdownResult:
+    async def fake_shutdown(host: str, port: int, **kwargs: object) -> core_shutdown.ShutdownResult:
+        del kwargs
         calls.append((host, port))
         return core_shutdown.ShutdownResult(
             response='{"op": "shutdown_ok"}',

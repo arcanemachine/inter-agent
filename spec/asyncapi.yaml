@@ -3,12 +3,15 @@ info:
   title: inter-agent protocol
   version: 0.1.0
   description: >
-    Minimal universal-friendly protocol for inter-agent bus. Clients start with
-    `hello`, complete an HMAC-SHA-256 challenge-response using a shared secret,
-    then receive `welcome`. Handshake capabilities are JSON objects: clients
-    declare optional known or extension keys in `hello`, and the server advertises
-    supported baseline capabilities in `welcome`. Unknown client capability keys
-    may be ignored.
+    Minimal universal-friendly protocol for inter-agent bus. Clients connect
+    over WebSocket (`ws://` or `wss://`) and start with `hello`, complete an
+    HMAC-SHA-256 challenge-response using a shared secret, then receive
+    `welcome`. Loopback hosts default to plaintext `ws://` unless TLS is
+    explicitly enabled; non-loopback hosts default to TLS `wss://` unless TLS
+    is explicitly disabled. Handshake capabilities are JSON objects: clients
+    declare optional known or extension keys in `hello`, and the server
+    advertises supported baseline capabilities in `welcome`. Unknown client
+    capability keys may be ignored.
 channels:
   /:
     publish:

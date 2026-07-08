@@ -96,7 +96,7 @@ After creating the venv, retry the Pi command. If Pi was already running and sti
 
 ## Configuration
 
-You can override the inter-agent project path and endpoint in your Pi `settings.json`. Only set a key when you want a non-default value:
+You can override the inter-agent project path, endpoint, and TLS settings in your Pi `settings.json`. Only set a key when you want a non-default value:
 
 ```json
 {
@@ -105,7 +105,10 @@ You can override the inter-agent project path and endpoint in your Pi `settings.
     "host": "127.0.0.1",
     "port": 16837,
     "dataDir": "~/.local/state/inter-agent",
-    "secret": "high-entropy-shared-secret"
+    "secret": "high-entropy-shared-secret",
+    "tls": false,
+    "tlsCert": "/path/to/tls-cert.pem",
+    "tlsKey": "/path/to/tls-key.pem"
   }
 }
 ```
@@ -114,7 +117,9 @@ When Pi shares the same local inter-agent state directory as the server, leave `
 
 Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/settings.json`). If `host`, `port`, `dataDir`, or `secret` are set, the extension passes them to helper subprocesses as `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_DATA_DIR`, and `INTER_AGENT_SECRET`. If they are unset, helpers use the standard inter-agent environment and config-file discovery described in the root README.
 
-`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores fallback generated secret state, kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom fallback state location. Use `secret` to connect Pi to a server whose fallback state it cannot share, such as a server in another container. When set, use the same high-entropy value everywhere.
+`projectPath` is the inter-agent project clone the extension runs helper scripts from. `dataDir` is where inter-agent stores fallback generated secret and TLS state, kept separate from your hand-edited config (the inter-agent config file lives under `~/.config/inter-agent` on Linux or `~/Library/Application Support/inter-agent` on macOS). The platform default for `dataDir` works for normal single-bus use; set it only when you want a custom fallback state location. Use `secret` to connect Pi to a server whose fallback state it cannot share, such as a server in another container. When set, use the same high-entropy value everywhere.
+
+`tls` enables (`true`) or disables (`false`) WebSocket TLS. Loopback hosts default to plaintext unless TLS is explicitly enabled; non-loopback hosts default to TLS unless explicitly disabled. `tlsCert` and `tlsKey` override the generated default certificate and key in `dataDir`. If TLS is enabled and no certificate/key is configured, the server generates `tls-cert.pem` and `tls-key.pem` in `dataDir` with restrictive permissions, and clients trust that generated certificate or the configured `tlsCert`. These settings are passed to helpers as `INTER_AGENT_TLS`, `INTER_AGENT_TLS_CERT`, and `INTER_AGENT_TLS_KEY` when set.
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
 

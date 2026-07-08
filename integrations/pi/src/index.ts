@@ -37,6 +37,9 @@ interface InterAgentConfig {
   port?: number | string;
   dataDir?: string;
   secret?: string;
+  tls?: boolean | string;
+  tlsCert?: string;
+  tlsKey?: string;
 }
 
 interface Settings {
@@ -74,6 +77,8 @@ function resolveConfigPaths(
     ...config,
     projectPath: resolvePathOption(config.projectPath, baseDir),
     dataDir: resolvePathOption(config.dataDir, baseDir),
+    tlsCert: resolvePathOption(config.tlsCert, baseDir),
+    tlsKey: resolvePathOption(config.tlsKey, baseDir),
   };
 }
 
@@ -237,6 +242,9 @@ function interAgentEnv(
   if (config.dataDir) env.INTER_AGENT_DATA_DIR = config.dataDir;
   if (config.secret !== undefined)
     env.INTER_AGENT_SECRET = String(config.secret);
+  if (config.tls !== undefined) env.INTER_AGENT_TLS = String(config.tls);
+  if (config.tlsCert) env.INTER_AGENT_TLS_CERT = config.tlsCert;
+  if (config.tlsKey) env.INTER_AGENT_TLS_KEY = config.tlsKey;
   return env;
 }
 

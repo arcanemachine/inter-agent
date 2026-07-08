@@ -519,6 +519,7 @@ class TestAutoStart:
                 "12345",
                 "--idle-timeout",
                 str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
+                "--no-tls",
             ]
         ]
 

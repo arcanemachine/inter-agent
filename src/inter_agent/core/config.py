@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
+import socket
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +29,13 @@ class EndpointResolution:
     config_path: Path | None
     configured_host: str
     configured_port: int
+    scheme: str
+    tls: bool
+    tls_source: str
+    tls_cert_path: Path | None
+    tls_cert_source: str | None
+    tls_key_path: Path | None
+    tls_key_source: str | None
 
 
 @dataclass(frozen=True)
@@ -122,6 +131,46 @@ def _env_port() -> int | None:
     return _validate_port(port, "INTER_AGENT_PORT")
 
 
+def _parse_bool(value: object, source: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if not isinstance(value, str):
+        raise ConfigError(f"{source} must be a boolean")
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on", "wss", "tls"}:
+        return True
+    if normalized in {"0", "false", "no", "off", "ws", "plaintext"}:
+        return False
+    raise ConfigError(f"{source} must be a boolean")
+
+
+def _config_bool(config: dict[str, object], key: str) -> bool | None:
+    value = config.get(key)
+    if value is None:
+        return None
+    return _parse_bool(value, f"inter-agent config key {key!r}")
+
+
+def _env_bool(name: str) -> bool | None:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return None
+    return _parse_bool(raw, name)
+
+
+def _is_loopback_host(host: str) -> bool:
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        pass
+    try:
+        return ipaddress.ip_address(socket.gethostbyname(host)).is_loopback
+    except Exception:
+        return False
+
+
 def _validate_port(port: int, source: str) -> int:
     if port < 1 or port > 65535:
         raise ConfigError(f"{source} must be between 1 and 65535")
@@ -162,8 +211,11 @@ def resolve_explicit_secret_config() -> ExplicitSecretResolution | None:
 def resolve_endpoint_config(
     cli_host: str | None = None,
     cli_port: int | None = None,
+    cli_tls: bool | None = None,
+    cli_tls_cert_path: str | None = None,
+    cli_tls_key_path: str | None = None,
 ) -> EndpointResolution:
-    """Resolve endpoint and data directory from flags, environment, config, defaults."""
+    """Resolve endpoint, TLS mode, and data directory from flags, env, config, defaults."""
     config, path = _load_config()
 
     config_host = _config_string(config, "host")
@@ -208,6 +260,51 @@ def resolve_endpoint_config(
         data_dir = _platform_data_dir()
         data_dir_source = "default"
 
+    config_tls = _config_bool(config, "tls")
+    env_tls = _env_bool("INTER_AGENT_TLS")
+    if cli_tls is not None:
+        tls = cli_tls
+        tls_source = "cli"
+    elif env_tls is not None:
+        tls = env_tls
+        tls_source = "env"
+    elif config_tls is not None:
+        tls = config_tls
+        tls_source = "config"
+    else:
+        tls = not _is_loopback_host(host)
+        tls_source = "default"
+
+    config_tls_cert_path = _config_string(config, "tlsCert")
+    env_tls_cert_path = os.getenv("INTER_AGENT_TLS_CERT")
+    if cli_tls_cert_path:
+        tls_cert_path = _expand_path(cli_tls_cert_path)
+        tls_cert_source = "cli"
+    elif env_tls_cert_path:
+        tls_cert_path = _expand_path(env_tls_cert_path)
+        tls_cert_source = "env"
+    elif config_tls_cert_path:
+        tls_cert_path = _expand_path(config_tls_cert_path)
+        tls_cert_source = "config"
+    else:
+        tls_cert_path = None
+        tls_cert_source = None
+
+    config_tls_key_path = _config_string(config, "tlsKey")
+    env_tls_key_path = os.getenv("INTER_AGENT_TLS_KEY")
+    if cli_tls_key_path:
+        tls_key_path = _expand_path(cli_tls_key_path)
+        tls_key_source = "cli"
+    elif env_tls_key_path:
+        tls_key_path = _expand_path(env_tls_key_path)
+        tls_key_source = "env"
+    elif config_tls_key_path:
+        tls_key_path = _expand_path(config_tls_key_path)
+        tls_key_source = "config"
+    else:
+        tls_key_path = None
+        tls_key_source = None
+
     return EndpointResolution(
         host=host,
         port=port,
@@ -218,4 +315,11 @@ def resolve_endpoint_config(
         config_path=path,
         configured_host=host,
         configured_port=port,
+        scheme="wss" if tls else "ws",
+        tls=tls,
+        tls_source=tls_source,
+        tls_cert_path=tls_cert_path,
+        tls_cert_source=tls_cert_source,
+        tls_key_path=tls_key_path,
+        tls_key_source=tls_key_source,
     )

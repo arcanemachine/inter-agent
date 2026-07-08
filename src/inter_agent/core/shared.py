@@ -113,6 +113,9 @@ def resolve_endpoint(
     port: int | None = None,
     *,
     allow_discovery: bool = False,
+    tls: bool | None = None,
+    tls_cert_path: str | None = None,
+    tls_key_path: str | None = None,
 ) -> EndpointResolution:
     """Resolve the configured endpoint.
 
@@ -121,7 +124,7 @@ def resolve_endpoint(
     """
     del allow_discovery
     try:
-        return resolve_endpoint_config(host, port)
+        return resolve_endpoint_config(host, port, tls, tls_cert_path, tls_key_path)
     except ConfigError as exc:
         raise SystemExit(str(exc)) from exc
 

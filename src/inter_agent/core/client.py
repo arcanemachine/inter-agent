@@ -7,6 +7,7 @@ import os
 import sys
 import uuid
 from collections.abc import AsyncGenerator, Sequence
+from pathlib import Path
 from typing import TextIO
 
 import websockets
@@ -14,6 +15,7 @@ import websockets
 from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
 from inter_agent.core.auth import build_hello as build_auth_hello
 from inter_agent.core.shared import resolve_endpoint, resolve_shared_secret
+from inter_agent.core.transport import client_ssl_context, websocket_uri
 
 
 def build_hello(
@@ -40,6 +42,10 @@ async def iter_client_frames(
     port: int,
     name: str,
     label: str | None = None,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> AsyncGenerator[str, None]:
     """Connect an agent session and yield raw server JSON frames.
 
@@ -49,7 +55,8 @@ async def iter_client_frames(
     secret = resolve_shared_secret().secret
     session_id = os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4()))
     hello = build_hello(session_id, name, label)
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
+    async with websockets.connect(websocket_uri(host, port, tls), ssl=ssl_context) as ws:
         try:
             yield await client_handshake(ws, secret, hello)
         except AuthError as exc:
@@ -66,10 +73,16 @@ async def run_client(
     name: str,
     label: str | None = None,
     output: TextIO | None = None,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> None:
     """Run the connect command behavior using typed inputs instead of argv."""
     stream = output or sys.stdout
-    async for msg in iter_client_frames(host, port, name, label):
+    async for msg in iter_client_frames(
+        host, port, name, label, tls=tls, data_dir=data_dir, tls_cert_path=tls_cert_path
+    ):
         print(msg, file=stream)
 
 
@@ -80,6 +93,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--label")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
     return parser
 
 
@@ -89,8 +105,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     name = args.name_option or args.name
     if not name:
         parser.error("name is required")
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
-    asyncio.run(run_client(endpoint.host, endpoint.port, name, args.label))
+    endpoint = resolve_endpoint(
+        args.host, args.port, allow_discovery=True, tls=args.tls, tls_cert_path=args.tls_cert
+    )
+    asyncio.run(
+        run_client(
+            endpoint.host,
+            endpoint.port,
+            name,
+            args.label,
+            tls=endpoint.tls,
+            data_dir=endpoint.data_dir,
+            tls_cert_path=endpoint.tls_cert_path,
+        )
+    )
     return 0
 
 

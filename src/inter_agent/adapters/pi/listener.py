@@ -23,6 +23,7 @@ import subprocess
 import sys
 import uuid
 from collections.abc import AsyncIterator, Sequence
+from pathlib import Path
 from typing import TextIO, cast
 
 import websockets
@@ -35,6 +36,7 @@ from inter_agent.core.shared import (
     resolve_endpoint,
     resolve_shared_secret,
 )
+from inter_agent.core.transport import client_ssl_context, websocket_uri
 
 RECONNECT_BACKOFF_MIN_S = 0.5
 RECONNECT_BACKOFF_MAX_S = 4.0
@@ -84,21 +86,37 @@ def _text_frame(frame: str | bytes) -> str:
     return frame
 
 
-def _start_server(host: str, port: int) -> subprocess.Popen[bytes] | None:
+def _start_server(
+    host: str,
+    port: int,
+    *,
+    tls: bool = False,
+    tls_cert_path: str | None = None,
+    tls_key_path: str | None = None,
+) -> subprocess.Popen[bytes] | None:
     """Start inter-agent-server as a child process with an explicit idle timeout."""
     try:
+        args = [
+            sys.executable,
+            "-m",
+            "inter_agent.core.server",
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--idle-timeout",
+            str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
+        ]
+        if tls:
+            args.append("--tls")
+        else:
+            args.append("--no-tls")
+        if tls_cert_path:
+            args.extend(["--tls-cert", tls_cert_path])
+        if tls_key_path:
+            args.extend(["--tls-key", tls_key_path])
         return subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "inter_agent.core.server",
-                "--host",
-                host,
-                "--port",
-                str(port),
-                "--idle-timeout",
-                str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
-            ],
+            args,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -112,6 +130,10 @@ async def _connect_and_stream(
     name: str,
     label: str | None,
     output: TextIO,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> None:
     """Connect once, print frames, and return when the connection closes.
 
@@ -131,7 +153,12 @@ async def _connect_and_stream(
             return True
         return False
 
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
+    uri = websocket_uri(host, port, tls)
+    connection = (
+        websockets.connect(uri, ssl=ssl_context) if ssl_context else websockets.connect(uri)
+    )
+    async with connection as ws:
         hello = build_hello(os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4())), name, label)
         if hasattr(ws, "recv"):
             text = await client_handshake(ws, resolve_shared_secret().secret, hello)
@@ -159,6 +186,11 @@ async def run_listener(
     label: str | None = None,
     output: TextIO | None = None,
     deadline_s: float = RECONNECT_DEADLINE_S,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
+    tls_key_path: Path | None = None,
 ) -> int:
     """Run the listener with automatic reconnection and eventual give-up.
 
@@ -178,7 +210,13 @@ async def run_listener(
         # Ensure the server is running, auto-starting if needed.
         if not endpoint_available(host, port):
             if not server_started:
-                proc = _start_server(host, port)
+                proc = _start_server(
+                    host,
+                    port,
+                    tls=tls,
+                    tls_cert_path=str(tls_cert_path) if tls_cert_path is not None else None,
+                    tls_key_path=str(tls_key_path) if tls_key_path is not None else None,
+                )
                 if proc is None:
                     print(
                         "[inter-agent] failed to auto-start server; giving up",
@@ -208,7 +246,16 @@ async def run_listener(
                 continue
 
         try:
-            await _connect_and_stream(host, port, name, label, stream)
+            await _connect_and_stream(
+                host,
+                port,
+                name,
+                label,
+                stream,
+                tls=tls,
+                data_dir=data_dir,
+                tls_cert_path=tls_cert_path,
+            )
             # Connection closed normally — reset and reconnect.
             backoff = RECONNECT_BACKOFF_MIN_S
             deadline = None
@@ -237,6 +284,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--label")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
+    parser.add_argument("--tls-key")
     return parser
 
 
@@ -246,8 +297,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     name = args.name_option or args.name
     if not name:
         parser.error("name is required")
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
-    return asyncio.run(run_listener(endpoint.host, endpoint.port, name, args.label))
+    endpoint = resolve_endpoint(
+        args.host,
+        args.port,
+        allow_discovery=True,
+        tls=args.tls,
+        tls_cert_path=args.tls_cert,
+        tls_key_path=args.tls_key,
+    )
+    return asyncio.run(
+        run_listener(
+            endpoint.host,
+            endpoint.port,
+            name,
+            args.label,
+            tls=endpoint.tls,
+            data_dir=endpoint.data_dir,
+            tls_cert_path=endpoint.tls_cert_path,
+            tls_key_path=endpoint.tls_key_path,
+        )
+    )
 
 
 if __name__ == "__main__":

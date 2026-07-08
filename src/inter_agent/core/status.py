@@ -6,6 +6,7 @@ import json
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Literal
 
 import websockets
@@ -14,6 +15,8 @@ from websockets.exceptions import WebSocketException
 from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
 from inter_agent.core.config import EndpointResolution
 from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
+from inter_agent.core.tls import TlsConfigError
+from inter_agent.core.transport import client_ssl_context, websocket_uri
 
 StatusState = Literal[
     "available",
@@ -41,6 +44,11 @@ class ServerStatus:
     message: str
     configured_host: str | None = None
     configured_port: int | None = None
+    scheme: str | None = None
+    tls: bool | None = None
+    tls_source: str | None = None
+    tls_cert_path: str | None = None
+    tls_cert_source: str | None = None
     host_source: str | None = None
     port_source: str | None = None
     data_dir: str | None = None
@@ -78,8 +86,17 @@ def _json_object(raw: str) -> dict[str, object]:
     return {str(key): value for key, value in payload.items()}
 
 
-async def _probe_server(host: str, port: int, secret: str) -> ServerStatus:
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+async def _probe_server(
+    host: str,
+    port: int,
+    secret: str,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
+) -> ServerStatus:
+    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
+    async with websockets.connect(websocket_uri(host, port, tls), ssl=ssl_context) as ws:
         response_raw = await client_handshake(ws, secret, control_hello(f"status-{uuid.uuid4()}"))
 
     response = _json_object(response_raw)
@@ -109,11 +126,29 @@ async def _probe_server(host: str, port: int, secret: str) -> ServerStatus:
     )
 
 
-async def check_server_status(host: str, port: int, timeout: float = 0.5) -> ServerStatus:
+async def check_server_status(
+    host: str,
+    port: int,
+    timeout: float = 0.5,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
+) -> ServerStatus:
     """Probe the live WebSocket endpoint with the resolved shared secret."""
     try:
         secret = resolve_shared_secret().secret
-        return await asyncio.wait_for(_probe_server(host, port, secret), timeout=timeout)
+        return await asyncio.wait_for(
+            _probe_server(
+                host,
+                port,
+                secret,
+                tls=tls,
+                data_dir=data_dir,
+                tls_cert_path=tls_cert_path,
+            ),
+            timeout=timeout,
+        )
     except AuthError:
         return _status(
             "auth_failed",
@@ -129,6 +164,14 @@ async def check_server_status(host: str, port: int, timeout: float = 0.5) -> Ser
             port,
             reachable=True,
             message="server returned an invalid status response",
+        )
+    except TlsConfigError as exc:
+        return _status(
+            "unavailable",
+            host,
+            port,
+            reachable=False,
+            message=f"TLS configuration failed: {exc}",
         )
     except (OSError, TimeoutError, WebSocketException):
         return _status(
@@ -150,11 +193,25 @@ async def check_resolved_server_status(
     resolution: EndpointResolution, timeout: float = 0.5
 ) -> ServerStatus:
     """Check status and attach endpoint/config diagnostics."""
-    status = await check_server_status(resolution.host, resolution.port, timeout=timeout)
+    status = await check_server_status(
+        resolution.host,
+        resolution.port,
+        timeout=timeout,
+        tls=resolution.tls,
+        data_dir=resolution.data_dir,
+        tls_cert_path=resolution.tls_cert_path,
+    )
     status = replace(
         status,
         configured_host=resolution.configured_host,
         configured_port=resolution.configured_port,
+        scheme=resolution.scheme,
+        tls=resolution.tls,
+        tls_source=resolution.tls_source,
+        tls_cert_path=(
+            str(resolution.tls_cert_path) if resolution.tls_cert_path is not None else None
+        ),
+        tls_cert_source=resolution.tls_cert_source,
         host_source=resolution.host_source,
         port_source=resolution.port_source,
         data_dir=str(resolution.data_dir),
@@ -168,6 +225,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-status")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
     parser.add_argument("--json", action="store_true", help="emit JSON status output")
     return parser
 
@@ -179,6 +239,11 @@ def _status_payload(status: ServerStatus) -> dict[str, object]:
         "port": status.port,
         "configured_host": status.configured_host,
         "configured_port": status.configured_port,
+        "scheme": status.scheme,
+        "tls": status.tls,
+        "tls_source": status.tls_source,
+        "tls_cert_path": status.tls_cert_path,
+        "tls_cert_source": status.tls_cert_source,
         "host_source": status.host_source,
         "port_source": status.port_source,
         "data_dir": status.data_dir,
@@ -193,7 +258,9 @@ def _status_payload(status: ServerStatus) -> dict[str, object]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    endpoint = resolve_endpoint(
+        args.host, args.port, allow_discovery=True, tls=args.tls, tls_cert_path=args.tls_cert
+    )
     status = asyncio.run(check_resolved_server_status(endpoint))
     if args.json:
         print(json.dumps(_status_payload(status)))
@@ -201,6 +268,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"state={status.state}")
         print(f"host={status.host}")
         print(f"port={status.port}")
+        print(f"scheme={status.scheme}")
+        print(f"tls={status.tls}")
+        print(f"tls_source={status.tls_source}")
+        print(f"tls_cert_path={status.tls_cert_path or ''}")
+        print(f"tls_cert_source={status.tls_cert_source or ''}")
         print(f"reachable={status.reachable}")
         print(f"configured_host={status.configured_host}")
         print(f"configured_port={status.configured_port}")

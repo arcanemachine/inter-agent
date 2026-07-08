@@ -101,9 +101,17 @@ class Listener:
         label: str | None = None,
         session_id: str | None = None,
         output: TextIO | None = None,
+        tls: bool = False,
+        data_dir: Path | None = None,
+        tls_cert_path: Path | None = None,
+        tls_key_path: Path | None = None,
     ) -> None:
         self.host = host
         self.port = port
+        self.tls = tls
+        self.data_dir = data_dir
+        self.tls_cert_path = tls_cert_path
+        self.tls_key_path = tls_key_path
         self.name = name
         self.label = label
         self.session_id = session_id or str(uuid.uuid4())
@@ -131,18 +139,27 @@ class Listener:
         never sends this process a signal — it owns its own lifecycle.
         """
         try:
+            args = [
+                sys.executable,
+                "-m",
+                "inter_agent.core.server",
+                "--host",
+                self.host,
+                "--port",
+                str(self.port),
+                "--idle-timeout",
+                str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
+            ]
+            if self.tls:
+                args.append("--tls")
+            else:
+                args.append("--no-tls")
+            if self.tls_cert_path is not None:
+                args.extend(["--tls-cert", str(self.tls_cert_path)])
+            if self.tls_key_path is not None:
+                args.extend(["--tls-key", str(self.tls_key_path)])
             return subprocess.Popen(
-                [
-                    sys.executable,
-                    "-m",
-                    "inter_agent.core.server",
-                    "--host",
-                    self.host,
-                    "--port",
-                    str(self.port),
-                    "--idle-timeout",
-                    str(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S),
-                ],
+                args,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -297,7 +314,15 @@ class Listener:
         return False
 
     async def _connect_and_serve(self, ppid: int) -> None:
-        async for raw in iter_client_frames(self.host, self.port, self.name, self.label):
+        async for raw in iter_client_frames(
+            self.host,
+            self.port,
+            self.name,
+            self.label,
+            tls=self.tls,
+            data_dir=self.data_dir,
+            tls_cert_path=self.tls_cert_path,
+        ):
             try:
                 payload = json.loads(raw)
             except json.JSONDecodeError:
@@ -315,6 +340,8 @@ class Listener:
                         "listener_pid": os.getpid(),
                         "host": self.host,
                         "port": self.port,
+                        "scheme": "wss" if self.tls else "ws",
+                        "tls": self.tls,
                     },
                 )
                 _print_line(
@@ -382,6 +409,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--name", default="")
     parser.add_argument("--label")
     parser.add_argument("--session-id")
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
+    parser.add_argument("--tls-key")
     return parser
 
 
@@ -397,13 +428,24 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout,
         )
 
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    endpoint = resolve_endpoint(
+        args.host,
+        args.port,
+        allow_discovery=True,
+        tls=args.tls,
+        tls_cert_path=args.tls_cert,
+        tls_key_path=args.tls_key,
+    )
     listener = Listener(
         host=endpoint.host,
         port=endpoint.port,
         name=name,
         label=args.label,
         session_id=args.session_id,
+        tls=endpoint.tls,
+        data_dir=endpoint.data_dir,
+        tls_cert_path=endpoint.tls_cert_path,
+        tls_key_path=endpoint.tls_key_path,
     )
 
     loop = asyncio.new_event_loop()

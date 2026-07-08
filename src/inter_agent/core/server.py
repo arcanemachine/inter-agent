@@ -7,6 +7,7 @@ import json
 import signal
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import websockets
 from websockets.asyncio.server import ServerConnection
@@ -23,6 +24,7 @@ from inter_agent.core.shared import (
     utc_now,
     validate_name,
 )
+from inter_agent.core.tls import TlsConfigError, build_server_ssl_context
 
 DEFAULT_IDLE_TIMEOUT_S: float | None = None
 
@@ -492,10 +494,25 @@ async def run_server(
     port: int,
     limits: Limits | None = None,
     idle_timeout_s: float | None = DEFAULT_IDLE_TIMEOUT_S,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
+    tls_key_path: Path | None = None,
 ) -> None:
     """Start the core WebSocket bus until the task is cancelled."""
     server = BusServer(host=host, port=port, limits=limits, idle_timeout_s=idle_timeout_s)
-    print(f"Starting inter-agent-server on {host}:{port}...")
+    ssl_context = None
+    if tls:
+        if data_dir is None:
+            raise TlsConfigError("TLS server startup requires a data directory")
+        ssl_context = build_server_ssl_context(
+            data_dir,
+            host,
+            tls_cert_path,
+            tls_key_path,
+        )
+    print(f"Starting inter-agent-server on {'wss' if tls else 'ws'}://{host}:{port}...")
 
     def _request_shutdown() -> None:
         print("\nShutting down inter-agent-server...")
@@ -515,6 +532,7 @@ async def run_server(
             port=port,
             max_size=server.limits.frame_max,
             process_request=_process_request,
+            ssl=ssl_context,
         ):
             if not server.registry:
                 server._schedule_idle_timer()
@@ -533,6 +551,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-server")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
+    parser.add_argument("--tls-key")
     parser.add_argument(
         "--idle-timeout",
         type=int,
@@ -545,9 +567,27 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    endpoint = resolve_endpoint(args.host, args.port)
+    endpoint = resolve_endpoint(
+        args.host,
+        args.port,
+        tls=args.tls,
+        tls_cert_path=args.tls_cert,
+        tls_key_path=args.tls_key,
+    )
     try:
-        asyncio.run(run_server(endpoint.host, endpoint.port, idle_timeout_s=args.idle_timeout))
+        asyncio.run(
+            run_server(
+                endpoint.host,
+                endpoint.port,
+                idle_timeout_s=args.idle_timeout,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+                tls_key_path=endpoint.tls_key_path,
+            )
+        )
+    except TlsConfigError as exc:
+        raise SystemExit(f"could not start inter-agent-server TLS: {exc}") from exc
     except OSError as exc:
         message = f"could not start inter-agent-server on {endpoint.host}:{endpoint.port}: {exc}"
         raise SystemExit(message) from exc

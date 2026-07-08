@@ -6,11 +6,13 @@ import json
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import websockets
 
 from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
 from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
+from inter_agent.core.transport import client_ssl_context, websocket_uri
 
 
 @dataclass(frozen=True)
@@ -64,10 +66,18 @@ def _parse_sessions(response: dict[str, object]) -> tuple[SessionInfo, ...]:
     return tuple(result)
 
 
-async def list_sessions(host: str, port: int) -> ListResult:
+async def list_sessions(
+    host: str,
+    port: int,
+    *,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
+) -> ListResult:
     """Return connected agent sessions through a control connection."""
     secret = resolve_shared_secret().secret
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
+    async with websockets.connect(websocket_uri(host, port, tls), ssl=ssl_context) as ws:
         try:
             _ = await client_handshake(ws, secret, control_hello(f"ctl-{uuid.uuid4()}"))
         except AuthError as exc:
@@ -88,14 +98,27 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="inter-agent-list")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
-    result = asyncio.run(list_sessions(endpoint.host, endpoint.port))
+    endpoint = resolve_endpoint(
+        args.host, args.port, allow_discovery=True, tls=args.tls, tls_cert_path=args.tls_cert
+    )
+    result = asyncio.run(
+        list_sessions(
+            endpoint.host,
+            endpoint.port,
+            tls=endpoint.tls,
+            data_dir=endpoint.data_dir,
+            tls_cert_path=endpoint.tls_cert_path,
+        )
+    )
     print(result.raw_response)
     return 0
 

@@ -6,11 +6,13 @@ import json
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import websockets
 
 from inter_agent.core.auth import AuthError, AuthProtocolError, client_handshake
 from inter_agent.core.shared import control_hello, resolve_endpoint, resolve_shared_secret
+from inter_agent.core.transport import client_ssl_context, websocket_uri
 
 
 @dataclass(frozen=True)
@@ -35,7 +37,14 @@ def _json_object(raw: str) -> dict[str, object]:
 
 
 async def kick_session(
-    host: str, port: int, *, name: str | None = None, session_id: str | None = None
+    host: str,
+    port: int,
+    *,
+    name: str | None = None,
+    session_id: str | None = None,
+    tls: bool = False,
+    data_dir: Path | None = None,
+    tls_cert_path: Path | None = None,
 ) -> KickResult:
     """Force-disconnect a registered session through a control connection.
 
@@ -45,7 +54,8 @@ async def kick_session(
     if not name and not session_id:
         raise ValueError("kick requires a name or session_id")
     secret = resolve_shared_secret().secret
-    async with websockets.connect(f"ws://{host}:{port}") as ws:
+    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
+    async with websockets.connect(websocket_uri(host, port, tls), ssl=ssl_context) as ws:
         try:
             _ = await client_handshake(ws, secret, control_hello(f"kick-{uuid.uuid4()}"))
         except AuthError as exc:
@@ -69,6 +79,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--session-id")
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--tls", dest="tls", action="store_true", default=None)
+    parser.add_argument("--no-tls", dest="tls", action="store_false")
+    parser.add_argument("--tls-cert")
     return parser
 
 
@@ -76,9 +89,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     name = args.name_option or args.name
-    endpoint = resolve_endpoint(args.host, args.port, allow_discovery=True)
+    endpoint = resolve_endpoint(
+        args.host, args.port, allow_discovery=True, tls=args.tls, tls_cert_path=args.tls_cert
+    )
     result = asyncio.run(
-        kick_session(endpoint.host, endpoint.port, name=name, session_id=args.session_id)
+        kick_session(
+            endpoint.host,
+            endpoint.port,
+            name=name,
+            session_id=args.session_id,
+            tls=endpoint.tls,
+            data_dir=endpoint.data_dir,
+            tls_cert_path=endpoint.tls_cert_path,
+        )
     )
     print(result.response)
     return 0 if result.response_payload.get("op") == "kick_ok" else 1

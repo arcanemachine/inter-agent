@@ -9,13 +9,17 @@
 
 ## Core controls
 
-- **Local plaintext transport**
+- **Transport encryption**
 
-  The server listens on localhost and speaks plaintext WebSocket. Challenge-response authenticates the handshake but does not encrypt later messages.
+  The server and clients speak WebSocket over `ws://` or `wss://`. Loopback hosts (`127.0.0.1`, `localhost`, `::1`) default to plaintext `ws://` unless TLS is explicitly enabled. Non-loopback hosts default to TLS `wss://` unless TLS is explicitly disabled.
+
+  TLS is configured through `INTER_AGENT_TLS`/`tls` (enable/disable), `INTER_AGENT_TLS_CERT`/`tlsCert` (certificate), and `INTER_AGENT_TLS_KEY`/`tlsKey` (private key). CLI flags `--tls`, `--no-tls`, `--tls-cert`, and `--tls-key` override config and environment. If TLS is enabled without configured certificate/key material, the server generates `tls-cert.pem` and `tls-key.pem` in the inter-agent data directory with restrictive POSIX permissions; clients trust that generated certificate or the configured `INTER_AGENT_TLS_CERT`/`tlsCert`.
+
+  TLS encrypts the WebSocket transport. It does not make remote or multi-user operation safe, and it does not replace shared-secret challenge-response authentication.
 
 - **Shared-secret challenge-response authentication**
 
-  Every connection starts with `hello`, then completes an HMAC-SHA-256 challenge-response using the resolved shared secret. The raw secret is never sent over the socket. Invalid or missing proofs receive the canonical `AUTH_FAILED` protocol error where possible.
+  Every connection starts with `hello`, then completes an HMAC-SHA-256 challenge-response using the resolved shared secret. The raw secret is never sent over the socket. Invalid or missing proofs receive the canonical `AUTH_FAILED` protocol error where possible. This handshake runs inside the WebSocket connection and is unchanged by TLS.
 
   The shared secret resolves in this order:
 
@@ -127,9 +131,11 @@ For fallback generated token-file use:
 ## Explicit non-goals
 
 - Protection from hostile same-user processes.
-- Message confidentiality over WebSocket.
-- Cross-machine trust, PKI lifecycle, TLS/mTLS, or remote transport hardening.
+- Message confidentiality over WebSocket when TLS is disabled.
+- Cross-machine trust, PKI lifecycle, mTLS, or remote transport hardening beyond transport encryption.
 - Multi-tenant isolation, enterprise RBAC, or policy administration.
+
+TLS provides transport encryption only; it does not make remote or multi-user operation fully safe.
 
 ## Extension areas
 

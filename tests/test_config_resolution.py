@@ -49,6 +49,71 @@ def test_cli_overrides_env_and_config(monkeypatch: pytest.MonkeyPatch, tmp_path:
     assert resolution.port_source == "cli"
 
 
+def test_loopback_endpoint_defaults_to_plaintext(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(tmp_path / "missing-config.json"))
+
+    resolution = resolve_endpoint_config("127.0.0.1", 16837)
+
+    assert resolution.scheme == "ws"
+    assert resolution.tls is False
+    assert resolution.tls_source == "default"
+
+
+def test_non_loopback_endpoint_defaults_to_tls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(tmp_path / "missing-config.json"))
+
+    resolution = resolve_endpoint_config("192.0.2.10", 16837)
+
+    assert resolution.scheme == "wss"
+    assert resolution.tls is True
+    assert resolution.tls_source == "default"
+
+
+def test_env_tls_overrides_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(tmp_path / "missing-config.json"))
+    monkeypatch.setenv("INTER_AGENT_TLS", "false")
+    monkeypatch.setenv("INTER_AGENT_TLS_CERT", str(tmp_path / "cert.pem"))
+    monkeypatch.setenv("INTER_AGENT_TLS_KEY", str(tmp_path / "key.pem"))
+
+    resolution = resolve_endpoint_config("192.0.2.10", 16837)
+
+    assert resolution.scheme == "ws"
+    assert resolution.tls is False
+    assert resolution.tls_source == "env"
+    assert resolution.tls_cert_path == tmp_path / "cert.pem"
+    assert resolution.tls_cert_source == "env"
+    assert resolution.tls_key_path == tmp_path / "key.pem"
+    assert resolution.tls_key_source == "env"
+
+
+def test_config_tls_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "tls": True,
+                "tlsCert": str(tmp_path / "configured-cert.pem"),
+                "tlsKey": str(tmp_path / "configured-key.pem"),
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("INTER_AGENT_CONFIG", str(config_path))
+
+    resolution = resolve_endpoint_config()
+
+    assert resolution.tls is True
+    assert resolution.tls_source == "config"
+    assert resolution.tls_cert_path == tmp_path / "configured-cert.pem"
+    assert resolution.tls_cert_source == "config"
+    assert resolution.tls_key_path == tmp_path / "configured-key.pem"
+    assert resolution.tls_key_source == "config"
+
+
 def test_env_overrides_config(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     config_path = tmp_path / "config.json"
     env_data_dir = tmp_path / "env-state"

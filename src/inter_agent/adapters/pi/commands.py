@@ -47,7 +47,18 @@ def _send_result_code(result: SendResult) -> int:
 def connect(name: str, label: str | None = None) -> int:
     try:
         endpoint = resolve_endpoint(allow_discovery=True)
-        return asyncio.run(listener.run_listener(endpoint.host, endpoint.port, name, label))
+        return asyncio.run(
+            listener.run_listener(
+                endpoint.host,
+                endpoint.port,
+                name,
+                label,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+                tls_key_path=endpoint.tls_key_path,
+            )
+        )
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -58,7 +69,16 @@ def send(to: str, text: str, from_name: str | None = None) -> int:
     try:
         endpoint = resolve_endpoint(allow_discovery=True)
         result = asyncio.run(
-            core_send.send_direct_message(endpoint.host, endpoint.port, to, text, from_name)
+            core_send.send_direct_message(
+                endpoint.host,
+                endpoint.port,
+                to,
+                text,
+                from_name,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
         )
     except SystemExit as exc:
         return _system_exit_code(exc)
@@ -71,7 +91,15 @@ def broadcast(text: str, from_name: str | None = None) -> int:
     try:
         endpoint = resolve_endpoint(allow_discovery=True)
         result = asyncio.run(
-            core_send.broadcast_message(endpoint.host, endpoint.port, text, from_name)
+            core_send.broadcast_message(
+                endpoint.host,
+                endpoint.port,
+                text,
+                from_name,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
         )
     except SystemExit as exc:
         return _system_exit_code(exc)
@@ -83,7 +111,15 @@ def broadcast(text: str, from_name: str | None = None) -> int:
 def list_sessions() -> int:
     try:
         endpoint = resolve_endpoint(allow_discovery=True)
-        result = asyncio.run(core_list.list_sessions(endpoint.host, endpoint.port))
+        result = asyncio.run(
+            core_list.list_sessions(
+                endpoint.host,
+                endpoint.port,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -95,7 +131,15 @@ def list_sessions() -> int:
 def shutdown() -> int:
     try:
         endpoint = resolve_endpoint(allow_discovery=True)
-        result = asyncio.run(core_shutdown.shutdown_server(endpoint.host, endpoint.port))
+        result = asyncio.run(
+            core_shutdown.shutdown_server(
+                endpoint.host,
+                endpoint.port,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
     except SystemExit as exc:
         return _system_exit_code(exc)
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
@@ -114,6 +158,11 @@ def status() -> dict[str, object]:
         "port": server.port,
         "configured_host": server.configured_host,
         "configured_port": server.configured_port,
+        "scheme": server.scheme,
+        "tls": server.tls,
+        "tls_source": server.tls_source,
+        "tls_cert_path": server.tls_cert_path,
+        "tls_cert_source": server.tls_cert_source,
         "host_source": server.host_source,
         "port_source": server.port_source,
         "data_dir": server.data_dir,
