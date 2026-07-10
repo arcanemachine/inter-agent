@@ -6,7 +6,11 @@ Use [`ROADMAP.md`](ROADMAP.md) for accepted medium- and long-term direction. Use
 
 ## Current active work
 
-No active implementation work is currently tracked here.
+### Agent workflow
+
+Establish the repository-specific leader/executor workflow, relocate this active-plan file to `.agents/PLAN.md`, and update live planning references. The executor-ready packet is `.agents/plans/agent-workflow/task-01-establish-leader-executor-workflow.md`.
+
+Only Task 01 is active. Do not begin pub/sub planning or implementation until this workflow task is completed, reviewed, committed, and removed from the active plan.
 
 ## Planning workflow
 
