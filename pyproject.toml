@@ -30,6 +30,8 @@ inter-agent-list = "inter_agent.core.list:main"
 inter-agent-shutdown = "inter_agent.core.shutdown:main"
 inter-agent-status = "inter_agent.core.status:main"
 inter-agent-kick = "inter_agent.core.kick:main"
+inter-agent-publish = "inter_agent.core.publish:main"
+inter-agent-channels = "inter_agent.core.channels:main"
 inter-agent-pi = "inter_agent.adapters.pi.cli:main"
 inter-agent-claude = "inter_agent.adapters.claude.cli:main"
 

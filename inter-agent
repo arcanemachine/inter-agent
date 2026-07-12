@@ -10,17 +10,19 @@ An inter-agent wrapper quickstart script.
 Usage: ./inter-agent <command> [args...]
 
 Generic commands:
-  start       Start the inter-agent server
-  list        List connected sessions
-  status      Show server status
-  stop        Shut down the server
-  kick <name> Force-disconnect a registered session by name
+  start                    Start the inter-agent server
+  list                     List connected sessions
+  status                   Show server status
+  stop                     Shut down the server
+  kick <name>              Force-disconnect a registered session by name
+  channels                 List pub/sub channels and their subscribers
+  publish <channel> <text> Publish a message to a channel
 
 Harness commands:
-  pi send <to> <text>        Send a direct message from a Pi session
-  pi broadcast <text>        Broadcast a message from a Pi session
-  claude send <to> <text>    Send a direct message from a Claude Code session
-  claude broadcast <text>    Broadcast a message from a Claude Code session
+  pi send <to> <text>       Send a direct message from a Pi session
+  pi broadcast <text>       Broadcast a message from a Pi session
+  claude send <to> <text>   Send a direct message from a Claude Code session
+  claude broadcast <text>   Broadcast a message from a Claude Code session
 EOF
 }
 
@@ -49,6 +51,12 @@ case "$HARN" in
     ;;
   kick)
     exec uv run inter-agent-kick "$@"
+    ;;
+  channels)
+    exec uv run inter-agent-channels "$@"
+    ;;
+  publish)
+    exec uv run inter-agent-publish "$@"
     ;;
   pi)
     exec uv run inter-agent-pi "$@"

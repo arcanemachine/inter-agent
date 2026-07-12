@@ -8,8 +8,10 @@ import pytest
 
 import inter_agent.core.server as core_server
 from inter_agent.adapters.pi.cli import main as pi_main
+from inter_agent.core.channels import main as channels_main
 from inter_agent.core.client import main as connect_main
 from inter_agent.core.list import main as list_main
+from inter_agent.core.publish import main as publish_main
 from inter_agent.core.send import main as send_main
 from inter_agent.core.server import main as server_main
 from inter_agent.core.shutdown import main as shutdown_main
@@ -59,6 +61,13 @@ def test_server_main_passes_explicit_idle_timeout(
     assert calls == [("127.0.0.1", 16837, 300)]
 
 
+def test_publish_main_rejects_invalid_channel(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert publish_main(["Bad Channel!", "hello"]) == 1
+    assert "invalid channel name" in capsys.readouterr().err
+
+
 def test_project_scripts_are_declared() -> None:
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     scripts = config["project"]["scripts"]
@@ -69,6 +78,8 @@ def test_project_scripts_are_declared() -> None:
         "inter-agent-send": "inter_agent.core.send:main",
         "inter-agent-list": "inter_agent.core.list:main",
         "inter-agent-shutdown": "inter_agent.core.shutdown:main",
+        "inter-agent-channels": "inter_agent.core.channels:main",
+        "inter-agent-publish": "inter_agent.core.publish:main",
         "inter-agent-pi": "inter_agent.adapters.pi.cli:main",
     }
     assert expected.items() <= scripts.items()
@@ -82,6 +93,8 @@ def test_project_scripts_are_declared() -> None:
         ("inter-agent-send", send_main),
         ("inter-agent-list", list_main),
         ("inter-agent-shutdown", shutdown_main),
+        ("inter-agent-channels", channels_main),
+        ("inter-agent-publish", publish_main),
         ("inter-agent-pi", pi_main),
     ],
 )

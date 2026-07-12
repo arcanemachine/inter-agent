@@ -12,9 +12,11 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.auth import client_handshake
+from inter_agent.core.channels import ChannelInfo, ChannelsResult, list_channels
 from inter_agent.core.client import build_hello, iter_client_frames
 from inter_agent.core.kick import kick_session
 from inter_agent.core.list import SessionInfo, list_sessions
+from inter_agent.core.publish import publish_to_channel
 from inter_agent.core.send import broadcast_message, send_direct_message
 from inter_agent.core.server import run_server
 from inter_agent.core.shared import resolve_shared_secret
@@ -220,3 +222,112 @@ async def test_kick_session_unknown_target_returns_error(
 def test_kick_session_requires_name_or_session_id() -> None:
     with pytest.raises(ValueError, match="name or session_id"):
         asyncio.run(kick_session(HOST, 16837))
+
+
+@pytest.mark.asyncio
+async def test_publish_to_channel_delivers_to_subscribers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as subscriber:
+            await connect_agent(subscriber, context, "a", "agent-a")
+            await subscriber.send(json.dumps({"op": "subscribe", "channel": "updates"}))
+            subscribe_response: object = json.loads(await subscriber.recv())
+            assert isinstance(subscribe_response, dict)
+            assert subscribe_response["op"] == "subscribe_ok"
+
+            result = await publish_to_channel(
+                context.host, context.port, "updates", "hello subscribers"
+            )
+            delivered: object = json.loads(await subscriber.recv())
+
+    assert result.welcome_payload["op"] == "welcome"
+    assert result.error is None
+    assert isinstance(delivered, dict)
+    assert delivered["op"] == "msg"
+    assert delivered["channel"] == "updates"
+    assert delivered["text"] == "hello subscribers"
+
+
+@pytest.mark.asyncio
+async def test_publish_to_channel_unknown_channel_returns_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        result = await publish_to_channel(
+            context.host, context.port, "missing", "hello subscribers"
+        )
+
+    assert result.welcome_payload["op"] == "welcome"
+    assert result.error is not None
+    assert result.error.code == "UNKNOWN_CHANNEL"
+
+
+def test_publish_to_channel_rejects_invalid_channel_name() -> None:
+    with pytest.raises(ValueError, match="invalid channel name"):
+        asyncio.run(publish_to_channel(HOST, 16837, "Bad Channel!", "hello"))
+
+
+@pytest.mark.asyncio
+async def _subscribe(ws: ClientConnection, channel: str) -> None:
+    await ws.send(json.dumps({"op": "subscribe", "channel": channel}))
+    response: object = json.loads(await ws.recv())
+    assert isinstance(response, dict)
+    assert response["op"] == "subscribe_ok"
+
+
+async def test_list_channels_returns_structured_result(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with websockets.connect(context.url) as agent:
+            await connect_agent(agent, context, "a", "agent-a", "Agent A")
+            await _subscribe(agent, "news")
+            await _subscribe(agent, "alerts")
+
+            result = await list_channels(context.host, context.port)
+
+    assert isinstance(result, ChannelsResult)
+    assert result.response["op"] == "channels_ok"
+    assert result.channels == (
+        ChannelInfo(name="alerts", subscribers=("agent-a",)),
+        ChannelInfo(name="news", subscribers=("agent-a",)),
+    )
+    assert json.loads(result.raw_response) == {
+        "op": "channels_ok",
+        "channels": [
+            {"name": "alerts", "subscribers": ["agent-a"]},
+            {"name": "news", "subscribers": ["agent-a"]},
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_list_channels_empty_when_no_subscriptions(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port):
+        result = await list_channels(HOST, unused_tcp_port)
+
+    assert result.response["op"] == "channels_ok"
+    assert result.channels == ()
+
+
+@pytest.mark.asyncio
+async def test_list_channels_error_response_is_preserved(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    import inter_agent.core.channels as channels_module
+
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        monkeypatch.setattr(
+            channels_module,
+            "_json_object",
+            lambda raw: {"op": "error", "code": "TEST_ERROR"},
+        )
+
+        error_result = await list_channels(context.host, context.port)
+
+    assert error_result.response["op"] == "error"
+    assert error_result.response["code"] == "TEST_ERROR"
+    assert error_result.channels == ()

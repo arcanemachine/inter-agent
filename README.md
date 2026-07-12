@@ -89,7 +89,9 @@ Pi and Claude Code expose the same basic slash commands:
 /inter-agent broadcast "build is green for everyone"
 /inter-agent disconnect
 
-Channels are available at the core protocol level. Adapters may expose channel commands in a future update.
+Channels are available at the core protocol level. Use `./inter-agent publish` to send to a channel
+and `./inter-agent channels` to inspect channel subscribers. Adapters may expose channel slash
+commands in a future update.
 ```
 
 Use direct `send` for normal coordination. Use `broadcast` only when all connected sessions need the message.
@@ -109,6 +111,8 @@ Core CLI helpers are also available:
 ./inter-agent start
 ./inter-agent status
 ./inter-agent list
+./inter-agent channels
+./inter-agent publish my-channel "hello subscribers"
 ./inter-agent pi send other-agent "hello"
 ./inter-agent claude send other-agent "hello"
 ./inter-agent stop

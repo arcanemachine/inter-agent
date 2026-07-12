@@ -40,6 +40,7 @@ def test_help_shows_generic_and_harness_commands(repo_root: Path, fake_uv: Path)
     assert "Harness commands:" in result.stdout
     assert "start" in result.stdout
     assert "kick <name>" in result.stdout
+    assert "publish" in result.stdout
     assert "pi send" in result.stdout
     assert "claude broadcast" in result.stdout
 
@@ -78,6 +79,18 @@ def test_kick_delegates_to_inter_agent_kick(repo_root: Path, fake_uv: Path) -> N
     result = _run_wrapper(repo_root, fake_uv, "kick", "y")
     assert result.returncode == 0
     assert result.stdout.strip() == "run inter-agent-kick y"
+
+
+def test_channels_delegates_to_inter_agent_channels(repo_root: Path, fake_uv: Path) -> None:
+    result = _run_wrapper(repo_root, fake_uv, "channels")
+    assert result.returncode == 0
+    assert result.stdout.strip() == "run inter-agent-channels"
+
+
+def test_publish_delegates_to_inter_agent_publish(repo_root: Path, fake_uv: Path) -> None:
+    result = _run_wrapper(repo_root, fake_uv, "publish", "updates", "hello subscribers")
+    assert result.returncode == 0
+    assert result.stdout.strip() == "run inter-agent-publish updates hello subscribers"
 
 
 def test_pi_send_delegates_to_pi_adapter(repo_root: Path, fake_uv: Path) -> None:
