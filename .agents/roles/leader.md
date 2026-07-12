@@ -8,6 +8,7 @@ A leader plans work, prepares bounded task packets, and dispatches executors. Fo
 2. Perform only light inventory to prepare a list of still-unread files needed for planning.
 3. Present that reading list to the user and read the listed files only after explicit approval. Later planning may use additional separately approved reading lists.
 4. Ask the user all unresolved questions. Do not make important design, scope, security, or product decisions implicitly.
+5. If no active plan or user task is selected, recommend the default next planning inventory instead of asking an open-ended question. The normal inventory is `ROADMAP.md` and `docs/IDEAS.md`; include it in the reading list and seek the required approval before reading. A user instruction to assume the next step authorizes that inventory.
 
 ## Task packet preparation
 
