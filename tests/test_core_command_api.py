@@ -13,7 +13,7 @@ from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.auth import client_handshake
 from inter_agent.core.channels import ChannelInfo, ChannelsResult, list_channels
-from inter_agent.core.client import build_hello, iter_client_frames
+from inter_agent.core.client import AgentSession, build_hello, iter_client_frames
 from inter_agent.core.kick import kick_session
 from inter_agent.core.list import SessionInfo, list_sessions
 from inter_agent.core.publish import publish_to_channel
@@ -222,6 +222,163 @@ async def test_kick_session_unknown_target_returns_error(
 def test_kick_session_requires_name_or_session_id() -> None:
     with pytest.raises(ValueError, match="name or session_id"):
         asyncio.run(kick_session(HOST, 16837))
+
+
+@pytest.mark.asyncio
+async def test_agent_session_yields_welcome(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    welcome: object | None = None
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with AgentSession(context.host, context.port, "agent-a") as session:
+            async for frame in session:
+                welcome = json.loads(frame)
+                break
+
+    assert isinstance(welcome, dict)
+    assert welcome["op"] == "welcome"
+    assert welcome["assigned_name"] == "agent-a"
+
+
+@pytest.mark.asyncio
+async def test_agent_session_subscribes_receives_publishes_unsubscribes_and_disconnects(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    received: list[dict[str, object]] = []
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with AgentSession(context.host, context.port, "agent-a") as session:
+
+            async def collect() -> None:
+                async for frame in session:
+                    payload = json.loads(frame)
+                    received.append(payload)
+                    if len(received) >= 2:
+                        break
+
+            collect_task = asyncio.create_task(collect())
+            await asyncio.sleep(0.05)
+
+            subscribe_response = await session.subscribe("updates")
+            await publish_to_channel(context.host, context.port, "updates", "hello subscribers")
+            await asyncio.wait_for(collect_task, timeout=1.0)
+            unsubscribe_response = await session.unsubscribe("updates")
+
+    assert received[0]["op"] == "welcome"
+    assert received[1]["op"] == "msg"
+    assert received[1]["channel"] == "updates"
+    assert received[1]["text"] == "hello subscribers"
+    assert subscribe_response == {"op": "subscribe_ok", "channel": "updates"}
+    assert unsubscribe_response == {"op": "unsubscribe_ok", "channel": "updates"}
+
+
+@pytest.mark.asyncio
+async def test_agent_session_subscribe_error_reaches_caller(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with AgentSession(context.host, context.port, "agent-a") as session:
+            response = await session.subscribe("Bad Channel!")
+
+    assert response["op"] == "error"
+    assert response["code"] == "BAD_CHANNEL"
+
+
+@pytest.mark.asyncio
+async def test_agent_session_unsubscribe_error_reaches_caller(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with AgentSession(context.host, context.port, "agent-a") as session:
+            response = await session.unsubscribe("not-subscribed")
+
+    assert response["op"] == "error"
+    assert response["code"] == "NOT_SUBSCRIBED"
+
+
+@pytest.mark.asyncio
+async def test_agent_session_publish_error_reaches_caller(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with AgentSession(context.host, context.port, "agent-a") as session:
+            response = await session.publish("unknown-channel", "hello")
+
+    assert response is not None
+    assert response["op"] == "error"
+    assert response["code"] == "UNKNOWN_CHANNEL"
+
+
+@pytest.mark.asyncio
+async def test_agent_session_buffers_inbound_frames_during_command(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    received: list[dict[str, object]] = []
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with AgentSession(context.host, context.port, "agent-a") as session:
+
+            async def collect() -> None:
+                async for frame in session:
+                    payload = json.loads(frame)
+                    received.append(payload)
+                    if len(received) >= 2:
+                        break
+
+            collect_task = asyncio.create_task(collect())
+            await asyncio.sleep(0.05)
+
+            subscribe_task = asyncio.create_task(session.subscribe("updates"))
+            await asyncio.sleep(0.05)
+
+            await send_direct_message(context.host, context.port, "agent-a", "during subscribe")
+            subscribe_response = await subscribe_task
+            await asyncio.wait_for(collect_task, timeout=1.0)
+
+    assert received[0]["op"] == "welcome"
+    assert received[1]["op"] == "msg"
+    assert received[1]["text"] == "during subscribe"
+    assert subscribe_response["op"] == "subscribe_ok"
+    assert subscribe_response["channel"] == "updates"
+
+
+@pytest.mark.asyncio
+async def test_agent_session_concurrent_instances_remain_independent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, unused_tcp_port: int
+) -> None:
+    received_a: list[dict[str, object]] = []
+    received_b: list[dict[str, object]] = []
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with (
+            AgentSession(context.host, context.port, "agent-a") as session_a,
+            AgentSession(context.host, context.port, "agent-b") as session_b,
+        ):
+
+            async def collect(received: list[dict[str, object]], session: AgentSession) -> None:
+                async for frame in session:
+                    payload = json.loads(frame)
+                    received.append(payload)
+                    if len(received) >= 2:
+                        break
+
+            task_a = asyncio.create_task(collect(received_a, session_a))
+            task_b = asyncio.create_task(collect(received_b, session_b))
+            await asyncio.sleep(0.05)
+
+            await session_a.subscribe("channel-a")
+            await session_b.subscribe("channel-b")
+            await publish_to_channel(context.host, context.port, "channel-a", "msg-a")
+            await publish_to_channel(context.host, context.port, "channel-b", "msg-b")
+            await asyncio.wait_for(asyncio.gather(task_a, task_b), timeout=1.0)
+
+    assert received_a[0]["op"] == "welcome"
+    assert received_a[0]["assigned_name"] == "agent-a"
+    assert received_b[0]["op"] == "welcome"
+    assert received_b[0]["assigned_name"] == "agent-b"
+    assert len(received_a) == 2
+    assert received_a[1]["channel"] == "channel-a"
+    assert received_a[1]["text"] == "msg-a"
+    assert len(received_b) == 2
+    assert received_b[1]["channel"] == "channel-b"
+    assert received_b[1]["text"] == "msg-b"
 
 
 @pytest.mark.asyncio
