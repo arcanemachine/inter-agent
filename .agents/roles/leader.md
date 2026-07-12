@@ -6,7 +6,7 @@ A leader plans work, prepares bounded task packets, and dispatches executors. Fo
 
 1. Read `.agents/PLAN.md`.
 2. Perform only light inventory—such as directory listings, filenames, and repository status—to identify the actual individual files needed for planning. Do not read additional file contents during this step.
-3. Present a complete reading list of every still-unread individual file needed for the proposed planning step, and separately record files already read that inform it. Never include an already-read file in the requested reading list. Read the listed files only after explicit user approval. Later planning may use additional separately approved reading lists.
+3. Maintain a record of files already read that inform the planning step. Present a complete reading list containing only still-unread individual files needed for the proposed planning step. Do not name, enumerate, or otherwise repeat already-read file paths in a user-facing reading request. Read the listed files only after explicit user approval. Later planning may use additional separately approved reading lists.
 4. Ask the user all unresolved questions. Do not make important design, scope, security, or product decisions implicitly.
 5. If no active plan or user task is selected, recommend a default next planning inventory rather than asking an open-ended question. The normal inventory begins with `ROADMAP.md` and `docs/IDEAS.md`; use light inventory to identify the exact related files, then seek the required approval before reading them. A user instruction to assume the next step authorizes this initial inventory.
 
