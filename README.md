@@ -10,6 +10,7 @@ Agents can talk to each other:
 
 - **Directly** — send a message to one connected agent by name.
 - **By broadcast** — send a message to every connected agent when everyone needs it.
+- **Through channels** — subscribe to named channels and publish messages to every subscriber except the publisher. Channels are an in-memory, single-server feature with no durability, ACLs, or history.
 
 ## Quick start
 
@@ -87,6 +88,8 @@ Pi and Claude Code expose the same basic slash commands:
 /inter-agent rename my-agent-2
 /inter-agent broadcast "build is green for everyone"
 /inter-agent disconnect
+
+Channels are available at the core protocol level. Adapters may expose channel commands in a future update.
 ```
 
 Use direct `send` for normal coordination. Use `broadcast` only when all connected sessions need the message.

@@ -112,7 +112,7 @@ def test_welcome_capabilities_schema_preserves_baseline_and_allows_extensions() 
         "assigned_name": "agent-a",
         "capabilities": {
             "core": {"version": "0.1"},
-            "channels": False,
+            "channels": True,
             "rate_limit": False,
             "x.example.experimental": {"enabled": True},
         },
@@ -125,12 +125,25 @@ def test_welcome_capabilities_schema_preserves_baseline_and_allows_extensions() 
         "assigned_name": "agent-a",
         "capabilities": {
             "core": {"version": "0.1"},
-            "channels": True,
+            "channels": False,
             "rate_limit": False,
         },
     }
     with pytest.raises(ValidationError):
         validator.validate(unsupported_channels)
+
+    non_boolean_channels = {
+        "op": "welcome",
+        "session_id": "sess-a",
+        "assigned_name": "agent-a",
+        "capabilities": {
+            "core": {"version": "0.1"},
+            "channels": "yes",
+            "rate_limit": False,
+        },
+    }
+    with pytest.raises(ValidationError):
+        validator.validate(non_boolean_channels)
 
 
 def test_asyncapi_refs_exist() -> None:

@@ -22,6 +22,7 @@ from inter_agent.core.shared import (
     resolve_endpoint,
     resolve_shared_secret,
     utc_now,
+    validate_channel_name,
     validate_name,
 )
 from inter_agent.core.tls import TlsConfigError, build_server_ssl_context
@@ -59,6 +60,8 @@ class BusServer:
         self.secret = resolve_shared_secret().secret
         self.limits = limits or Limits()
         self.registry: dict[str, Conn] = {}
+        self.channels: dict[str, set[str]] = {}
+        self.subscriptions: dict[str, set[str]] = {}
         self.middlewares: list[RouterMiddleware] = []
         self.shutdown_event = asyncio.Event()
         self._lock = asyncio.Lock()
@@ -214,7 +217,7 @@ class BusServer:
                         "assigned_name": conn.name,
                         "capabilities": {
                             "core": {"version": "0.1"},
-                            "channels": False,
+                            "channels": True,
                             "rate_limit": False,
                         },
                     }
@@ -251,13 +254,23 @@ class BusServer:
                     await self._route_broadcast(conn, msg)
                 elif op == "custom":
                     await self._route_custom(conn, msg)
+                elif op == "subscribe":
+                    await self._route_subscribe(conn, msg)
+                elif op == "unsubscribe":
+                    await self._route_unsubscribe(conn, msg)
+                elif op == "publish":
+                    await self._route_publish(conn, msg)
+                elif op == "channels":
+                    await self._route_channels(conn, msg)
                 else:
                     await self.send_error(ws, ErrorCode.UNKNOWN_OP, f"unsupported op: {op}")
         except websockets.ConnectionClosed:
             pass
         finally:
-            if session_id and session_id in self.registry:
-                self.registry.pop(session_id, None)
+            if session_id:
+                await self._cleanup_session_subscriptions(session_id)
+                if session_id in self.registry:
+                    self.registry.pop(session_id, None)
             if not self.registry:
                 self._schedule_idle_timer()
 
@@ -306,6 +319,10 @@ class BusServer:
             # Remove before closing so the target's own handler finally block
             # sees the session already gone and does not double-remove.
             self.registry.pop(target.session_id, None)
+            for channel in list(self.subscriptions.pop(target.session_id, [])):
+                self.channels[channel].discard(target.session_id)
+                if not self.channels[channel]:
+                    self.channels.pop(channel, None)
             await sender.ws.send(
                 json.dumps(
                     {
@@ -451,6 +468,124 @@ class BusServer:
             if conn.session_id == sender.session_id or conn.role != "agent":
                 continue
             await conn.ws.send(json.dumps(payload))
+
+    async def _cleanup_session_subscriptions(self, session_id: str) -> None:
+        async with self._lock:
+            for channel in list(self.subscriptions.get(session_id, [])):
+                self.channels[channel].discard(session_id)
+                if not self.channels[channel]:
+                    self.channels.pop(channel, None)
+            self.subscriptions.pop(session_id, None)
+
+    def _validate_channel_name(self, channel: object) -> str | None:
+        if not validate_channel_name(channel, self.limits.channel_name_max):
+            return None
+        return str(channel)
+
+    async def _route_subscribe(self, sender: Conn, msg: dict[str, object]) -> None:
+        if sender.role != "agent":
+            await self.send_error(sender.ws, ErrorCode.BAD_ROLE, "subscribe requires agent role")
+            return
+        channel = self._validate_channel_name(msg.get("channel"))
+        if channel is None:
+            await self.send_error(sender.ws, ErrorCode.BAD_CHANNEL, "invalid channel name")
+            return
+        async with self._lock:
+            session_subs = self.subscriptions.setdefault(sender.session_id, set())
+            if channel in session_subs:
+                await sender.ws.send(json.dumps({"op": "subscribe_ok", "channel": channel}))
+                return
+            if len(session_subs) >= self.limits.subscriptions_max:
+                await self.send_error(
+                    sender.ws, ErrorCode.CHANNEL_LIMIT_REACHED, "subscription limit reached"
+                )
+                return
+            is_new_channel = channel not in self.channels
+            if is_new_channel and len(self.channels) >= self.limits.channels_max:
+                await self.send_error(
+                    sender.ws, ErrorCode.CHANNEL_LIMIT_REACHED, "server channel limit reached"
+                )
+                return
+            session_subs.add(channel)
+            self.channels.setdefault(channel, set()).add(sender.session_id)
+            await sender.ws.send(json.dumps({"op": "subscribe_ok", "channel": channel}))
+
+    async def _route_unsubscribe(self, sender: Conn, msg: dict[str, object]) -> None:
+        if sender.role != "agent":
+            await self.send_error(sender.ws, ErrorCode.BAD_ROLE, "unsubscribe requires agent role")
+            return
+        channel = self._validate_channel_name(msg.get("channel"))
+        if channel is None:
+            await self.send_error(sender.ws, ErrorCode.BAD_CHANNEL, "invalid channel name")
+            return
+        async with self._lock:
+            session_subs = self.subscriptions.get(sender.session_id, set())
+            if channel not in session_subs:
+                await self.send_error(sender.ws, ErrorCode.NOT_SUBSCRIBED, "not subscribed")
+                return
+            session_subs.discard(channel)
+            if not session_subs:
+                self.subscriptions.pop(sender.session_id, None)
+            self.channels[channel].discard(sender.session_id)
+            if not self.channels[channel]:
+                self.channels.pop(channel, None)
+            await sender.ws.send(json.dumps({"op": "unsubscribe_ok", "channel": channel}))
+
+    async def _route_publish(self, sender: Conn, msg: dict[str, object]) -> None:
+        if sender.role not in {"agent", "control"}:
+            await self.send_error(
+                sender.ws, ErrorCode.BAD_ROLE, "publish requires agent or control role"
+            )
+            return
+        channel = self._validate_channel_name(msg.get("channel"))
+        if channel is None:
+            await self.send_error(sender.ws, ErrorCode.BAD_CHANNEL, "invalid channel name")
+            return
+        text = msg.get("text")
+        if not isinstance(text, str):
+            await self.send_error(sender.ws, ErrorCode.BAD_TEXT, "text must be a string")
+            return
+        if len(text.encode()) > self.limits.broadcast_text_max:
+            await self.send_error(sender.ws, ErrorCode.TEXT_TOO_LARGE, "publish text too large")
+            return
+        async with self._lock:
+            subscribers = self.channels.get(channel)
+            if not subscribers:
+                await self.send_error(sender.ws, ErrorCode.UNKNOWN_CHANNEL, "unknown channel")
+                return
+            from_name = msg.get("from_name", sender.name)
+            payload = json.dumps(
+                {
+                    "op": "msg",
+                    "msg_id": next_msg_id(),
+                    "from": sender.session_id,
+                    "from_name": from_name,
+                    "channel": channel,
+                    "text": text,
+                    "ts": utc_now(),
+                }
+            )
+            for session_id in subscribers:
+                if session_id == sender.session_id:
+                    continue
+                conn = self.registry.get(session_id)
+                if conn is not None:
+                    await conn.ws.send(payload)
+
+    async def _route_channels(self, sender: Conn, msg: dict[str, object]) -> None:
+        del msg
+        if sender.role != "control":
+            await self.send_error(sender.ws, ErrorCode.BAD_ROLE, "channels requires control role")
+            return
+        async with self._lock:
+            result: list[dict[str, object]] = []
+            for channel in sorted(self.channels):
+                subscriber_ids = sorted(self.channels[channel])
+                names = sorted(
+                    self.registry[sid].name for sid in subscriber_ids if sid in self.registry
+                )
+                result.append({"name": channel, "subscribers": names})
+            await sender.ws.send(json.dumps({"op": "channels_ok", "channels": result}))
 
 
 def _is_websocket_upgrade(request: Request) -> bool:

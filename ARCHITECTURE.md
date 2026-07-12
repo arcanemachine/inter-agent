@@ -8,10 +8,10 @@
    - Transport (`ws://` / `wss://`) with host-based TLS defaults and explicit enable/disable
    - Handshake/auth (`hello` / `auth_challenge` / `auth_response` / `welcome`)
    - Presence and identity (`session_id`, routing `name`, display-only `label`)
-   - Routing (`send`, `broadcast`, `custom` pass-through)
+   - Routing (`send`, `broadcast`, `custom` pass-through, channel `subscribe`/`unsubscribe`/`publish`)
    - Health and lifecycle (`ping` / `pong`, `bye`, authenticated `shutdown`)
    - Session management (control-only `kick` to force-disconnect a registered session by name or session_id)
-   - Introspection (`list` capability)
+   - Introspection (`list` and `channels` capabilities)
    - Importable command APIs for server start, connect, send, broadcast, list, and status checks.
 
 2. **Adapters (`src/inter_agent/adapters/`) and host integrations (`integrations/`)**
@@ -81,8 +81,9 @@ Runtime source is not bus auth/state: adapters may resolve helper binaries throu
 - List introspection returns agent sessions sorted by routing name and excludes control sessions.
 - Broadcast: sender targets all other connected agents.
 - Custom: extension envelope (`op: custom`, `custom_type`, `payload`), routed by core without type-specific interpretation after type and payload-size checks.
+- Channel: named pub/sub groups created by subscribing. `publish` delivers a `msg` to every subscriber except the publisher. Channels are in-memory only and vanish when the last subscriber leaves.
 - Error: canonical `error` envelopes use documented codes from `spec/error-codes.md`; clients should key behavior on `code`, not `message`.
-- Resource boundaries: direct and broadcast text limits use UTF-8 encoded byte length after JSON decoding; active connections, custom types, and JSON-encoded custom payloads also have configurable limits.
+- Resource boundaries: direct, broadcast, and publish text limits use UTF-8 encoded byte length after JSON decoding; active connections, custom types, JSON-encoded custom payloads, channel names, per-session subscriptions, and server channels also have configurable limits.
 
 ## Server lifecycle
 
@@ -108,8 +109,8 @@ Runtime source is not bus auth/state: adapters may resolve helper binaries throu
 
 - `hello.capabilities` is a required JSON object where clients may declare known or extension capability keys.
 - Unknown client capability keys are tolerated and may be ignored; client declarations do not enable unimplemented features.
-- `welcome.capabilities` advertises server-supported baseline capabilities: `core.version` is `0.1`, `channels` is `false`, and `rate_limit` is `false`.
-- Future channel routing and policy negotiation ideas remain in `docs/IDEAS.md` until promoted into the plan.
+- `welcome.capabilities` advertises server-supported baseline capabilities: `core.version` is `0.1`, `channels` is `true`, and `rate_limit` is `false`.
+- Rate-limit negotiation ideas remain in `docs/IDEAS.md` until promoted into the plan.
 
 ## Evolution touchpoints
 

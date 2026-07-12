@@ -22,7 +22,11 @@
         "TEXT_TOO_LARGE",
         "CUSTOM_PAYLOAD_TOO_LARGE",
         "UNKNOWN_TARGET",
-        "AMBIGUOUS_TARGET"
+        "AMBIGUOUS_TARGET",
+        "BAD_CHANNEL",
+        "CHANNEL_LIMIT_REACHED",
+        "NOT_SUBSCRIBED",
+        "UNKNOWN_CHANNEL"
       ]
     },
     "message": { "type": "string" }

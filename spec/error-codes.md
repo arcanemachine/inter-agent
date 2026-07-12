@@ -20,3 +20,7 @@ Protocol errors are returned as `{"op":"error","code":"...","message":"..."}`. T
 | `CUSTOM_PAYLOAD_TOO_LARGE` | A `custom.payload` exceeds the configured JSON-encoded UTF-8 byte limit (`INTER_AGENT_CUSTOM_PAYLOAD_MAX`). | Shorten or split the custom payload. |
 | `UNKNOWN_TARGET` | A direct `send` or targeted `custom` operation names no connected target. | Refresh session presence and retry with a connected routing name. |
 | `AMBIGUOUS_TARGET` | A direct `send` or targeted `custom` operation uses a prefix that matches multiple connected targets. | Retry with a longer prefix or exact routing name. |
+| `BAD_CHANNEL` | A channel operation has a missing, non-string, syntactically invalid, or oversized `channel` value. | Send a valid channel name matching the documented format and byte limit. |
+| `CHANNEL_LIMIT_REACHED` | A subscription would exceed the per-session subscription limit (`INTER_AGENT_SUBSCRIPTIONS_MAX`) or creating a channel would exceed the server channel limit (`INTER_AGENT_CHANNELS_MAX`). | Leave unused channels or increase the configured limit. |
+| `NOT_SUBSCRIBED` | An `unsubscribe` targets a channel the session is not subscribed to. | Subscribe before unsubscribing, or ignore if already unsubscribed. |
+| `UNKNOWN_CHANNEL` | A `publish` targets a channel with no active subscribers. | Subscribe at least one session to the channel before publishing. |

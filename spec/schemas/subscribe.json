@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Subscribe",
+  "type": "object",
+  "required": ["op", "channel"],
+  "properties": {
+    "op": { "const": "subscribe" },
+    "channel": {
+      "type": "string",
+      "description": "Channel name to subscribe to. Must match [a-z0-9][a-z0-9-]{0,39} and fit within INTER_AGENT_CHANNEL_NAME_MAX UTF-8 bytes."
+    }
+  },
+  "additionalProperties": true
+}

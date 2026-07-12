@@ -4,7 +4,7 @@
   "assigned_name": "agent-a",
   "capabilities": {
     "core": {"version": "0.1"},
-    "channels": false,
+    "channels": true,
     "rate_limit": false
   }
 }

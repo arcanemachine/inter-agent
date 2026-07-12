@@ -183,6 +183,35 @@ async def connect_control(
     return response
 
 
+async def subscribe(ws: ClientConnection, channel: str) -> dict[str, object]:
+    return await send_json(ws, {"op": "subscribe", "channel": channel})
+
+
+async def unsubscribe(ws: ClientConnection, channel: str) -> dict[str, object]:
+    return await send_json(ws, {"op": "unsubscribe", "channel": channel})
+
+
+async def publish(
+    ws: ClientConnection,
+    channel: str,
+    text: str,
+    from_name: str | None = None,
+    timeout: float = 0.1,
+) -> dict[str, object] | None:
+    payload: dict[str, object] = {"op": "publish", "channel": channel, "text": text}
+    if from_name is not None:
+        payload["from_name"] = from_name
+    await ws.send(json.dumps(payload))
+    try:
+        return await asyncio.wait_for(recv_json(ws), timeout=timeout)
+    except TimeoutError:
+        return None
+
+
+async def request_channels(ws: ClientConnection) -> dict[str, object]:
+    return await send_json(ws, {"op": "channels"})
+
+
 async def assert_no_message(ws: ClientConnection, timeout: float = 0.1) -> None:
     with pytest.raises(asyncio.TimeoutError):
         await asyncio.wait_for(ws.recv(), timeout=timeout)

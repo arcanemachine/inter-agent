@@ -27,6 +27,10 @@ channels:
           - $ref: '#/components/messages/Shutdown'
           - $ref: '#/components/messages/Kick'
           - $ref: '#/components/messages/Custom'
+          - $ref: '#/components/messages/Subscribe'
+          - $ref: '#/components/messages/Unsubscribe'
+          - $ref: '#/components/messages/Publish'
+          - $ref: '#/components/messages/Channels'
     subscribe:
       message:
         oneOf:
@@ -38,6 +42,9 @@ channels:
           - $ref: '#/components/messages/ListOk'
           - $ref: '#/components/messages/ShutdownOk'
           - $ref: '#/components/messages/KickOk'
+          - $ref: '#/components/messages/SubscribeOk'
+          - $ref: '#/components/messages/UnsubscribeOk'
+          - $ref: '#/components/messages/ChannelsOk'
 components:
   schemas:
     Envelope:
@@ -78,6 +85,20 @@ components:
       $ref: './schemas/kick_ok.json'
     Custom:
       $ref: './schemas/custom.json'
+    Subscribe:
+      $ref: './schemas/subscribe.json'
+    SubscribeOk:
+      $ref: './schemas/subscribe_ok.json'
+    Unsubscribe:
+      $ref: './schemas/unsubscribe.json'
+    UnsubscribeOk:
+      $ref: './schemas/unsubscribe_ok.json'
+    Publish:
+      $ref: './schemas/publish.json'
+    Channels:
+      $ref: './schemas/channels.json'
+    ChannelsOk:
+      $ref: './schemas/channels_ok.json'
   messages:
     Hello:
       payload:
@@ -133,3 +154,24 @@ components:
     Custom:
       payload:
         $ref: '#/components/schemas/Custom'
+    Subscribe:
+      payload:
+        $ref: '#/components/schemas/Subscribe'
+    SubscribeOk:
+      payload:
+        $ref: '#/components/schemas/SubscribeOk'
+    Unsubscribe:
+      payload:
+        $ref: '#/components/schemas/Unsubscribe'
+    UnsubscribeOk:
+      payload:
+        $ref: '#/components/schemas/UnsubscribeOk'
+    Publish:
+      payload:
+        $ref: '#/components/schemas/Publish'
+    Channels:
+      payload:
+        $ref: '#/components/schemas/Channels'
+    ChannelsOk:
+      payload:
+        $ref: '#/components/schemas/ChannelsOk'

@@ -8,11 +8,7 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Pub/sub channels — Phase 1 core protocol
-
-Implement the accepted core channel protocol described in `../docs/plans/pubsub-channels/00-design-seed.md` using the bounded task packet at `plans/pubsub-channels/01-core-protocol.md`.
-
-This slice covers protocol schemas/examples, server membership and routing, canonical errors and limits, conformance tests, capability advertisement, and present-behavior documentation. Core command APIs, Python adapter commands, and installed Pi/Claude extension UX remain explicit follow-up phases.
+No active work is currently tracked here.
 
 ## Planning workflow
 

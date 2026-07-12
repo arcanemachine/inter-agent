@@ -1,6 +1,6 @@
 # Pub/sub channels implementation plan
 
-Status: concrete; not implemented; Phase 1 ready for activation.
+Status: Phase 1 implemented; Phases 2–4 are concrete, sequenced follow-up work.
 
 ## Purpose
 
@@ -82,9 +82,9 @@ Initial channels use the existing authenticated, localhost, single-user trust mo
 
 ## Phases
 
-### Phase 1 — core protocol
+### Phase 1 — core protocol (implemented)
 
-Implement schemas, examples, AsyncAPI references, canonical errors, limits, in-memory membership/routing, cleanup, capability advertisement, and black-box conformance coverage. Update present-behavior architecture and security documentation when the implementation exists.
+Implemented schemas, examples, AsyncAPI references, canonical errors, limits, in-memory membership/routing, cleanup, capability advertisement, black-box conformance coverage, and present-behavior documentation.
 
 Phase 1 does not add command helpers, adapter commands, extension tools, or automatic subscriptions.
 

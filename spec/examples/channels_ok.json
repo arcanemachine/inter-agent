@@ -1,0 +1,9 @@
+{
+  "op": "channels_ok",
+  "channels": [
+    {
+      "name": "build",
+      "subscribers": ["agent-a", "agent-b"]
+    }
+  ]
+}

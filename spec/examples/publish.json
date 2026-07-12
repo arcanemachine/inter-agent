@@ -1,0 +1,5 @@
+{
+  "op": "publish",
+  "channel": "build",
+  "text": "hello"
+}

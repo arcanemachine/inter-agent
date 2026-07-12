@@ -21,8 +21,8 @@
           "additionalProperties": true
         },
         "channels": {
-          "const": false,
-          "description": "Channel routing is not supported by the baseline server."
+          "const": true,
+          "description": "Channel routing is supported by the baseline server."
         },
         "rate_limit": {
           "const": false,

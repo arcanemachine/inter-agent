@@ -8,7 +8,7 @@ from helpers import agent_hello, connect_agent, connect_control, running_server,
 
 BASELINE_CAPABILITIES = {
     "core": {"version": "0.1"},
-    "channels": False,
+    "channels": True,
     "rate_limit": False,
 }
 

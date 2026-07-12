@@ -25,6 +25,9 @@ DEFAULT_FRAME_CAP = 16 * 1024 * 1024
 DEFAULT_CONNECTION_CAP = 64
 DEFAULT_CUSTOM_TYPE_CAP = 128
 DEFAULT_CUSTOM_PAYLOAD_CAP = 1024 * 1024
+DEFAULT_CHANNEL_NAME_CAP = 40
+DEFAULT_SUBSCRIPTIONS_CAP = 32
+DEFAULT_CHANNELS_CAP = 256
 
 
 def env_int(name: str, default: int) -> int:
@@ -45,6 +48,9 @@ class Limits:
     connection_max: int = env_int("INTER_AGENT_CONNECTION_MAX", DEFAULT_CONNECTION_CAP)
     custom_type_max: int = env_int("INTER_AGENT_CUSTOM_TYPE_MAX", DEFAULT_CUSTOM_TYPE_CAP)
     custom_payload_max: int = env_int("INTER_AGENT_CUSTOM_PAYLOAD_MAX", DEFAULT_CUSTOM_PAYLOAD_CAP)
+    channel_name_max: int = env_int("INTER_AGENT_CHANNEL_NAME_MAX", DEFAULT_CHANNEL_NAME_CAP)
+    subscriptions_max: int = env_int("INTER_AGENT_SUBSCRIPTIONS_MAX", DEFAULT_SUBSCRIPTIONS_CAP)
+    channels_max: int = env_int("INTER_AGENT_CHANNELS_MAX", DEFAULT_CHANNELS_CAP)
 
 
 @dataclass(frozen=True)
@@ -155,6 +161,16 @@ def validate_name(name: object) -> bool:
     import re
 
     return bool(re.fullmatch(r"[a-z0-9][a-z0-9-]{0,39}", name))
+
+
+def validate_channel_name(channel: object, max_bytes: int) -> bool:
+    if not isinstance(channel, str):
+        return False
+    import re
+
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,39}", channel):
+        return False
+    return len(channel.encode("utf-8")) <= max_bytes
 
 
 def is_localhost(host: str) -> bool:

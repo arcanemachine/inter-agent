@@ -42,11 +42,15 @@ Completed execution notes are archived under `docs/archive/plans/` for reference
 
 ### Pub/sub channels
 
-Status: accepted direction; not implemented; not active.
+Status: Phase 1 implemented; Phases 2–4 are sequenced follow-up work.
 
-Next activation step: convert `docs/plans/pubsub-channels/00-design-seed.md` into a concrete protocol/spec/test implementation plan, then copy only the first implementation slice into `.agents/PLAN.md`.
+Phase 1 (implemented) covers the core protocol operations (`subscribe`, `unsubscribe`, `publish`, `channels`), protocol schemas and examples, canonical errors and limits, conformance tests, capability advertisement, and present-behavior documentation. Direct messages and broadcast remain unchanged.
 
-Pub/sub channels are the next protocol feature to settle before new host integrations are added. The initial direction is lightweight named channels with explicit subscribe, unsubscribe, publish, and diagnostic list behavior. Direct messages and broadcast remain unchanged.
+Phase 2 (not active) will add core command APIs and CLI entry points for publish and channel-list diagnostics.
+
+Phase 3 (not active) will add Python adapter commands so the Pi and Claude Code Python helpers can expose channel operations.
+
+Phase 4 (not active) will add Pi extension and Claude Code plugin commands, tools, notifications, and packaging UX for channels.
 
 Reference material:
 

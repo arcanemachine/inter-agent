@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SubscribeOk",
+  "type": "object",
+  "required": ["op", "channel"],
+  "properties": {
+    "op": { "const": "subscribe_ok" },
+    "channel": { "type": "string" }
+  },
+  "additionalProperties": true
+}

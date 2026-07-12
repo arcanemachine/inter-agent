@@ -85,14 +85,21 @@
   - `INTER_AGENT_BROADCAST_MAX`: 512 KiB of UTF-8 text
   - `INTER_AGENT_CUSTOM_TYPE_MAX`: 128 bytes
   - `INTER_AGENT_CUSTOM_PAYLOAD_MAX`: 1 MiB of JSON-encoded UTF-8 payload
+  - `INTER_AGENT_CHANNEL_NAME_MAX`: 40 UTF-8 bytes
+  - `INTER_AGENT_SUBSCRIPTIONS_MAX`: 32 channels per session
+  - `INTER_AGENT_CHANNELS_MAX`: 256 channels per server
 
-  Direct and broadcast limits are measured after JSON decoding.
+  Direct, broadcast, and publish limits are measured after JSON decoding.
 
 - **Idle shutdown**
 
   Manual server starts run until explicit shutdown by default.
 
   `--idle-timeout <seconds>` opts into automatic shutdown after an idle period. Adapter-started servers use an explicit 300-second idle timeout so helper-started processes clean themselves up.
+
+- **Channels**
+
+  Channels are in-memory pub/sub groups scoped to the running server. Any authenticated agent can subscribe, unsubscribe, or publish to any channel. Control sessions can publish and request channel diagnostics but cannot subscribe or unsubscribe. Published messages are delivered only to currently subscribed sessions on the same server; there is no history, durability, access control, or cross-server federation. Channel membership is removed when a session disconnects, sends `bye`, or is kicked; empty channels are deleted immediately. Treat channel traffic as broadcast collaboration input with the same trust assumptions as direct and broadcast messages.
 
 - **Custom payloads**
 

@@ -9,6 +9,7 @@
     "from": { "type": "string" },
     "from_name": { "type": "string" },
     "to": { "type": ["string", "null"] },
+    "channel": { "type": "string" },
     "text": { "type": "string" },
     "ts": { "type": "string" },
     "custom_type": { "type": ["string", "null"] },

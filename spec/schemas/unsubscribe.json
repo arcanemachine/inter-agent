@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unsubscribe",
+  "type": "object",
+  "required": ["op", "channel"],
+  "properties": {
+    "op": { "const": "unsubscribe" },
+    "channel": {
+      "type": "string",
+      "description": "Channel name to unsubscribe from."
+    }
+  },
+  "additionalProperties": true
+}
