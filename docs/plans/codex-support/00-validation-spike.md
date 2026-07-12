@@ -51,7 +51,7 @@ When activated, assign a worker this bounded task:
 2. Inspect `/workspace/projects/_git/codex` read-only if present.
 3. Verify current App Server transport, auth, and `thread/inject_items` APIs against local source and docs.
 4. Produce a minimal spike design: command to start/attach App Server, sidecar transport library/API, payload shape, manual UAT steps, and safety checks.
-5. Do not edit implementation files unless the spike is explicitly promoted into `PLAN.md`.
+5. Do not edit implementation files unless the spike is explicitly promoted into `.agents/PLAN.md`.
 
 ## Acceptance criteria for a future spike
 

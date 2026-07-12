@@ -57,7 +57,7 @@ Before extraction, decide:
 
 ## Suggested first active slice
 
-Copy this into `PLAN.md` only when ready:
+Copy this into `.agents/PLAN.md` only when ready:
 
 > Prepare Pi extension extraction by creating an `inter-agent-pi` package boundary document, moving Pi extension-specific tests into a package-local test plan or smoke script, and updating docs so the extension can be installed from an independent repository while still resolving the core Python helper commands.
 

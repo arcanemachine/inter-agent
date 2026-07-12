@@ -9,7 +9,7 @@ Status: deferred and exploratory unless a current plan promotes an item.
 1. Read the relevant section when planning work that touches that topic.
 2. Do not treat every idea here as required implementation.
 3. Promote ideas into `ROADMAP.md` only when the user accepts them as medium- or long-term direction.
-4. Copy only the next concrete slice into `PLAN.md` when work becomes active.
+4. Copy only the next concrete slice into `.agents/PLAN.md` when work becomes active.
 5. Put concrete, actionable follow-ups in `docs/ideas/` as individual items (see `docs/ideas/ideas.sh`) when they are too specific for this idea bank but not active or ordered enough for `ROADMAP.md`.
 6. Keep broad, speculative, or exploratory ideas here; keep concrete, trigger-bearing follow-ups as `docs/ideas/*.md` items.
 7. When an idea becomes implemented architecture, move the current truth to `docs/ARCHITECTURE.md`.

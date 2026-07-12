@@ -340,7 +340,7 @@ mandatory gate unless they become headless and reliable.
 
 - `ROADMAP.md` records OpenCode as prospective follow-on work.
 - `docs/plans/opencode-support/` contains detailed prospective execution notes.
-- `PLAN.md` should mention OpenCode only when the user activates a concrete
+- `.agents/PLAN.md` should mention OpenCode only when the user activates a concrete
   implementation slice.
 - This file records the consolidated OpenCode design/reference material.
 - `README.md` should list OpenCode as supported only after an implementation

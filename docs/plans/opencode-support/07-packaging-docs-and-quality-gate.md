@@ -59,14 +59,14 @@ Make OpenCode support installable, documented, and included in the repository's 
    - Document notification and inbox privacy implications.
 
 7. Update planning docs.
-   - Remove completed OpenCode work from `PLAN.md` when the active slice is done.
+   - Remove completed OpenCode work from `.agents/PLAN.md` when the active slice is done.
    - Update `ROADMAP.md` with implementation status and any remaining follow-on work.
    - State completion criteria.
    - State the Codex plugin-only extension non-goal and point to the App Server sidecar direction.
 
 8. Update `docs/IDEAS.md` if needed.
    - Move OpenCode-only ideas into `ROADMAP.md` only after user acceptance.
-   - Copy only active OpenCode work slices into `PLAN.md`.
+   - Copy only active OpenCode work slices into `.agents/PLAN.md`.
    - Keep Codex App Server sidecar direction aligned with `ROADMAP.md` and `integrations/codex/README.md`.
 
 9. Integrate checks.
@@ -95,7 +95,7 @@ Make OpenCode support installable, documented, and included in the repository's 
 - `README.md`
 - `ARCHITECTURE.md`
 - `SECURITY.md`
-- `PLAN.md`
+- `.agents/PLAN.md`
 - `ROADMAP.md`
 - `docs/IDEAS.md`
 - `run-checks.sh`

@@ -1,14 +1,16 @@
 # Active Plan
 
-`PLAN.md` is for short-term work that is actively being done or ready to be done next in the current session. It is intentionally small.
+`.agents/PLAN.md` is for short-term work that is actively being done or ready to be done next in the current session. It is intentionally small.
 
-Use [`ROADMAP.md`](ROADMAP.md) for accepted medium- and long-term direction. Use [`docs/plans/`](docs/plans/) for future execution notes. Use [`docs/IDEAS.md`](docs/IDEAS.md) for exploratory or unaccepted ideas.
+Use [`../ROADMAP.md`](../ROADMAP.md) for accepted medium- and long-term direction. Use [`../docs/plans/`](../docs/plans/) for future execution notes. Use [`../docs/IDEAS.md`](../docs/IDEAS.md) for exploratory or unaccepted ideas.
+
+Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
 ### Agent workflow
 
-Establish the repository-specific leader/executor workflow, relocate this active-plan file to `.agents/PLAN.md`, and update live planning references. The executor-ready packet is `.agents/plans/agent-workflow/task-01-establish-leader-executor-workflow.md`.
+Establish the repository-specific leader/executor workflow, relocate the active-plan file to `.agents/PLAN.md`, and update live planning references. The executor-ready packet is `.agents/plans/agent-workflow/task-01-establish-leader-executor-workflow.md`.
 
 Only Task 01 is active. Do not begin pub/sub planning or implementation until this workflow task is completed, reviewed, committed, and removed from the active plan.
 
@@ -17,9 +19,9 @@ Only Task 01 is active. Do not begin pub/sub planning or implementation until th
 1. Keep `README.md` focused on present, implemented behavior.
 2. Keep prospective or not-yet-implemented work out of the supported integration list.
 3. Track accepted medium- and long-term direction in `ROADMAP.md`.
-4. Track future execution notes in `docs/plans/**` when they are more detailed than the roadmap but not active work.
+4. Track future execution notes in `docs/plans/**` when they are more detailed than `ROADMAP.md` but not active enough for `.agents/PLAN.md`.
 5. Track rough or exploratory ideas in `docs/IDEAS.md` until the user accepts them for the roadmap or active plan.
-6. When a roadmap item becomes active, copy only the next concrete slice into this file.
+6. When a roadmap item becomes active, copy only the next concrete slice into `.agents/PLAN.md`.
 7. When an active item is completed, remove it from this file and update product docs only for behavior that now exists.
 
 ## Completion standard

@@ -12,7 +12,7 @@ Use `docs/ideas/ideas.sh` first to list and filter item metadata without loading
 
 ## When not to create a follow-up item
 
-- If the work is active or required now, put it in `PLAN.md`.
+- If the work is active or required now, put it in `.agents/PLAN.md`.
 - If the work belongs in ordered project direction, promote it to `docs/ROADMAP.md`.
 - If the thought is broad, speculative, or exploratory, put it in `docs/IDEAS.md`.
 - If the thought lacks a promotion trigger, do not add it.
@@ -46,4 +46,4 @@ Required fields: `title`, `description`. All other fields are optional. Priority
 
 Items are open by existence and closed by removal. Delete items when they are resolved, promoted, stale, duplicated, or too vague. Do not archive removed items; git history is enough.
 
-Promotion still requires user decision. `docs/ROADMAP.md` and `PLAN.md` remain authoritative for roadmap and active state.
+Promotion still requires user decision. `docs/ROADMAP.md` and `.agents/PLAN.md` remain authoritative for roadmap and active state.

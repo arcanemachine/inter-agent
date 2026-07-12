@@ -11,7 +11,7 @@ conclusions and points workers to the ordered notes for implementation details.
 Status: prospective; not implemented; not active.
 
 Next activation step: copy the direct WebSocket spike and package-target
-validation into `PLAN.md` as the current active work slice.
+validation into `.agents/PLAN.md` as the current active work slice.
 
 ## Canonical references
 
@@ -19,7 +19,7 @@ Read these before implementation:
 
 1. `integrations/opencode/README.md` — consolidated design/reference document.
 2. `ROADMAP.md` — roadmap status and activation guidance.
-3. `PLAN.md` — active work only; OpenCode belongs there only after a concrete
+3. `.agents/PLAN.md` — active work only; OpenCode belongs there only after a concrete
    slice is activated.
 4. `docs/plans/opencode-support/01-opencode-extension-design.md` through
    `07-packaging-docs-and-quality-gate.md` — ordered prospective work notes.

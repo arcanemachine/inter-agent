@@ -2,12 +2,12 @@
 
 `ROADMAP.md` records accepted medium- and long-term direction. It is not the active task list and does not describe supported product behavior unless explicitly marked as implemented.
 
-Use [`PLAN.md`](PLAN.md) for the current short-term work. Use [`docs/IDEAS.md`](docs/IDEAS.md) for exploratory ideas that have not been accepted into the roadmap.
+Use [`.agents/PLAN.md`](.agents/PLAN.md) for the current short-term work. Use [`docs/IDEAS.md`](docs/IDEAS.md) for exploratory ideas that have not been accepted into the roadmap.
 
 ## Documentation boundaries
 
 - `README.md` describes what users can do now.
-- `PLAN.md` describes immediate active work only.
+- `.agents/PLAN.md` describes immediate active work only.
 - `ROADMAP.md` describes accepted direction and prospective follow-on work.
 - `docs/IDEAS.md` holds exploratory ideas and rough follow-ups.
 - Archived execution notes live under `docs/archive/plans/`.
@@ -19,9 +19,9 @@ Prospective integrations must not be listed as supported in `README.md`. When a 
 
 Future agents should determine work state from these markers:
 
-1. `PLAN.md` is authoritative for active work. If it says no implementation work is selected, no roadmap item is active.
+1. `.agents/PLAN.md` is authoritative for active work. If it says no implementation work is selected, no roadmap item is active.
 2. Each roadmap item has a `Status:` line. `prospective` means researched or accepted direction, not implemented and not active.
-3. Each roadmap item should name the next activation step. Work starts only after that concrete slice is copied into `PLAN.md`.
+3. Each roadmap item should name the next activation step. Work starts only after that concrete slice is copied into `.agents/PLAN.md`.
 4. Files under `docs/archive/plans/` are historical. They explain completed work but do not define current phase state.
 
 ## Implemented baseline
@@ -44,7 +44,7 @@ Completed execution notes are archived under `docs/archive/plans/` for reference
 
 Status: accepted direction; not implemented; not active.
 
-Next activation step: convert `docs/plans/pubsub-channels/00-design-seed.md` into a concrete protocol/spec/test implementation plan, then copy only the first implementation slice into `PLAN.md`.
+Next activation step: convert `docs/plans/pubsub-channels/00-design-seed.md` into a concrete protocol/spec/test implementation plan, then copy only the first implementation slice into `.agents/PLAN.md`.
 
 Pub/sub channels are the next protocol feature to settle before new host integrations are added. The initial direction is lightweight named channels with explicit subscribe, unsubscribe, publish, and diagnostic list behavior. Direct messages and broadcast remain unchanged.
 
@@ -60,7 +60,7 @@ Near-term package/release readiness for the current implemented integrations, in
 
 Status: prospective; not implemented; not active.
 
-Next activation step: copy the direct WebSocket spike and package-target validation into `PLAN.md` as the active slice.
+Next activation step: copy the direct WebSocket spike and package-target validation into `.agents/PLAN.md` as the active slice.
 
 OpenCode support has a researched design, but no OpenCode plugin package has been added and OpenCode is not a supported user-facing integration.
 
@@ -79,7 +79,7 @@ Current design direction:
 - first release assumes the local server is already running;
 - auto-start is deferred unless the user accepts a later design change.
 
-Before implementation starts, move only the next concrete slice into `PLAN.md`. Required early spikes are direct WebSocket access from OpenCode and shared identity/state between the TUI and server plugin targets.
+Before implementation starts, move only the next concrete slice into `.agents/PLAN.md`. Required early spikes are direct WebSocket access from OpenCode and shared identity/state between the TUI and server plugin targets.
 
 When OpenCode support is implemented and validated, update `README.md` to list it as supported and remove prospective wording from the relevant docs.
 
@@ -87,7 +87,7 @@ When OpenCode support is implemented and validated, update `README.md` to list i
 
 Status: prospective; not implemented; not active.
 
-Next activation step: after current release/PyPI package work, pub/sub channel work, and OpenCode work, copy a Codex App Server sidecar spike into `PLAN.md` as the active slice.
+Next activation step: after current release/PyPI package work, pub/sub channel work, and OpenCode work, copy a Codex App Server sidecar spike into `.agents/PLAN.md` as the active slice.
 
 Codex support should not be planned as a plugin-only extension. Current Codex plugin surfaces can bundle skills, MCP servers, app connector metadata, and lifecycle hooks, but they do not provide a persistent background runtime that can own an inter-agent listener or push inbound messages into the Codex TUI automatically.
 
@@ -123,11 +123,11 @@ Reference material:
 - `docs/archive/plans/09-host-extension-packaging/01-repository-boundary-inventory.md`
 - `docs/plans/repo-split/00-first-slices.md`
 
-Start any physical repository/package extraction by copying a concrete, reviewable slice into `PLAN.md`.
+Start any physical repository/package extraction by copying a concrete, reviewable slice into `.agents/PLAN.md`.
 
 ## Other follow-up areas
 
-Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap or copied into `PLAN.md` as active work. Current idea areas include:
+Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap or copied into `.agents/PLAN.md` as active work. Current idea areas include:
 
 - extension publishing/discovery channels;
 - stable runtime install sources;

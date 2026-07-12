@@ -210,7 +210,7 @@ security model.
 
 ## Required early spikes
 
-Before implementation starts, copy only a concrete slice into `PLAN.md` and
+Before implementation starts, copy only a concrete slice into `.agents/PLAN.md` and
 validate these questions:
 
 1. Can a sidecar reliably discover or start the desired Codex App Server endpoint

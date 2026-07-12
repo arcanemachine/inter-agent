@@ -2,6 +2,20 @@
 
 This file is for coding agents working in this repository.
 
+## Role assignment
+
+This repository uses exactly two agent roles:
+
+- `leader` — plans, prepares bounded task packets, and dispatches work.
+- `executor` — executes one bounded task packet at a time.
+
+Before task work begins, the user must explicitly assign one of these roles to the agent. An agent with no assigned role must stop and ask for one. An agent assigned an unknown role must stop and list the available roles (`leader`, `executor`).
+
+- A `leader` must follow `.agents/roles/leader.md` after reading this file.
+- An `executor` must follow `.agents/roles/executor.md` after reading this file.
+
+The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task packets live in `.agents/plans/`.
+
 ## Core rules
 
 1. Preserve universal core boundaries; keep host-specific behavior in adapters.
@@ -11,14 +25,14 @@ This file is for coding agents working in this repository.
 5. Keep informational documents evergreen (`README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `ROADMAP.md`, `AGENTS.md`).
 6. Write docs as stable descriptions of what the project is and how it works; avoid temporary status language and date-specific status notes.
 7. Use precise project terminology. Prefer `sub-agent` for delegated coding-agent work; avoid overloaded role names.
-8. Use `PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction. Use `docs/plans/**` for future execution notes that are more detailed than the roadmap but not active work. Keep exploratory work in `docs/IDEAS.md` until it is promoted into the roadmap or active plan.
+8. Use `.agents/PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction. Use `docs/plans/**` for future execution notes that are more detailed than the roadmap but not active work. Keep exploratory work in `docs/IDEAS.md` until it is promoted into the roadmap or active plan.
 9. When active plan work is completed, update or remove the relevant plan item. Update `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` only for behavior or architecture that now exists.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
 11. Match existing project style and conventions in code, tests, docs, and commits.
-12. Keep commits atomic per logical step.
-13. Use [Conventional Commits](https://www.conventionalcommits.org/) style: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
-13. Commit completed work before handing back unless the user explicitly requests no commits.
-14. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
+12. The `leader` keeps commits atomic per logical step.
+13. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
+14. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
+15. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
 
 ## Required workflow for every feature/change
 
@@ -30,14 +44,14 @@ This file is for coding agents working in this repository.
    - `uv run mypy src tests`
 
    Exception: for documentation-only wording changes (for example, skill prompt wording that does not affect code, package metadata, schemas, or generated artifacts), do not spend time running the full gate unless the user asks for it or the edit touches a checked/generated document.
-3. Commit completed work when the task is done, keeping commits atomic per logical step.
+3. The `leader` commits completed work when the task is done, keeping commits atomic per logical step.
 4. When completing a plan phase, provide a user acceptance test when possible, along with the commit hash where that acceptance test applies.
 5. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
 6. Keep docs evergreen and scoped:
    - Agent process belongs in `AGENTS.md`.
    - User-oriented product docs belong in `README.md`.
    - Todo items (e.g. bugs, necessary fixes) belong in `TODO.md`.
-   - Short-term active work belongs in `PLAN.md`.
+   - Short-term active work belongs in `.agents/PLAN.md`.
    - Accepted medium- and long-term direction belongs in `ROADMAP.md`.
    - Future execution notes belong in `docs/plans/**`.
    - Exploratory ideas belong in `docs/IDEAS.md`.
