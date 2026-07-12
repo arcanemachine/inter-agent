@@ -29,6 +29,7 @@ Before delegating work, create a bounded, self-contained task packet that includ
 - Use direct dispatch only for simple single-task work.
 - Use one detailed task packet per executor task for complex, multi-stage, or multi-executor work.
 - List available connected executor sessions by ascending routing name (`executor`, `executor-2`, `executor-3`, and so on).
+- Only sessions with those `executor` routing names are eligible for delegation. Never substitute `worker`-named or other sessions when no eligible executor is available; ask the user instead.
 - Assign each new task to the next previously unused executor.
 - Ensure every task is independently completable without earlier executor context.
 - Send substantive rework for a task back to its original executor. Treat rework as the same task.
