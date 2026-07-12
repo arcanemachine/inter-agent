@@ -15,7 +15,8 @@ Queued delivery is the default. Receiving a message produces a minimal mailbox n
 
 ## Accepted behavior
 
-- Implement Pi first. Apply lessons to Claude Code only through separately accepted follow-up work.
+- Implement this only for Pi. Claude Code already separates message notification from explicit message-body retrieval through its bounded message log and does not need this mailbox feature.
+- Treat the existing Claude Code behavior as the conceptual precedent, not as follow-up implementation scope.
 - Default inbound delivery mode is `queued`; support `immediate` as an alternative.
 - Pi extension configuration supplies the initial delivery mode.
 - Add an autocomplete-aware `/inter-agent` subcommand that changes delivery mode for the current Pi session without rewriting configuration.
