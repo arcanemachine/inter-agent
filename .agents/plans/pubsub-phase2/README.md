@@ -4,7 +4,7 @@ Design reference: `docs/plans/pubsub-channels/00-design-seed.md`
 
 ## Sub-tasks
 
-This packet contains three independently completable sub-tasks. Executor packets for the active parallel work are [Task A](a-publish.md) and [Task B](b-channels.md).
+This packet contains three independently completable sub-tasks. The active executor packet is [Task C](c-agent-session.md). Historical packets [Task A](a-publish.md) and [Task B](b-channels.md) remain for context.
 
 ---
 
