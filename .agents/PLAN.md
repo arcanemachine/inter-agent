@@ -8,11 +8,7 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Agent workflow
-
-Establish the repository-specific leader/executor workflow, relocate the active-plan file to `.agents/PLAN.md`, and update live planning references. The executor-ready packet is `.agents/plans/agent-workflow/task-01-establish-leader-executor-workflow.md`.
-
-Only Task 01 is active. Do not begin pub/sub planning or implementation until this workflow task is completed, reviewed, committed, and removed from the active plan.
+No active work is currently tracked here.
 
 ## Planning workflow
 
