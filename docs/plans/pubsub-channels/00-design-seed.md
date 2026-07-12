@@ -1,108 +1,124 @@
-# Pub/sub channels design seed
+# Pub/sub channels implementation plan
 
-Status: seed; not implemented; not active.
+Status: concrete; not implemented; Phase 1 ready for activation.
 
 ## Purpose
 
-Add protocol-level pub/sub channels so agents can coordinate around named topics without using global broadcast for every multi-recipient message.
+Add protocol-level pub/sub channels so authenticated sessions can coordinate around named topics without using global broadcast for every multi-recipient message. Direct send, broadcast, and custom routing remain unchanged.
 
-Channels should be implemented in the core protocol and adapters before new host integrations are built, so OpenCode and Codex can target the settled behavior from the start.
+Channel behavior must settle in the core protocol before new host integrations are implemented. Existing Pi and Claude Code integrations receive channel UX in explicit follow-up phases.
 
-## Current baseline
+## Accepted protocol design
 
-Implemented messaging operations are:
+### Operations
 
-- `send` — direct message to one target agent name;
-- `broadcast` — message to all other connected agent sessions;
-- `custom` — pass-through extension envelope;
-- `list` — connected agent sessions.
+- `subscribe` — agent session requests membership with `channel`.
+- `subscribe_ok` — confirms membership with `channel`.
+- `unsubscribe` — agent session removes membership with `channel`.
+- `unsubscribe_ok` — confirms removal with `channel`.
+- `publish` — agent or control session publishes `text` to `channel`; optional `from_name` follows existing send/broadcast behavior.
+- `channels` — control-only diagnostic request.
+- `channels_ok` — returns active channels and subscribers.
 
-The server already tracks authenticated connections, session IDs, names, roles, labels, and capabilities. Routing is in `src/inter_agent/core/server.py`; conformance tests live under `tests/conformance/`; protocol schemas/examples live under `spec/`.
+A published channel message is delivered as `msg` with `channel` and without `to`. The publisher is excluded, including when it is subscribed. Publish has no success acknowledgment, matching broadcast behavior.
 
-## Candidate behavior
+Subscriptions are agent-only. Control sessions may publish and query channels but do not subscribe or receive channel deliveries. There are no automatic subscriptions.
 
-Initial channel support should be minimal and explicit:
+### Diagnostic response
 
-1. Agent sessions subscribe to named channels.
-2. Agent sessions unsubscribe from named channels.
-3. Agent or control sessions publish a message to a channel.
-4. Published channel messages are delivered to subscribed agent sessions, excluding the sender by default unless an explicit echo behavior is accepted.
-5. Control clients can list channels and/or channel subscribers for diagnostics.
-6. Direct send and broadcast semantics remain unchanged.
+`channels_ok.channels` is sorted by channel name. Each entry has `name` and `subscribers`; subscriber routing names are sorted.
 
-## Candidate protocol operations
+```json
+{
+  "op": "channels_ok",
+  "channels": [
+    {
+      "name": "build",
+      "subscribers": ["agent-a", "agent-b"]
+    }
+  ]
+}
+```
 
-Exact names and payload shapes must be finalized in a concrete design pass. Likely operations:
+### Naming, lifecycle, and limits
 
-- `subscribe` with `channel`;
-- `subscribe_ok` with `channel`;
-- `unsubscribe` with `channel`;
-- `unsubscribe_ok` with `channel`;
-- `publish` with `channel`, `text`, and optional `from_name`;
-- delivered `msg` includes `channel` and omits `to`;
-- `channels` / `channels_ok` or `channel_list` / `channel_list_ok` for diagnostics.
+- Channel names match `[a-z0-9][a-z0-9-]{0,39}`.
+- The default channel-name limit is 40 UTF-8 bytes.
+- The default maximum is 32 subscriptions per agent session.
+- The default maximum is 256 active channels per server.
+- Publish text uses the broadcast UTF-8 byte limit.
+- Empty channels are removed immediately.
+- Subscribing to an existing membership is idempotent and returns `subscribe_ok`.
+- Unsubscribing from an absent membership returns `NOT_SUBSCRIBED`.
+- Publishing to a nonexistent or empty channel returns `UNKNOWN_CHANNEL`.
+- Disconnect and kick cleanup remove all memberships held by the session.
 
-Prefer names that match schema filenames and existing protocol style.
+Configuration uses `INTER_AGENT_CHANNEL_NAME_MAX`, `INTER_AGENT_SUBSCRIPTIONS_MAX`, and `INTER_AGENT_CHANNELS_MAX` with the defaults above.
 
-## Naming and limits
+### Errors
 
-Design pass must choose validation rules and limits before implementation:
+Add these canonical error codes:
 
-- channel name syntax;
-- maximum channel name length;
-- maximum subscriptions per connection;
-- maximum channels per server;
-- publish text limit, likely aligned with broadcast limit;
-- whether empty channels are retained or removed immediately.
+- `BAD_CHANNEL` — channel is missing, non-string, empty, syntactically invalid, or over the configured name limit.
+- `CHANNEL_LIMIT_REACHED` — subscribing would exceed either the per-session subscription limit or server active-channel limit.
+- `NOT_SUBSCRIBED` — the session requested unsubscribe without an active membership.
+- `UNKNOWN_CHANNEL` — publish names no active channel.
 
-Recommended starting point: lowercase routing-like names with `/` or `.` only if there is a clear use case. Keep validation simple for conformance tests.
+Existing errors remain applicable: `BAD_ROLE` for role-restricted operations, `BAD_TEXT` for non-string publish text, and `TEXT_TOO_LARGE` for publish text over the broadcast limit.
 
-## Security and policy
+### Capability
 
-Initial scope should use the existing authenticated bus trust model:
+`welcome.capabilities.channels` changes from `false` to `true` when the core implementation lands. `core.version` remains `0.1` unless implementation review identifies an accepted compatibility reason to change it.
 
-- no per-channel ACLs;
-- no private channel claims beyond shared-secret authentication;
+### Security model
+
+Initial channels use the existing authenticated, localhost, single-user trust model:
+
+- no channel ACLs or ownership claims;
 - no durable history;
-- no cross-server federation;
-- no model-visible privilege semantics.
+- no federation;
+- no model-visible privilege semantics;
+- inbound channel messages remain untrusted collaboration context.
 
-Inbound channel messages remain untrusted collaboration context and do not override host instructions or policy.
+## Phases
 
-## Adapter UX questions
+### Phase 1 — core protocol
 
-A concrete design pass should decide Pi and Claude Code UX together:
+Implement schemas, examples, AsyncAPI references, canonical errors, limits, in-memory membership/routing, cleanup, capability advertisement, and black-box conformance coverage. Update present-behavior architecture and security documentation when the implementation exists.
 
-- slash commands for subscribe/unsubscribe/publish/list;
-- LLM-callable tools for publish and channel list;
-- notification format for channel messages;
-- whether connect should auto-subscribe to any default channel;
-- whether broadcast should be documented as distinct from channel publish.
+Phase 1 does not add command helpers, adapter commands, extension tools, or automatic subscriptions.
 
-Recommended default: no automatic channel subscriptions in the first slice.
+### Phase 2 — core command APIs
 
-## Required concrete planning pass
+Add typed core APIs and command surfaces for publish and channel diagnostics. Define a long-running client control surface that lets a connected agent subscribe and unsubscribe without creating a separate identity. Cover parsing, protocol errors, TLS/config propagation, and live operation.
 
-Before coding, assign a bounded worker task to inspect these files and produce a concrete plan:
+Activate this phase only after reviewing the Phase 1 client implications and creating a bounded task packet.
 
-- `spec/asyncapi.yaml`
-- `spec/schemas/*.json`
-- `spec/examples/*.json`
-- `spec/error-codes.md`
-- `src/inter_agent/core/server.py`
-- `src/inter_agent/core/send.py`
-- `src/inter_agent/core/list.py`
-- `src/inter_agent/adapters/pi/`
-- `src/inter_agent/adapters/claude/`
-- `tests/conformance/`
-- relevant adapter CLI/static tests
+### Phase 3 — Python host adapters
 
-The output should specify exact schema files, error codes if any, implementation functions, tests, docs, and acceptance criteria.
+Expose consistent subscribe, unsubscribe, publish, and channel-list behavior through the Pi and Claude Python adapters. Preserve each adapter's connection lifecycle, output conventions, duplicate suppression, and message continuation behavior. Format inbound channel messages distinctly from direct and broadcast messages.
 
-## Acceptance criteria for the future implementation
+Activate this phase only after Phase 2 and a focused adapter inventory.
 
-- Protocol schemas/examples validate.
-- Conformance tests cover subscribe, unsubscribe, publish, delivery, sender exclusion or accepted echo behavior, unknown/invalid channel errors, and cleanup on disconnect.
-- Core command helpers and Pi/Claude adapters expose channel operations consistently.
-- README, ARCHITECTURE, SECURITY, and integration docs describe implemented behavior only.
-- `./run-checks.sh` passes.
+### Phase 4 — installed extension UX
+
+Add user-facing channel functionality to both existing integrations:
+
+- Pi extension commands and LLM-callable tools;
+- Claude Code plugin commands/skills or tools supported by its integration surface;
+- channel-aware notifications and documentation for both;
+- static packaging tests and live acceptance coverage.
+
+No integration auto-subscribes to a default channel. This phase is required follow-up work and must not be dropped when core support is completed.
+
+Activate this phase only after Phase 3 and a focused inventory of `integrations/pi/` and `integrations/claude-code/`.
+
+## Whole-feature acceptance criteria
+
+- Protocol schemas and examples validate.
+- Conformance tests cover subscribe, idempotent subscribe, unsubscribe, absent-membership errors, publish, sender exclusion, invalid/unknown channels, limits, diagnostics, and disconnect/kick cleanup.
+- Direct send, broadcast, and custom semantics remain unchanged.
+- Core command APIs and Pi/Claude adapters expose channel operations consistently.
+- Pi and Claude Code extension UX exposes the accepted channel operations without automatic subscriptions.
+- README, ARCHITECTURE, SECURITY, integration docs, and roadmap describe only behavior that exists at each phase.
+- `./run-checks.sh` passes for every implementation phase.
