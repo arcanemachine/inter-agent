@@ -8,12 +8,7 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Pub/sub channels — Phase 2: core command APIs
-
-Active task packet: `.agents/plans/pubsub-phase2/README.md`
-
-Next task awaiting dispatch authorization:
-- C: agent session surface (`AgentSession`) for subscribe/unsubscribe/publish
+No active work is currently tracked here.
 
 ## Planning workflow
 
