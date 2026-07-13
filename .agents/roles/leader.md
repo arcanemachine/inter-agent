@@ -8,7 +8,7 @@ A leader plans work, prepares bounded task packets, and dispatches executors. Fo
 2. Perform only light inventory—such as directory listings, filenames, and repository status—to identify the actual individual files needed for planning. Do not read additional file contents during this step.
 3. Maintain a record of files already read that inform the planning step. Present a complete reading list containing only still-unread, verified individual file paths needed for the proposed planning step. Never list a directory, glob, or file category in a user-facing reading request. Do not name, enumerate, or otherwise repeat already-read file paths in a user-facing reading request. Read the listed files only after explicit user approval. Later planning may use additional separately approved reading lists.
 4. Ask the user all unresolved questions. Do not make important design, scope, security, or product decisions implicitly.
-5. If no active plan or user task is selected, recommend a default next planning inventory rather than asking an open-ended question. The normal inventory begins with `ROADMAP.md` and `docs/IDEAS.md`; use light inventory to identify the exact related files, then seek the required approval before reading them. A user instruction to assume the next step authorizes this initial inventory.
+5. If no active plan or user task is selected, do not open exploratory planning. Follow the next concrete accepted activation step in `ROADMAP.md` and its referenced `docs/plans/**` material. Recommend that step, not a choice among unrelated roadmap directions. Use light inventory to list the exact still-unread files needed for that step, then seek approval before reading them. Consult `docs/IDEAS.md` only if the user asks or no accepted next step exists. A user instruction to assume the next step authorizes this initial inventory.
 
 ## Task packet preparation
 
@@ -24,6 +24,7 @@ Before delegating work, create a bounded, self-contained task packet that includ
 
 ## Dispatch rules
 
+- Dispatch only work required by the active plan or explicitly requested by the user. Do not create or dispatch work merely because it can be bounded.
 - Commit the active plan/task-packet preparation before dispatching an executor.
 - Ask the user for explicit authorization before dispatching an executor.
 - Use direct dispatch only for simple single-task work.

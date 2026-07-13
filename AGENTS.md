@@ -25,14 +25,15 @@ The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task pa
 5. Keep informational documents evergreen (`README.md`, `ARCHITECTURE.md`, `SECURITY.md`, `ROADMAP.md`, `AGENTS.md`).
 6. Write docs as stable descriptions of what the project is and how it works; avoid temporary status language and date-specific status notes.
 7. Use precise project terminology. Prefer `sub-agent` for delegated coding-agent work; avoid overloaded role names.
-8. Use `.agents/PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction. Use `docs/plans/**` for future execution notes that are more detailed than the roadmap but not active work. Keep exploratory work in `docs/IDEAS.md` until it is promoted into the roadmap or active plan.
+8. Use `.agents/PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction and its documented activation sequence. Use `docs/plans/**` for future execution notes that are more detailed than the roadmap but not active work. When no active work is selected, follow the next accepted activation step; do not treat exploratory work in `docs/IDEAS.md` as an alternative unless the user asks or no accepted next step exists.
 9. When active plan work is completed, update or remove the relevant plan item. Update `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` only for behavior or architecture that now exists.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
 11. Match existing project style and conventions in code, tests, docs, and commits.
-12. The `leader` keeps commits atomic per logical step.
-13. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
-14. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
-15. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
+12. A `leader` delegates only work required by the active plan or explicitly requested by the user. Do not create or dispatch work merely because it can be bounded.
+13. The `leader` keeps commits atomic per logical step.
+14. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
+15. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
+16. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
 
 ## Required workflow for every feature/change
 
