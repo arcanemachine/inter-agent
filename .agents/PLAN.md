@@ -8,7 +8,8 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-No active work is currently tracked here.
+- Correct leader plan-selection guidance so an inactive plan follows the accepted work sequence instead of prompting arbitrary roadmap choices.
+  - Task packet: `.agents/plans/leader-plan-selection-guidance/01-correct-leader-plan-selection.md`
 
 ## Planning workflow
 
