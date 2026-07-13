@@ -1,6 +1,6 @@
 # Pub/sub channels implementation plan
 
-Status: Phase 1 implemented; Phases 2–4 are concrete, sequenced follow-up work.
+Status: Phases 1–2 implemented; Phases 3–4 are concrete, sequenced follow-up work.
 
 ## Purpose
 
@@ -86,13 +86,11 @@ Initial channels use the existing authenticated, localhost, single-user trust mo
 
 Implemented schemas, examples, AsyncAPI references, canonical errors, limits, in-memory membership/routing, cleanup, capability advertisement, black-box conformance coverage, and present-behavior documentation.
 
-Phase 1 does not add command helpers, adapter commands, extension tools, or automatic subscriptions.
+Phase 1 itself did not add command helpers, adapter commands, extension tools, or automatic subscriptions.
 
-### Phase 2 — core command APIs
+### Phase 2 — core command APIs (implemented)
 
-Add typed core APIs and command surfaces for publish and channel diagnostics. Define a long-running client control surface that lets a connected agent subscribe and unsubscribe without creating a separate identity. Cover parsing, protocol errors, TLS/config propagation, and live operation.
-
-Activate this phase only after reviewing the Phase 1 client implications and creating a bounded task packet.
+Phase 2 adds typed core APIs and command surfaces for publish and channel diagnostics. A long-running `AgentSession` control surface lets a connected agent subscribe, unsubscribe, and publish without creating a separate identity. The implementation covers parsing, protocol errors, TLS/config propagation, and live operation.
 
 ### Phase 3 — Python host adapters
 

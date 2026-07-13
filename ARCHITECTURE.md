@@ -12,7 +12,7 @@
    - Health and lifecycle (`ping` / `pong`, `bye`, authenticated `shutdown`)
    - Session management (control-only `kick` to force-disconnect a registered session by name or session_id)
    - Introspection (`list` and `channels` capabilities)
-   - Importable command APIs for server start, connect, send, broadcast, list, and status checks.
+   - Importable command APIs for server start, connect, direct send, broadcast, publish, list, channel diagnostics, and status checks.
 
 2. **Adapters (`src/inter_agent/adapters/`) and host integrations (`integrations/`)**
    - Host-specific command UX and integration.
@@ -65,9 +65,11 @@ Python-backed adapters should start with these typed core APIs. Direct clients i
 | Need | Core surface |
 | --- | --- |
 | Resolve endpoint and shared secret | `inter_agent.core.shared.resolve_endpoint`, `inter_agent.core.config.EndpointResolution`, `inter_agent.core.shared.resolve_shared_secret` |
-| Connect a long-running agent session | `inter_agent.core.client.iter_client_frames`, `inter_agent.core.client.run_client` |
+| Connect a long-running agent session | `inter_agent.core.client.iter_client_frames`, `run_client`, `AgentSession` |
 | Send direct, broadcast, or custom messages | `inter_agent.core.send.send_direct_message`, `broadcast_message`, `send_custom_message`, `SendResult` |
+| Publish to a channel | `inter_agent.core.publish.publish_to_channel` |
 | List connected agent sessions | `inter_agent.core.list.list_sessions`, `ListResult`, `SessionInfo` |
+| Inspect active channels | `inter_agent.core.channels.list_channels`, `ChannelsResult`, `ChannelInfo` |
 | Check server status and static command support | `inter_agent.core.status.check_resolved_server_status`, `command_status`, `ServerStatus` |
 | Stop or administer the server | `inter_agent.core.shutdown.shutdown_server`, `inter_agent.core.kick.kick_session` |
 

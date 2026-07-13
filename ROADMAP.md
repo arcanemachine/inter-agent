@@ -42,11 +42,11 @@ Completed execution notes are archived under `docs/archive/plans/` for reference
 
 ### Pub/sub channels
 
-Status: Phase 1 implemented; Phases 2–4 are sequenced follow-up work.
+Status: Phases 1–2 implemented; Phases 3–4 are sequenced follow-up work.
 
 Phase 1 (implemented) covers the core protocol operations (`subscribe`, `unsubscribe`, `publish`, `channels`), protocol schemas and examples, canonical errors and limits, conformance tests, capability advertisement, and present-behavior documentation. Direct messages and broadcast remain unchanged.
 
-Phase 2 (not active) will add core command APIs and CLI entry points for publish and channel-list diagnostics.
+Phase 2 (implemented) adds typed core APIs and CLI entry points for publishing and channel diagnostics, plus a persistent `AgentSession` control surface that reuses an agent identity for subscribe, unsubscribe, and publish operations.
 
 Phase 3 (not active) will add Python adapter commands so the Pi and Claude Code Python helpers can expose channel operations.
 
@@ -137,6 +137,6 @@ Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap
 - stable runtime install sources;
 - Pi direct WebSocket client refactor informed by the prospective OpenCode client;
 - Codex App Server sidecar support after current release/PyPI package work and OpenCode work;
-- pub/sub channel implementation after the design seed is converted to a concrete plan;
+- pub/sub channel adapter and installed-extension follow-on work;
 - policy middleware examples;
 - remote transport mode with a separate threat model.
