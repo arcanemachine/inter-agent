@@ -19,6 +19,21 @@ def test_pi_extension_auto_starts_server_with_bounded_idle_timeout() -> None:
     assert "const ready = await ensureServerAvailable(currentScripts());" in content
 
 
+def test_pi_extension_listener_uses_adapter_connect_entry_point() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # The listener must spawn the Pi adapter entry point (inter-agent-pi) with
+    # its `connect` subcommand, which hosts the Unix control bridge used by
+    # subscribe/unsubscribe. Spawning the core inter-agent-connect listener
+    # instead leaves no adapter control socket, so subscription commands fail
+    # with "not connected; start the listener first".
+    listener_body = content.split("function startListener", 1)[1]
+    listener_body = listener_body.split("function stopListener", 1)[0]
+    assert "spawn(scripts.pi, args" in listener_body
+    assert 'const args = ["connect", name];' in listener_body
+    assert "scripts.connect" not in listener_body
+
+
 def test_pi_extension_disconnect_does_not_shutdown_server() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
@@ -38,7 +53,10 @@ def test_pi_extension_notifies_when_server_connection_closes() -> None:
 def test_pi_extension_send_command_gates_on_connection() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
-    assert '"--name"' not in content
+    # send routes the sender via --from, never the subscribe-style --name flag
+    send_body = content.split("async function handleSend", 1)[1]
+    send_body = send_body.split("async function handle", 1)[0]
+    assert '"--name"' not in send_body
     assert 'pi.registerCommand("inter-agent"' in content
     assert "async function handleSend" in content
     assert "!listenerReady || !currentConnection" in content
@@ -120,6 +138,70 @@ def test_pi_extension_supports_user_driven_rename() -> None:
     assert "Not connected to the inter-agent bus" in content
     assert "parseRenameArgs" in content
     assert "startListener(pi, ctx, config, parsed.name, label" in content
+
+
+def test_pi_extension_registers_user_subscription_commands() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # Both subcommands are exposed via autocomplete and grouped usage.
+    assert 'value: "subscribe"' in content
+    assert 'value: "unsubscribe"' in content
+    assert (
+        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "subscribe|unsubscribe|list|status> [args]"
+    ) in content
+
+    # Both subcommands are dispatched from the grouped command handler.
+    assert 'case "subscribe":' in content
+    assert 'case "unsubscribe":' in content
+    assert "async function handleSubscribe" in content
+    assert "async function handleUnsubscribe" in content
+
+    # Exactly one channel argument is required; usage is shown otherwise.
+    assert "usage: /inter-agent subscribe <channel>" in content
+    assert "usage: /inter-agent unsubscribe <channel>" in content
+
+    # Both commands gate on the current Pi listener being ready and connected,
+    # using the same connection guidance as send/broadcast.
+    assert '"[inter-agent] subscribe failed"' in content
+    assert '"[inter-agent] unsubscribe failed"' in content
+    assert "Not connected to the inter-agent bus. Use /inter-agent connect first." in content
+
+    # The current listener routing name is passed internally; the user does not
+    # provide or manage the listener name.
+    assert '"subscribe",\n      channel,\n      "--name",\n      name,' in content
+    assert '"unsubscribe",\n      channel,\n      "--name",\n      name,' in content
+
+    # Success notifications identify the affected channel.
+    assert 'notify("[inter-agent] subscribed", channel)' in content
+    assert 'notify("[inter-agent] unsubscribed", channel)' in content
+
+    # No model-callable subscription tools are registered.
+    assert 'name: "inter_agent_subscribe"' not in content
+    assert 'name: "inter_agent_unsubscribe"' not in content
+
+
+def test_pi_extension_distinguishes_inbound_channel_delivery() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # A channel delivery is identified by its `channel` field and rendered with
+    # an `on <channel>` label, distinct from direct (`to <name>`) and broadcast
+    # notifications.
+    assert "msg.channel" in content
+    assert "`on ${msg.channel}`" in content
+
+    # Channel messages get distinct reply guidance that does not reuse the
+    # direct or broadcast instructions, while preserving untrusted-peer and
+    # neutral-receipt conventions.
+    assert "Peer channel message ${toInfo}" in content
+    assert "there is no publish tool" in content
+    assert "do not summarize or discuss the peer message in chat" in content
+    assert "respond only with a neutral receipt such as" in content
+    assert '"Inter-agent message received; no reply needed."' in content
+
+    # Existing direct/broadcast guidance is preserved unchanged.
+    assert "Peer message. Reply to" in content
+    assert "Peer broadcast. Reply directly to" in content
 
 
 def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:

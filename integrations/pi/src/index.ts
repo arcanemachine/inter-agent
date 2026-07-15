@@ -328,10 +328,15 @@ function sendToContext(
 ) {
   const neutralReceipt =
     'If no peer reply or user-facing action is needed, do not summarize or discuss the peer message in chat. To avoid an empty assistant turn, respond only with a neutral receipt such as: "Inter-agent message received; no reply needed."';
-  const replyInstruction =
-    toInfo === "broadcast"
-      ? `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination; do not broadcast unless the user asks. ${neutralReceipt}`
-      : `Peer message. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination. ${neutralReceipt}`;
+  const isChannel = toInfo.startsWith("on ");
+  let replyInstruction: string;
+  if (toInfo === "broadcast") {
+    replyInstruction = `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination; do not broadcast unless the user asks. ${neutralReceipt}`;
+  } else if (isChannel) {
+    replyInstruction = `Peer channel message ${toInfo}. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination; there is no publish tool, so reply directly rather than reposting to the channel. ${neutralReceipt}`;
+  } else {
+    replyInstruction = `Peer message. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination. ${neutralReceipt}`;
+  }
   pi.sendMessage(
     {
       customType: "inter-agent-message",
@@ -730,10 +735,10 @@ function startListener(
     notify("[inter-agent] listener error", scripts.unavailableMessage, "error");
     return;
   }
-  const args = [name];
+  const args = ["connect", name];
   if (label) args.push("--label", label);
 
-  const proc = spawn(scripts.connect, args, {
+  const proc = spawn(scripts.pi, args, {
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
     env: interAgentEnv(config),
@@ -788,7 +793,11 @@ function startListener(
         if (msg.op === "msg") {
           const fromRaw = msg.from_name || msg.from || "unknown";
           const textRaw = msg.text || "";
-          const toInfo = msg.to ? `to ${msg.to}` : "broadcast";
+          const toInfo = msg.channel
+            ? `on ${msg.channel}`
+            : msg.to
+              ? `to ${msg.to}`
+              : "broadcast";
           const parsed = parseIncoming(textRaw);
           const from = parsed.from || fromRaw;
           const text = parsed.text;
@@ -972,6 +981,16 @@ export default function (pi: ExtensionAPI) {
       description:
         "Broadcast only when messaging everyone is explicitly needed",
     },
+    {
+      value: "subscribe",
+      label: "subscribe",
+      description: "Subscribe to a channel",
+    },
+    {
+      value: "unsubscribe",
+      label: "unsubscribe",
+      description: "Unsubscribe from a channel",
+    },
     { value: "list", label: "list", description: "List connected sessions" },
     {
       value: "status",
@@ -1108,6 +1127,80 @@ export default function (pi: ExtensionAPI) {
     showOutgoingInContext(pi, name, text, "broadcast");
   }
 
+  async function handleSubscribe(args: string, _ctx: ExtensionContext) {
+    const channel = args.trim();
+    const parts = channel.split(/\s+/).filter(Boolean);
+    if (parts.length !== 1) {
+      notify(
+        "[inter-agent] subscribe failed",
+        "usage: /inter-agent subscribe <channel>",
+        "error",
+      );
+      return;
+    }
+    if (!listenerReady || !currentConnection) {
+      notify(
+        "[inter-agent] subscribe failed",
+        "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        "error",
+      );
+      return;
+    }
+    const name = currentConnection.name;
+    const result = await execPiScript(currentScripts(), [
+      "subscribe",
+      channel,
+      "--name",
+      name,
+    ]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] subscribe failed",
+        scriptFailureMessage(result, "subscribe"),
+        "error",
+      );
+      return;
+    }
+    notify("[inter-agent] subscribed", channel);
+  }
+
+  async function handleUnsubscribe(args: string, _ctx: ExtensionContext) {
+    const channel = args.trim();
+    const parts = channel.split(/\s+/).filter(Boolean);
+    if (parts.length !== 1) {
+      notify(
+        "[inter-agent] unsubscribe failed",
+        "usage: /inter-agent unsubscribe <channel>",
+        "error",
+      );
+      return;
+    }
+    if (!listenerReady || !currentConnection) {
+      notify(
+        "[inter-agent] unsubscribe failed",
+        "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        "error",
+      );
+      return;
+    }
+    const name = currentConnection.name;
+    const result = await execPiScript(currentScripts(), [
+      "unsubscribe",
+      channel,
+      "--name",
+      name,
+    ]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] unsubscribe failed",
+        scriptFailureMessage(result, "unsubscribe"),
+        "error",
+      );
+      return;
+    }
+    notify("[inter-agent] unsubscribed", channel);
+  }
+
   async function handleList(_args: string, _ctx: ExtensionContext) {
     const result = await execPiScript(currentScripts(), ["list", "--json"]);
     if (result.code !== 0) {
@@ -1165,7 +1258,7 @@ export default function (pi: ExtensionAPI) {
   function showInterAgentUsage() {
     notify(
       "[inter-agent] usage",
-      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|list|status> [args]",
+      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|subscribe|unsubscribe|list|status> [args]",
       "warning",
     );
   }
@@ -1201,6 +1294,12 @@ export default function (pi: ExtensionAPI) {
           break;
         case "broadcast":
           await handleBroadcast(rest, ctx);
+          break;
+        case "subscribe":
+          await handleSubscribe(rest, ctx);
+          break;
+        case "unsubscribe":
+          await handleUnsubscribe(rest, ctx);
           break;
         case "list":
           await handleList(rest, ctx);
