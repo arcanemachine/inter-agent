@@ -92,24 +92,22 @@ Phase 1 itself did not add command helpers, adapter commands, extension tools, o
 
 Phase 2 adds typed core APIs and command surfaces for publish and channel diagnostics. A long-running `AgentSession` control surface lets a connected agent subscribe, unsubscribe, and publish without creating a separate identity. The implementation covers parsing, protocol errors, TLS/config propagation, and live operation.
 
-### Phase 3 — Python host adapters
+### Phase 3 — Python host adapters (implemented)
 
-Expose consistent subscribe, unsubscribe, publish, and channel-list behavior through the Pi and Claude Python adapters. Preserve each adapter's connection lifecycle, output conventions, duplicate suppression, and message continuation behavior. Format inbound channel messages distinctly from direct and broadcast messages.
+Phase 3 exposes consistent subscribe, unsubscribe, publish, and channel-list behavior through the Pi and Claude Python adapters. It preserves each adapter's connection lifecycle and output conventions, retains desired memberships across transient reconnects, and formats inbound channel messages distinctly from direct and broadcast messages. A private local listener-control socket lets short-lived membership commands reuse the existing agent session.
 
-Activate this phase only after Phase 2 and a focused adapter inventory.
+### Phase 4 — installed extension UX (partially implemented)
 
-### Phase 4 — installed extension UX
+The implemented Pi slice provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. Subscription control is deliberately not exposed as an LLM-callable tool, memberships are not persisted across listener restart or Pi reload, and nothing subscribes automatically.
 
-Add user-facing channel functionality to both existing integrations:
+Remaining prospective Phase 4 work includes:
 
-- Pi extension commands and LLM-callable tools;
 - Claude Code plugin commands/skills or tools supported by its integration surface;
-- channel-aware notifications and documentation for both;
-- static packaging tests and live acceptance coverage.
+- channel-aware installed-plugin behavior and documentation for Claude Code;
+- any separately accepted Pi publish or channel-list UX;
+- static packaging tests and live acceptance coverage for each added slice.
 
-No integration auto-subscribes to a default channel. This phase is required follow-up work and must not be dropped when core support is completed.
-
-Activate this phase only after Phase 3 and a focused inventory of `integrations/pi/` and `integrations/claude-code/`.
+Next activation requires a focused inventory of `integrations/claude-code/` and a bounded installed-plugin UX slice.
 
 ## Whole-feature acceptance criteria
 
@@ -117,6 +115,6 @@ Activate this phase only after Phase 3 and a focused inventory of `integrations/
 - Conformance tests cover subscribe, idempotent subscribe, unsubscribe, absent-membership errors, publish, sender exclusion, invalid/unknown channels, limits, diagnostics, and disconnect/kick cleanup.
 - Direct send, broadcast, and custom semantics remain unchanged.
 - Core command APIs and Pi/Claude adapters expose channel operations consistently.
-- Pi and Claude Code extension UX exposes the accepted channel operations without automatic subscriptions.
+- Pi user subscription UX and any later accepted Claude Code plugin channel UX expose only their implemented operations without automatic subscriptions.
 - README, ARCHITECTURE, SECURITY, integration docs, and roadmap describe only behavior that exists at each phase.
 - `./run-checks.sh` passes for every implementation phase.

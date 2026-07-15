@@ -42,15 +42,17 @@ Completed execution notes are archived under `docs/archive/plans/` for reference
 
 ### Pub/sub channels
 
-Status: Phases 1–2 implemented; Phases 3–4 are sequenced follow-up work.
+Status: Phases 1–3 implemented; Phase 4 partially implemented and not active.
 
 Phase 1 (implemented) covers the core protocol operations (`subscribe`, `unsubscribe`, `publish`, `channels`), protocol schemas and examples, canonical errors and limits, conformance tests, capability advertisement, and present-behavior documentation. Direct messages and broadcast remain unchanged.
 
 Phase 2 (implemented) adds typed core APIs and CLI entry points for publishing and channel diagnostics, plus a persistent `AgentSession` control surface that reuses an agent identity for subscribe, unsubscribe, and publish operations.
 
-Phase 3 (not active) will add Python adapter commands so the Pi and Claude Code Python helpers can expose channel operations.
+Phase 3 (implemented) adds subscribe, unsubscribe, publish, channel diagnostics, reconnect-aware membership, and distinct inbound channel formatting to the Pi and Claude Code Python adapters. A private local listener-control socket lets short-lived membership commands operate on the existing agent identity.
 
-Phase 4 (not active) will add Pi extension and Claude Code plugin commands, tools, notifications, and packaging UX for channels.
+Phase 4 is partially implemented. Pi now provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. Subscription control is intentionally not LLM-callable, and there are no automatic subscriptions. The installed Claude Code plugin channel UX and any separately accepted Pi publish/channel-list UX remain prospective.
+
+Next activation step: inventory the installed Claude Code integration and copy one bounded Phase 4 plugin UX slice into `.agents/PLAN.md`.
 
 Reference material:
 
@@ -137,6 +139,6 @@ Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap
 - stable runtime install sources;
 - Pi direct WebSocket client refactor informed by the prospective OpenCode client;
 - Codex App Server sidecar support after current release/PyPI package work and OpenCode work;
-- pub/sub channel adapter and installed-extension follow-on work;
+- remaining installed-integration pub/sub channel UX;
 - policy middleware examples;
 - remote transport mode with a separate threat model.

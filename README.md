@@ -88,11 +88,16 @@ Pi and Claude Code expose the same basic slash commands:
 /inter-agent rename my-agent-2
 /inter-agent broadcast "build is green for everyone"
 /inter-agent disconnect
-
-Channels are available at the core protocol level. Use `./inter-agent publish` to send to a channel
-and `./inter-agent channels` to inspect channel subscribers. Adapters may expose channel slash
-commands in a future update.
 ```
+
+Pi also provides user-controlled channel membership:
+
+```text
+/inter-agent subscribe updates
+/inter-agent unsubscribe updates
+```
+
+Nothing is subscribed automatically, and Pi does not expose subscribe or unsubscribe as LLM-callable tools. The Python Pi and Claude adapters also provide `subscribe`, `unsubscribe`, `publish`, and `channels` commands; the installed Claude Code plugin does not yet expose channel commands.
 
 Use direct `send` for normal coordination. Use `broadcast` only when all connected sessions need the message.
 

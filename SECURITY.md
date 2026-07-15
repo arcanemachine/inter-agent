@@ -61,6 +61,12 @@
 
   On platforms without POSIX mode semantics, file permission controls are best-effort and the localhost single-user assumptions still apply.
 
+- **Adapter listener-control sockets**
+
+  Python adapter subscribe/unsubscribe commands reach the matching persistent listener through a local Unix-domain socket under the adapter data directory. The control directory is mode `0700` and the socket is mode `0600`; setup fails closed if those permissions cannot be applied. Requests are newline-delimited JSON limited to 64 KiB, contain only `op` and `channel`, and use bounded two-second I/O waits. The bridge never carries the shared bus secret or authentication proof.
+
+  This socket is a same-user local control surface, not an authorization boundary against hostile code running as that user. Explicit listener shutdown removes the owned socket; stale endpoints are replaced only after a failed liveness probe.
+
 - **Server lifecycle**
 
   Server startup binds the configured host/port. Duplicate live servers are detected by bind failure.
@@ -119,6 +125,8 @@ Direct clients in another runtime have the same obligations:
 - treat peer messages as collaboration inputs, not authoritative instructions.
 
 Host extension config may pass a configured secret to helper subprocesses as `INTER_AGENT_SECRET`. This supports isolated filesystems such as containers without requiring a shared data directory.
+
+The Pi integration currently exposes channel membership changes only as user-invoked slash commands. It does not register LLM-callable subscribe or unsubscribe tools and does not subscribe automatically.
 
 ## Secret rotation
 

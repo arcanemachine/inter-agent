@@ -19,8 +19,9 @@
    - Python-backed adapters call importable core command APIs rather than spawning core scripts by file path.
    - Non-Python host-native integrations may implement a small direct protocol client when the host runtime makes that the safer package boundary; those clients must mirror the documented protocol, security checks, and shared state resolution.
    - May expose only a subset of core-supported operations.
-   - Pi adapter (`pi/`) provides TypeScript extension integration through Python helper entry points.
-   - Claude Code adapter (`claude/`) provides Monitor-backed listener and CLI commands, and suppresses identical repeated sends within a short window so agent-loop re-fires do not duplicate deliveries.
+   - A private adapter-local Unix-domain control bridge lets short-lived subscribe/unsubscribe commands operate on the matching persistent listener identity without opening another agent session.
+   - Pi adapter (`pi/`) provides channel-capable Python commands and TypeScript extension integration through Python helper entry points. The extension exposes subscribe/unsubscribe as user commands, not LLM tools.
+   - Claude Code adapter (`claude/`) provides Monitor-backed channel-capable listener and CLI commands, distinct channel notifications, and short-window duplicate suppression for sends and publishes.
    - Integration assets for each host live under `integrations/<host>/`.
 
 3. **Spec (`spec/`)**
@@ -75,6 +76,12 @@ Python-backed adapters should start with these typed core APIs. Direct clients i
 
 Runtime source is not bus auth/state: adapters may resolve helper binaries through host config, managed environments, or `PATH`, while endpoint and secret resolution remain controlled by `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_SECRET`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, the inter-agent config file, and built-in defaults.
 
+### Persistent listener channel control
+
+Agent-only subscribe/unsubscribe operations must reuse the connected listener identity. The Python adapters therefore bind a private Unix-domain socket under their adapter data directory after the agent session is ready. Short-lived adapter commands send only an operation and channel name through this local bridge; the listener performs the operation through `AgentSession`. The bridge never carries the shared bus secret.
+
+The desired subscription set lives only in listener memory. It is reapplied before readiness is reported after a transient WebSocket reconnect, but it is cleared by explicit listener shutdown or process restart. There are no automatic subscriptions.
+
 ## Messaging model
 
 - Session identity: active `session_id` values are unique. A duplicate active `session_id` is rejected; the ID may be reused after the previous connection closes.
@@ -91,7 +98,7 @@ Runtime source is not bus auth/state: adapters may resolve helper binaries throu
 
 - The server can be started manually (`uv run inter-agent-server`) or auto-started by adapters when a client connects and the server is not running.
 - Manual starts run until explicit shutdown by default. Passing `--idle-timeout <seconds>` opts in to automatic shutdown after that idle period; `--idle-timeout 0` also leaves the timeout disabled.
-- Adapters that auto-start the server, including Pi `/inter-agent-connect` and Claude Code `listen`, pass an explicit 300-second idle timeout, verify the server is reachable before proceeding, and retry for up to 15 seconds after launching the server process.
+- Adapters that auto-start the server, including Pi `/inter-agent connect` and Claude Code `listen`, pass an explicit 300-second idle timeout, verify the server is reachable before proceeding, and retry for up to 15 seconds after launching the server process.
 
 ## Configuration, TLS, and fallback secret state
 
