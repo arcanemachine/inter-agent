@@ -110,7 +110,9 @@ uv run pytest tests/test_adapter_control.py tests/test_claude_adapter_cli.py tes
 
 Stop and report instead of improvising if the existing `AgentSession` API cannot support the bridge contract, the exact socket lifecycle is unsafe under an observed repository constraint, a core file appears to require modification, or any unlisted file is needed.
 
-## User acceptance test
+## End-to-end acceptance test (leader-run)
+
+The leader runs this test after review; routine user action is not required.
 
 1. Start the server and connect one Pi adapter listener and one Claude adapter listener.
 2. Subscribe each listener to `updates` with its adapter command and confirm `subscribe_ok` JSON.

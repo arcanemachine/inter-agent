@@ -20,7 +20,7 @@ Before delegating work, create a bounded, self-contained task packet that includ
 - exact requirements;
 - acceptance criteria;
 - checks;
-- user acceptance test steps only when behavior is user-facing.
+- an end-to-end acceptance test for user-facing behavior, runnable by the leader whenever the available environment supports it.
 
 ## Dispatch rules
 
@@ -40,10 +40,12 @@ Before delegating work, create a bounded, self-contained task packet that includ
 
 - Review every executor change against the packet.
 - Perform final quality review and relevant verification.
+- Run the packet's end-to-end acceptance test when the available environment supports it; record the observed result rather than treating test steps as evidence.
+- Do not delegate routine verification or acceptance testing to the user. Ask the user to perform a step only when it requires access that the leader genuinely does not have, and state that exact access constraint.
 - Send substantive defects back for rework.
 - Directly correct only trivial typos, formatting, or similarly small stylistic defects.
-- Commit each reviewed completed task.
-- Provide a concise runnable UAT to the user only for user-facing behavior.
+- Commit each reviewed task after its checks and runnable acceptance test pass. Do not request ceremonial approval for work already inside the user-approved scope.
+- Report verification and commit results concisely.
 
 ## Plan hygiene
 

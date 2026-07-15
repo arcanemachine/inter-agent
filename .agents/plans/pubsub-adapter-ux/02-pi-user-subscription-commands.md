@@ -81,7 +81,9 @@ After formatting, verify only intended files changed.
 
 Stop and report instead of improvising if Task 1's CLI contract is absent or differs from this packet, static coverage cannot exercise a material requirement, the extension API requires another file, or any unlisted file is needed.
 
-## User acceptance test
+## End-to-end acceptance test (leader-run)
+
+The leader runs this test after review whenever the Pi host is available. User action is required only if the leader cannot access the user's host environment.
 
 1. Load the Pi extension and run `/inter-agent connect pi-channel-test`.
 2. Run `/inter-agent subscribe updates` and confirm the success notification names `updates`.
