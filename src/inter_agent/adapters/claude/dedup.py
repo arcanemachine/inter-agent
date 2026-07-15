@@ -103,3 +103,12 @@ def is_duplicate_send(sender: str, *parts: str) -> bool:
         cache[key] = now
         _atomic_write(path, cache)
         return False
+
+
+def is_duplicate_publish(sender: str, channel: str, text: str) -> bool:
+    """Suppress identical repeated channel publishes within the window.
+
+    Keyed by (sender, channel, text) so a publish to a different channel or
+    with different text is always delivered.
+    """
+    return is_duplicate_send(sender, "publish", channel, text)

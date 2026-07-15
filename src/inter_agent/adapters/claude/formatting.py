@@ -39,15 +39,20 @@ def format_notification(
     from_name: str,
     text: str,
     to: str | None = None,
+    channel: str | None = None,
 ) -> str:
     """Format a single inbound message as a Monitor notification line."""
     sanitized = sanitize_for_stdout(text)
     truncated, was_truncated, full_len = truncate_for_stdout(sanitized)
-    kind = f' kind="direct" to="{to}"' if to else ' kind="broadcast"'
+    if channel is not None:
+        kind = f' kind="channel" channel="{channel}"'
+    elif to:
+        kind = f' kind="direct" to="{to}"'
+    else:
+        kind = ' kind="broadcast"'
     if was_truncated:
         return (
-            f'[inter-agent msg={msg_id} from="{from_name}"{kind} '
-            f"truncated={full_len}] {truncated}"
+            f'[inter-agent msg={msg_id} from="{from_name}"{kind} truncated={full_len}] {truncated}'
         )
     return f'[inter-agent msg={msg_id} from="{from_name}"{kind}] {truncated}'
 

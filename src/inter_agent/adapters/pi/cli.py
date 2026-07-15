@@ -23,6 +23,22 @@ def build_parser() -> argparse.ArgumentParser:
     broadcast.add_argument("text")
     broadcast.add_argument("--from", dest="from_name")
 
+    subscribe = sub.add_parser("subscribe")
+    subscribe.add_argument("channel")
+    subscribe.add_argument("--name", required=True)
+
+    unsubscribe = sub.add_parser("unsubscribe")
+    unsubscribe.add_argument("channel")
+    unsubscribe.add_argument("--name", required=True)
+
+    publish = sub.add_parser("publish")
+    publish.add_argument("channel")
+    publish.add_argument("text")
+    publish.add_argument("--from", dest="from_name")
+
+    channels = sub.add_parser("channels")
+    channels.add_argument("--json", action="store_true", help="emit JSON protocol output")
+
     list_parser = sub.add_parser("list")
     list_parser.add_argument("--json", action="store_true", help="emit JSON protocol output")
 
@@ -43,6 +59,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return commands.send(args.to, args.text, args.from_name)
     if args.command == "broadcast":
         return commands.broadcast(args.text, args.from_name)
+    if args.command == "subscribe":
+        return commands.subscribe(args.channel, args.name)
+    if args.command == "unsubscribe":
+        return commands.unsubscribe(args.channel, args.name)
+    if args.command == "publish":
+        return commands.publish(args.channel, args.text, args.from_name)
+    if args.command == "channels":
+        return commands.channels(as_json=args.json)
     if args.command == "list":
         return commands.list_sessions()
     if args.command == "status":

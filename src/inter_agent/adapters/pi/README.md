@@ -9,6 +9,10 @@ Run Pi adapter commands through the installed package entry point:
 - `uv run inter-agent-pi connect <name> [--label <label>]`
 - `uv run inter-agent-pi send <to> <text> [--from <name>]`
 - `uv run inter-agent-pi broadcast <text> [--from <name>]`
+- `uv run inter-agent-pi subscribe <channel> --name <connected-name>`
+- `uv run inter-agent-pi unsubscribe <channel> --name <connected-name>`
+- `uv run inter-agent-pi publish <channel> <text> [--from <name>]`
+- `uv run inter-agent-pi channels [--json]`
 - `uv run inter-agent-pi list [--json]`
 - `uv run inter-agent-pi status [--json]`
 - `uv run inter-agent-pi shutdown`
@@ -16,6 +20,18 @@ Run Pi adapter commands through the installed package entry point:
 The Pi extension auto-starts the server when `/inter-agent-connect` runs and no healthy server is available. Auto-started servers use an explicit 300-second idle timeout and shut down after that period with no connected sessions. Manual server starts remain supported with `uv run inter-agent-server` and run until explicit shutdown unless you pass `--idle-timeout <seconds>`.
 
 Use `send` for normal replies and targeted coordination. Use `broadcast` only when the user explicitly asks to message everyone or the information is genuinely for every connected session. Host integrations that send through the short-lived CLI should pass their connected routing name with `--from <name>` so receivers see the real sender instead of the control connection.
+
+## Channels (pub/sub)
+
+`subscribe` and `unsubscribe` select the target listener explicitly with `--name <connected-name>` and operate on that live listener's existing session rather than opening a new one. They are delivered through a private local Unix-domain control socket and print the raw protocol acknowledgment JSON (`subscribe_ok` / `unsubscribe_ok`) on success. Protocol errors print an adapter-prefixed diagnostic to stderr and return a non-zero exit code. A missing, stale, or reconnecting listener fails cleanly without a traceback.
+
+`publish <channel> <text>` publishes to a channel and accepts the optional user-level sender `--from <name>`. Pi publish success prints the welcome envelope, matching `send` and `broadcast`; protocol errors such as `UNKNOWN_CHANNEL` are reported on stderr with a non-zero exit code. Pi does not apply publish-side duplicate suppression.
+
+`channels [--json]` lists channels and their subscribers as the raw `channels_ok` protocol JSON.
+
+Pi listener output remains raw protocol JSON, so a channel delivery is distinguished by its `channel` field and the absence of a `to` field.
+
+Subscriptions are retained across transient listener reconnects: the listener re-applies the desired subscription set after reconnecting and before reporting readiness. Subscriptions are not persisted across an explicit listener stop or process restart; there are no automatic or default subscriptions.
 
 ## Example workflow
 

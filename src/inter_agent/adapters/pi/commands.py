@@ -11,13 +11,16 @@ import sys
 
 from websockets.exceptions import WebSocketException
 
+from inter_agent.adapters import control
 from inter_agent.adapters.pi import listener
+from inter_agent.core import channels as core_channels
 from inter_agent.core import list as core_list
+from inter_agent.core import publish as core_publish
 from inter_agent.core import send as core_send
 from inter_agent.core import shutdown as core_shutdown
 from inter_agent.core import status as core_status
 from inter_agent.core.send import SendResult
-from inter_agent.core.shared import resolve_endpoint
+from inter_agent.core.shared import Limits, resolve_endpoint, validate_channel_name
 
 
 def _system_exit_code(exc: SystemExit) -> int:
@@ -36,7 +39,7 @@ def _expected_error_code(exc: Exception) -> int:
 def _send_result_code(result: SendResult) -> int:
     if result.error is not None:
         print(
-            f"inter-agent-pi: delivery failed ({result.error.code}): " f"{result.error.message}",
+            f"inter-agent-pi: delivery failed ({result.error.code}): {result.error.message}",
             file=sys.stderr,
         )
         return 1
@@ -106,6 +109,139 @@ def broadcast(text: str, from_name: str | None = None) -> int:
     except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
         return _expected_error_code(exc)
     return _send_result_code(result)
+
+
+def _control_response_code(response: dict[str, object]) -> int:
+    op = response.get("op")
+    if op in ("subscribe_ok", "unsubscribe_ok"):
+        print(json.dumps(response, ensure_ascii=False))
+        return 0
+    if op == "error":
+        code = response.get("code", "PROTOCOL_ERROR")
+        message = response.get("message", "protocol error")
+        print(f"inter-agent-pi: ({code}): {message}", file=sys.stderr)
+        return 1
+    print(f"inter-agent-pi: unexpected response: {response}", file=sys.stderr)
+    return 1
+
+
+def _validate_channel_or_error(channel: str) -> bool:
+    if not validate_channel_name(channel, Limits().channel_name_max):
+        print(f"inter-agent-pi: invalid channel name: {channel!r}", file=sys.stderr)
+        return False
+    return True
+
+
+def subscribe(channel: str, name: str) -> int:
+    """Subscribe the named live listener to a channel."""
+    if not _validate_channel_or_error(channel):
+        return 1
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        response = asyncio.run(
+            control.request(
+                "pi",
+                endpoint.host,
+                endpoint.port,
+                name,
+                listener.pi_data_dir(),
+                "subscribe",
+                channel,
+            )
+        )
+    except (
+        SystemExit,
+        control.ControlError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        WebSocketException,
+    ) as exc:
+        print(f"inter-agent-pi: {exc}", file=sys.stderr)
+        return 1
+    return _control_response_code(response)
+
+
+def unsubscribe(channel: str, name: str) -> int:
+    """Unsubscribe the named live listener from a channel."""
+    if not _validate_channel_or_error(channel):
+        return 1
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        response = asyncio.run(
+            control.request(
+                "pi",
+                endpoint.host,
+                endpoint.port,
+                name,
+                listener.pi_data_dir(),
+                "unsubscribe",
+                channel,
+            )
+        )
+    except (
+        SystemExit,
+        control.ControlError,
+        OSError,
+        TimeoutError,
+        ValueError,
+        WebSocketException,
+    ) as exc:
+        print(f"inter-agent-pi: {exc}", file=sys.stderr)
+        return 1
+    return _control_response_code(response)
+
+
+def publish(channel: str, text: str, from_name: str | None = None) -> int:
+    if not _validate_channel_or_error(channel):
+        return 1
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(
+            core_publish.publish_to_channel(
+                endpoint.host,
+                endpoint.port,
+                channel,
+                text,
+                from_name,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    # Pi publish success prints the welcome envelope, matching send/broadcast.
+    if result.error is not None:
+        print(
+            f"inter-agent-pi: publish failed ({result.error.code}): {result.error.message}",
+            file=sys.stderr,
+        )
+        return 1
+    print(result.welcome)
+    return 0
+
+
+def channels(as_json: bool = True) -> int:
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(
+            core_channels.list_channels(
+                endpoint.host,
+                endpoint.port,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    print(result.raw_response)
+    return 0 if result.response.get("op") == "channels_ok" else 1
 
 
 def list_sessions() -> int:

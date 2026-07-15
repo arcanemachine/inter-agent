@@ -20,8 +20,9 @@ from typing import TextIO
 
 import websockets
 
+from inter_agent.adapters import control
 from inter_agent.adapters.claude import formatting, state
-from inter_agent.core.client import iter_client_frames
+from inter_agent.core.client import AgentSession
 from inter_agent.core.shared import DEFAULT_HOST, DEFAULT_PORT, resolve_endpoint
 
 RECONNECT_BACKOFF_MIN_S = 0.5
@@ -122,6 +123,9 @@ class Listener:
         self._connect_task: asyncio.Task[None] | None = None
         self._server_proc: subprocess.Popen[bytes] | None = None
         self._recent_msg_ids: dict[str, float] = {}
+        self._session: AgentSession | None = None
+        self._desired_channels: set[str] = set()
+        self._control_server: control.ControlServer | None = None
 
     def stop(self) -> None:
         self._stop.set()
@@ -296,6 +300,8 @@ class Listener:
             state.delete_session_state(ppid)
             if self._lock_fd is not None:
                 state.release_lock(self._lock_fd)
+            # An explicit shutdown never carries subscriptions forward.
+            self._desired_channels.clear()
 
     def _is_duplicate_msg_id(self, msg_id: str) -> bool:
         """Return True if this listener recently emitted the message ID."""
@@ -313,8 +319,30 @@ class Listener:
         self._recent_msg_ids[msg_id] = now
         return False
 
+    async def _handle_control_request(self, op: str, channel: str) -> dict[str, object]:
+        session = self._session
+        if session is None:
+            return {"op": "error", "code": "NOT_CONNECTED", "message": "listener not connected"}
+        try:
+            if op == "subscribe":
+                response = await session.subscribe(channel)
+                if response.get("op") == "subscribe_ok":
+                    self._desired_channels.add(channel)
+                return response
+            response = await session.unsubscribe(channel)
+            if response.get("op") == "unsubscribe_ok":
+                self._desired_channels.discard(channel)
+            return response
+        except Exception as exc:
+            return {"op": "error", "code": "LISTENER_UNAVAILABLE", "message": str(exc)}
+
+    def _control_socket_path(self) -> Path:
+        return control.control_socket_path(
+            "claude", self.host, self.port, self.name, state.claude_data_dir()
+        )
+
     async def _connect_and_serve(self, ppid: int) -> None:
-        async for raw in iter_client_frames(
+        async with AgentSession(
             self.host,
             self.port,
             self.name,
@@ -322,79 +350,132 @@ class Listener:
             tls=self.tls,
             data_dir=self.data_dir,
             tls_cert_path=self.tls_cert_path,
-        ):
+        ) as session:
+            self._session = session
+            self._control_server = None
             try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
+                async for raw in session:
+                    try:
+                        payload = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
 
-            op = payload.get("op")
-            if op == "welcome":
-                state.write_session_state(
-                    ppid,
-                    {
-                        "session_id": self.session_id,
-                        "name": self.name,
-                        "label": self.label,
-                        "nonce": self.nonce,
-                        "listener_pid": os.getpid(),
-                        "host": self.host,
-                        "port": self.port,
-                        "scheme": "wss" if self.tls else "ws",
-                        "tls": self.tls,
-                    },
-                )
+                    op = payload.get("op")
+                    if op == "welcome":
+                        await self._on_welcome(ppid)
+                        continue
+
+                    if op == "error":
+                        code = payload.get("code", "")
+                        message = payload.get("message", "")
+                        if isinstance(code, str) and code == "NAME_TAKEN":
+                            raise PermanentError(code, message)
+                        _print_line(
+                            f"[inter-agent] connection error: {code}: {message}",
+                            self.output,
+                        )
+                        if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
+                            raise PermanentError(code, message)
+                        continue
+
+                    if op == "msg":
+                        self._on_msg(payload)
+                        continue
+
+                    if op == "pong":
+                        continue
+
+                    if log.isEnabledFor(logging.DEBUG):
+                        log.debug("unhandled op: %s", op)
+            finally:
+                if self._control_server is not None:
+                    await self._control_server.stop()
+                    self._control_server = None
+                self._session = None
+
+    async def _on_welcome(self, ppid: int) -> None:
+        # Reapply the desired subscription set before reporting readiness so a
+        # transient reconnect does not silently drop subscriptions.
+        for channel in sorted(self._desired_channels):
+            session = self._session
+            if session is None:
+                break
+            try:
+                await session.subscribe(channel)
+            except Exception:
+                pass
+        # Bind the local control socket. Failures fail closed: the listener
+        # stays usable and reports control as unavailable rather than entering
+        # a reconnect loop or leaving a permissive socket behind.
+        try:
+            socket_path = self._control_socket_path()
+        except OSError:
+            _print_line(
+                "[inter-agent] control socket unavailable; " "subscribe/unsubscribe unavailable",
+                self.output,
+            )
+            socket_path = None
+        if socket_path is not None:
+            self._control_server = control.ControlServer(socket_path, self._handle_control_request)
+            started = await self._control_server.start()
+            if not started:
                 _print_line(
-                    f'[inter-agent] connected as "{self.name}"',
+                    "[inter-agent] control socket unavailable; "
+                    "subscribe/unsubscribe unavailable",
                     self.output,
                 )
-                continue
+                await self._control_server.stop()
+                self._control_server = None
+        state.write_session_state(
+            ppid,
+            {
+                "session_id": self.session_id,
+                "name": self.name,
+                "label": self.label,
+                "nonce": self.nonce,
+                "listener_pid": os.getpid(),
+                "host": self.host,
+                "port": self.port,
+                "scheme": "wss" if self.tls else "ws",
+                "tls": self.tls,
+            },
+        )
+        _print_line(
+            f'[inter-agent] connected as "{self.name}"',
+            self.output,
+        )
 
-            if op == "error":
-                code = payload.get("code", "")
-                message = payload.get("message", "")
-                if isinstance(code, str) and code == "NAME_TAKEN":
-                    raise PermanentError(code, message)
-                _print_line(
-                    f"[inter-agent] connection error: {code}: {message}",
-                    self.output,
-                )
-                if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
-                    raise PermanentError(code, message)
-                continue
+    def _on_msg(self, payload: dict[str, object]) -> None:
+        msg_id = str(payload.get("msg_id", ""))
+        if self._is_duplicate_msg_id(msg_id):
+            return
+        raw_from = payload.get("from_name") or payload.get("from", "unknown")
+        from_name = str(raw_from)
+        text = payload.get("text", "")
+        to = payload.get("to")
+        channel = payload.get("channel")
+        if not isinstance(text, str):
+            return
 
-            if op == "msg":
-                msg_id = str(payload.get("msg_id", ""))
-                if self._is_duplicate_msg_id(msg_id):
-                    continue
-                from_name = payload.get("from_name") or payload.get("from", "unknown")
-                text = payload.get("text", "")
-                to = payload.get("to")
-                if not isinstance(text, str):
-                    continue
+        line = formatting.format_notification(
+            msg_id,
+            from_name,
+            text,
+            str(to) if to else None,
+            str(channel) if isinstance(channel, str) else None,
+        )
+        _print_line(line, self.output)
 
-                line = formatting.format_notification(
-                    msg_id, str(from_name), text, str(to) if to else None
-                )
-                _print_line(line, self.output)
-
-                # Write continuation pointer for truncated messages
-                if "truncated=" in line:
-                    sanitized = formatting.sanitize_for_stdout(text)
-                    _, _, full_len = formatting.truncate_for_stdout(sanitized)
-                    log_path = state.messages_log_path()
-                    _write_to_messages_log(msg_id, from_name, text, log_path)
-                    _print_line(
-                        formatting.format_truncation_pointer(str(msg_id), full_len, log_path),
-                        self.output,
-                    )
-                continue
-
-            if op == "pong":
-                continue
-
-            if log.isEnabledFor(logging.DEBUG):
-                log.debug("unhandled op: %s", op)
+        # Write continuation pointer for truncated messages
+        if "truncated=" in line:
+            sanitized = formatting.sanitize_for_stdout(text)
+            _, _, full_len = formatting.truncate_for_stdout(sanitized)
+            log_path = state.messages_log_path()
+            _write_to_messages_log(msg_id, from_name, text, log_path)
+            _print_line(
+                formatting.format_truncation_pointer(str(msg_id), full_len, log_path),
+                self.output,
+            )
 
 
 def _write_to_messages_log(msg_id: str, from_name: str, text: str, log_path: Path) -> None:

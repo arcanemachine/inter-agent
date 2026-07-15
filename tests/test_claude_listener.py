@@ -5,7 +5,7 @@ import io
 import json
 import os
 import sys
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -17,6 +17,50 @@ from inter_agent.adapters.claude.listener import (
     Listener,
     PermanentError,
 )
+
+
+class FakeSession:
+    """Stand-in for AgentSession used by listener unit tests.
+
+    Yields a fixed sequence of raw frame strings and records channel ops so
+    the control bridge and reconnect-resubscribe paths can be exercised
+    without a live server or websocket auth handshake.
+    """
+
+    def __init__(self, frames: list[str]) -> None:
+        self._frames = list(frames)
+        self.subscribe_calls: list[str] = []
+        self.unsubscribe_calls: list[str] = []
+
+    async def __aenter__(self) -> FakeSession:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+    async def _gen(self) -> AsyncIterator[str]:
+        for frame in self._frames:
+            yield frame
+
+    def __aiter__(self) -> AsyncIterator[str]:
+        return self._gen()
+
+    async def subscribe(self, channel: str) -> dict[str, object]:
+        self.subscribe_calls.append(channel)
+        return {"op": "subscribe_ok", "channel": channel}
+
+    async def unsubscribe(self, channel: str) -> dict[str, object]:
+        self.unsubscribe_calls.append(channel)
+        return {"op": "unsubscribe_ok", "channel": channel}
+
+
+def patch_session(monkeypatch: pytest.MonkeyPatch, frames: list[str]) -> FakeSession:
+    session = FakeSession(frames)
+    monkeypatch.setattr(
+        "inter_agent.adapters.claude.listener.AgentSession",
+        lambda *args, **kwargs: session,
+    )
+    return session
 
 
 class TestFormatting:
@@ -275,7 +319,73 @@ class TestState:
         assert state.messages_log_max_bytes() == state.MESSAGES_LOG_MAX_BYTES
 
 
-class TestPermanentErrors:
+class TestChannels:
+    @pytest.mark.asyncio
+    async def test_channel_msg_emits_channel_kind(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        message = {
+            "op": "msg",
+            "msg_id": "m1",
+            "from_name": "agent-a",
+            "channel": "updates",
+            "text": "hello",
+        }
+        patch_session(monkeypatch, [json.dumps(message)])
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-b")
+        await listener._connect_and_serve(1)
+
+        out = capsys.readouterr().out
+        assert 'kind="channel" channel="updates"' in out
+        assert 'kind="direct"' not in out
+        assert 'kind="broadcast"' not in out
+        assert "hello" in out
+
+    @pytest.mark.asyncio
+    async def test_reapply_subscriptions_on_welcome(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory,
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+        session = patch_session(monkeypatch, [json.dumps({"op": "welcome"})])
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-b")
+        listener._desired_channels = {"updates", "build"}
+        await listener._connect_and_serve(1)
+
+        assert session.subscribe_calls == ["build", "updates"]
+        # Desired set is retained across a reconnect.
+        assert listener._desired_channels == {"updates", "build"}
+
+    @pytest.mark.asyncio
+    async def test_explicit_shutdown_clears_desired_channels(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory,
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+        monkeypatch.setattr(state, "_resolve_listener_key", lambda: 123)
+        monkeypatch.setattr(state, "acquire_lock", lambda ppid: 1)
+        monkeypatch.setattr(state, "release_lock", lambda fd: None)
+        monkeypatch.setattr(state, "delete_session_state", lambda ppid: None)
+        monkeypatch.setattr(
+            "inter_agent.adapters.claude.listener.endpoint_available", lambda h, p: True
+        )
+        session = patch_session(monkeypatch, [json.dumps({"op": "welcome"})])
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-b", output=io.StringIO())
+        listener._desired_channels = {"updates"}
+
+        async def stop_immediately(self: Listener, ppid: int) -> None:
+            self._stop.set()
+
+        monkeypatch.setattr(Listener, "_connect_and_serve", stop_immediately)
+        await listener.run()
+
+        # _connect_and_serve never ran (it was patched), but run's finally must
+        # clear the desired set on explicit shutdown.
+        assert session.subscribe_calls == []
+        assert listener._desired_channels == set()
+
     def test_permanent_error_codes_set_contents(self) -> None:
         assert _PERMANENT_ERROR_CODES == frozenset(
             {
@@ -295,10 +405,10 @@ class TestPermanentErrors:
     async def test_permanent_error_raised_for_code(
         self, monkeypatch: pytest.MonkeyPatch, code: str
     ) -> None:
-        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
-            yield json.dumps({"op": "error", "code": code, "message": "test error"})
-
-        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        patch_session(
+            monkeypatch,
+            [json.dumps({"op": "error", "code": code, "message": "test error"})],
+        )
         listener = Listener(host="127.0.0.1", port=12345, name="test")
         with pytest.raises(PermanentError, match=code):
             await listener._connect_and_serve(1)
@@ -307,23 +417,22 @@ class TestPermanentErrors:
     async def test_non_permanent_error_does_not_raise(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
-            yield json.dumps({"op": "error", "code": "UNKNOWN_TARGET", "message": "not found"})
-
-        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        patch_session(
+            monkeypatch,
+            [json.dumps({"op": "error", "code": "UNKNOWN_TARGET", "message": "not found"})],
+        )
         listener = Listener(host="127.0.0.1", port=12345, name="test")
         await listener._connect_and_serve(1)
 
     @pytest.mark.asyncio
     async def test_welcome_emits_connected_confirmation(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
-
-        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
-            yield json.dumps({"op": "welcome"})
-
-        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+        patch_session(monkeypatch, [json.dumps({"op": "welcome"})])
         listener = Listener(host="127.0.0.1", port=12345, name="myname")
         await listener._connect_and_serve(1)
 
@@ -334,18 +443,14 @@ class TestPermanentErrors:
     async def test_duplicate_msg_id_emits_once(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
-            message = {
-                "op": "msg",
-                "msg_id": "m1",
-                "from_name": "agent-a",
-                "text": "hello",
-                "to": "agent-b",
-            }
-            yield json.dumps(message)
-            yield json.dumps(message)
-
-        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        message = {
+            "op": "msg",
+            "msg_id": "m1",
+            "from_name": "agent-a",
+            "text": "hello",
+            "to": "agent-b",
+        }
+        patch_session(monkeypatch, [json.dumps(message), json.dumps(message)])
         listener = Listener(host="127.0.0.1", port=12345, name="agent-b")
         await listener._connect_and_serve(1)
 
@@ -357,12 +462,10 @@ class TestPermanentErrors:
     async def test_name_taken_raises_for_run_retry_handling(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
-            yield json.dumps(
-                {"op": "error", "code": "NAME_TAKEN", "message": "name already in use"}
-            )
-
-        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        patch_session(
+            monkeypatch,
+            [json.dumps({"op": "error", "code": "NAME_TAKEN", "message": "name already in use"})],
+        )
         listener = Listener(host="127.0.0.1", port=12345, name="y")
         with pytest.raises(PermanentError, match="NAME_TAKEN"):
             await listener._connect_and_serve(1)
@@ -373,12 +476,10 @@ class TestPermanentErrors:
     async def test_name_taken_does_not_emit_generic_permanent_line(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        async def fake_iter(*args: object, **kwargs: object) -> AsyncGenerator[str, None]:
-            yield json.dumps(
-                {"op": "error", "code": "NAME_TAKEN", "message": "name already in use"}
-            )
-
-        monkeypatch.setattr("inter_agent.adapters.claude.listener.iter_client_frames", fake_iter)
+        patch_session(
+            monkeypatch,
+            [json.dumps({"op": "error", "code": "NAME_TAKEN", "message": "name already in use"})],
+        )
         listener = Listener(host="127.0.0.1", port=12345, name="y")
         with pytest.raises(PermanentError):
             await listener._connect_and_serve(1)
@@ -600,3 +701,60 @@ class TestAutoStart:
         result = await listener.run()
         assert result == 1
         assert "did not become available in time" in out.getvalue()
+
+
+class TestControlFailurePaths:
+    @pytest.mark.asyncio
+    async def test_socket_chmod_failure_disables_control_and_keeps_listener_usable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A socket chmod failure must not leave a permissive socket nor break
+        the listener: control is disabled and the welcome still prints."""
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+        patch_session(monkeypatch, [json.dumps({"op": "welcome"})])
+        real_chmod = os.chmod
+
+        def boom(path_obj: str | os.PathLike[str], mode: int) -> None:
+            if str(path_obj).endswith(".sock"):
+                raise OSError("permission denied")
+            real_chmod(path_obj, mode)
+
+        monkeypatch.setattr("inter_agent.adapters.control.os.chmod", boom)
+        listener = Listener(host="127.0.0.1", port=12345, name="myname")
+        # Must not raise (no reconnect loop / traceback).
+        await listener._connect_and_serve(1)
+
+        out = capsys.readouterr().out
+        assert 'connected as "myname"' in out
+        assert "subscribe/unsubscribe unavailable" in out
+        assert listener._control_server is None
+
+    @pytest.mark.asyncio
+    async def test_control_dir_failure_disables_control_and_keeps_listener_usable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """A control-directory permission failure surfaces as 'unavailable' and
+        leaves the listener usable; no socket is created."""
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+        patch_session(monkeypatch, [json.dumps({"op": "welcome"})])
+        real_chmod = os.chmod
+
+        def boom(path_obj: str | os.PathLike[str], mode: int) -> None:
+            if str(path_obj).endswith("/control"):
+                raise OSError("permission denied")
+            real_chmod(path_obj, mode)
+
+        monkeypatch.setattr("inter_agent.adapters.control.os.chmod", boom)
+        listener = Listener(host="127.0.0.1", port=12345, name="myname")
+        await listener._connect_and_serve(1)  # must not raise
+
+        out = capsys.readouterr().out
+        assert 'connected as "myname"' in out
+        assert "control socket unavailable" in out
+        assert listener._control_server is None

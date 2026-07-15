@@ -4,7 +4,7 @@ import asyncio
 import io
 import json
 from collections.abc import Callable
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,8 +15,10 @@ from websockets.asyncio.client import ClientConnection
 
 from inter_agent.adapters.pi import commands as pi_commands
 from inter_agent.adapters.pi.cli import main as pi_main
+from inter_agent.adapters.pi.listener import run_listener
 from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello
+from inter_agent.core.server import run_server
 from inter_agent.core.shared import control_hello
 
 
@@ -42,6 +44,15 @@ def run_pi_function(function: Callable[..., int], *args: object) -> CommandCaptu
         code = function(*args)
     assert isinstance(code, int)
     return CommandCapture(code=code, stdout=stdout.getvalue(), stderr=stderr.getvalue())
+
+
+def use_short_data_dir(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+    server: LiveServer,
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+    monkeypatch.setenv("INTER_AGENT_SECRET", server.secret)
 
 
 def use_live_pi_defaults(monkeypatch: pytest.MonkeyPatch, server: LiveServer) -> None:
@@ -252,3 +263,159 @@ def test_pi_cli_unavailable_identity_failures_use_stderr(
     assert result.stdout == ""
     assert result.stderr.startswith("inter-agent-pi: ")
     assert "Traceback" not in result.stderr
+
+
+async def wait_for_pi_channel_subscriber(channel: str, name: str) -> bool:
+    deadline = asyncio.get_running_loop().time() + 5
+    while asyncio.get_running_loop().time() < deadline:
+        result = await asyncio.to_thread(run_pi, ["channels", "--json"])
+        payload = json.loads(result.stdout)
+        for entry in payload.get("channels", []):
+            if entry.get("name") == channel and name in entry.get("subscribers", []):
+                return True
+        await asyncio.sleep(0.1)
+    return False
+
+
+@pytest.mark.asyncio
+async def test_pi_subscribe_unsubscribe_publish_channels_round_trip(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
+    use_live_pi_defaults(monkeypatch, live_server)
+
+    out = io.StringIO()
+    task = asyncio.create_task(
+        run_listener(
+            live_server.host,
+            live_server.port,
+            "pi-agent-a",
+            None,
+            output=out,
+        )
+    )
+    try:
+        # Wait until the Pi listener is connected (welcome printed).
+        for _ in range(40):
+            lines = [line for line in out.getvalue().splitlines() if line.strip()]
+            if lines and json.loads(lines[-1]).get("op") == "welcome":
+                break
+            await asyncio.sleep(0.05)
+
+        subscribe_result = await asyncio.to_thread(
+            run_pi, ["subscribe", "updates", "--name", "pi-agent-a"]
+        )
+        assert subscribe_result.code == 0
+        assert json.loads(subscribe_result.stdout) == {"op": "subscribe_ok", "channel": "updates"}
+
+        channels_result = await asyncio.to_thread(run_pi, ["channels", "--json"])
+        assert channels_result.code == 0
+        payload = json.loads(channels_result.stdout)
+        assert any(
+            c["name"] == "updates" and "pi-agent-a" in c["subscribers"] for c in payload["channels"]
+        )
+
+        publish_result = await asyncio.to_thread(
+            run_pi, ["publish", "updates", "channel hello", "--from", "pi-agent-a"]
+        )
+        assert publish_result.code == 0
+        assert json.loads(publish_result.stdout)["op"] == "welcome"
+        await asyncio.sleep(0.1)
+        # Pi prints raw protocol JSON; a channel delivery is distinguished by
+        # its channel field and lack of to.
+        delivered = [
+            json.loads(line)
+            for line in out.getvalue().splitlines()
+            if line.strip() and json.loads(line).get("op") == "msg"
+        ]
+        assert any(m.get("channel") == "updates" and "to" not in m for m in delivered)
+        assert any(m.get("text") == "channel hello" for m in delivered)
+
+        unsubscribe_result = await asyncio.to_thread(
+            run_pi, ["unsubscribe", "updates", "--name", "pi-agent-a"]
+        )
+        assert unsubscribe_result.code == 0
+        assert json.loads(unsubscribe_result.stdout) == {
+            "op": "unsubscribe_ok",
+            "channel": "updates",
+        }
+
+        empty_result = await asyncio.to_thread(run_pi, ["publish", "updates", "no one"])
+        assert empty_result.code == 1
+        assert "UNKNOWN_CHANNEL" in empty_result.stderr
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
+@pytest.mark.asyncio
+async def test_pi_subscribe_without_listener_fails_cleanly(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
+    use_live_pi_defaults(monkeypatch, live_server)
+
+    result = await asyncio.to_thread(run_pi, ["subscribe", "updates", "--name", "missing"])
+
+    assert result.code == 1
+    assert result.stdout == ""
+    assert "Traceback" not in result.stderr
+    assert result.stderr.startswith("inter-agent-pi: ")
+
+
+@pytest.mark.asyncio
+async def test_pi_listener_reapplies_subscriptions_after_server_restart(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+    unused_tcp_port: int,
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+    monkeypatch.setenv("INTER_AGENT_SECRET", "test-secret-fixed")
+    monkeypatch.setenv("INTER_AGENT_HOST", "127.0.0.1")
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
+
+    server_task = asyncio.create_task(run_server("127.0.0.1", unused_tcp_port))
+    await asyncio.sleep(0.1)
+    out = io.StringIO()
+    task = asyncio.create_task(
+        run_listener("127.0.0.1", unused_tcp_port, "pi-agent-a", None, output=out)
+    )
+    try:
+        # Wait for welcome.
+        for _ in range(40):
+            lines = [line for line in out.getvalue().splitlines() if line.strip()]
+            if lines and json.loads(lines[-1]).get("op") == "welcome":
+                break
+            await asyncio.sleep(0.05)
+        await asyncio.to_thread(run_pi, ["subscribe", "updates", "--name", "pi-agent-a"])
+
+        server_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await server_task
+        server_task = asyncio.create_task(run_server("127.0.0.1", unused_tcp_port))
+        await asyncio.sleep(0.1)
+        assert await wait_for_pi_channel_subscriber("updates", "pi-agent-a")
+
+        publish_result = await asyncio.to_thread(
+            run_pi, ["publish", "updates", "post-restart", "--from", "pi-agent-a"]
+        )
+        assert publish_result.code == 0
+        await asyncio.sleep(0.1)
+        delivered = [
+            json.loads(line)
+            for line in out.getvalue().splitlines()
+            if line.strip() and json.loads(line).get("op") == "msg"
+        ]
+        assert any(m.get("text") == "post-restart" for m in delivered)
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        server_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await server_task

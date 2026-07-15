@@ -5,11 +5,15 @@ from pathlib import Path
 
 import pytest
 
+import inter_agent.adapters.control as control
+import inter_agent.core.channels as core_channels
 import inter_agent.core.list as core_list
+import inter_agent.core.publish as core_publish
 import inter_agent.core.send as core_send
 import inter_agent.core.shutdown as core_shutdown
 from inter_agent.adapters.claude import commands, state
 from inter_agent.adapters.claude.cli import main
+from inter_agent.core.channels import ChannelsResult
 from inter_agent.core.list import ListResult
 from inter_agent.core.send import ProtocolErrorResult, SendResult
 
@@ -416,3 +420,346 @@ def test_shutdown_uses_core_api(
     assert code == 0
     assert calls == [("127.0.0.1", 16837)]
     assert capsys.readouterr().out == '{"op": "shutdown_ok"}\n'
+
+
+def test_subscribe_invokes_control_bridge(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, str, int, str, str, str, str]] = []
+
+    async def fake_request(
+        adapter: str, host: str, port: int, name: str, base_dir: object, op: str, channel: str
+    ) -> dict[str, object]:
+        calls.append((adapter, host, port, name, str(base_dir), op, channel))
+        return {"op": "subscribe_ok", "channel": channel}
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = main(["subscribe", "updates"])
+
+    assert code == 0
+    assert calls == [
+        (
+            "claude",
+            "127.0.0.1",
+            16837,
+            "agent-a",
+            str(state.claude_data_dir()),
+            "subscribe",
+            "updates",
+        )
+    ]
+    assert json.loads(capsys.readouterr().out) == {"op": "subscribe_ok", "channel": "updates"}
+
+
+def test_unsubscribe_invokes_control_bridge(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_request(
+        adapter: str, host: str, port: int, name: str, base_dir: object, op: str, channel: str
+    ) -> dict[str, object]:
+        return {"op": "unsubscribe_ok", "channel": channel}
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = main(["unsubscribe", "updates"])
+
+    assert code == 0
+    assert json.loads(capsys.readouterr().out) == {"op": "unsubscribe_ok", "channel": "updates"}
+
+
+def test_subscribe_protocol_error_returns_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_request(
+        adapter: str, host: str, port: int, name: str, base_dir: object, op: str, channel: str
+    ) -> dict[str, object]:
+        return {
+            "op": "error",
+            "code": "CHANNEL_LIMIT_REACHED",
+            "message": " subscription limit reached",
+        }
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = main(["subscribe", "updates"])
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "inter-agent-claude: (CHANNEL_LIMIT_REACHED):  subscription limit reached",
+    ]
+
+
+def test_subscribe_requires_connected_listener(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("control.request must not be called")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: None)
+
+    code = commands.subscribe("updates")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "not connected. Run '/inter-agent connect' first.\n"
+
+
+def test_subscribe_missing_listener_reports_cleanly(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise control.ControlError("listener not reachable; reconnecting or not running")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = commands.subscribe("updates")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+    assert captured.err.startswith("inter-agent-claude: ")
+
+
+def test_subscribe_invalid_channel_returns_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("control.request must not be called")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = commands.subscribe("Bad Channel!")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert "invalid channel name" in captured.err
+
+
+def test_publish_uses_connected_name_and_delegates_to_core(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int, str, str, str | None]] = []
+
+    async def fake_publish(
+        host: str,
+        port: int,
+        channel: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
+    ) -> SendResult:
+        del kwargs
+        calls.append((host, port, channel, text, from_name))
+        return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
+
+    monkeypatch.setattr(core_publish, "publish_to_channel", fake_publish)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-connected")
+
+    code = main(["publish", "updates", "hello"])
+
+    assert code == 0
+    assert calls == [("127.0.0.1", 16837, "updates", "hello", "agent-connected")]
+    # Claude publish success is silent.
+    assert capsys.readouterr().out == ""
+
+
+def test_publish_protocol_error_returns_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_publish(
+        host: str,
+        port: int,
+        channel: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
+    ) -> SendResult:
+        del kwargs
+        return SendResult(
+            welcome='{"op": "welcome"}',
+            welcome_payload={"op": "welcome"},
+            error=ProtocolErrorResult(
+                code="UNKNOWN_CHANNEL",
+                message="unknown channel",
+                raw='{"op": "error", "code": "UNKNOWN_CHANNEL", "message": "unknown channel"}',
+            ),
+        )
+
+    monkeypatch.setattr(core_publish, "publish_to_channel", fake_publish)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = commands.publish("updates", "hello")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "inter-agent-claude: publish failed (UNKNOWN_CHANNEL): unknown channel",
+    ]
+
+
+def test_publish_requires_connected_listener(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_publish(*args: object, **kwargs: object) -> SendResult:
+        raise AssertionError("publish must not be called")
+
+    monkeypatch.setattr(core_publish, "publish_to_channel", fake_publish)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: None)
+
+    code = commands.publish("updates", "hello")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.err == "not connected. Run '/inter-agent connect' first.\n"
+
+
+def test_publish_suppresses_duplicate_within_window(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[str] = []
+
+    async def fake_publish(
+        host: str,
+        port: int,
+        channel: str,
+        text: str,
+        from_name: str | None = None,
+        **kwargs: object,
+    ) -> SendResult:
+        del kwargs
+        calls.append(text)
+        return SendResult(welcome='{"op": "welcome"}', welcome_payload={"op": "welcome"})
+
+    monkeypatch.setattr(core_publish, "publish_to_channel", fake_publish)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    assert commands.publish("updates", "hello") == 0
+    assert commands.publish("updates", "hello") == 0
+    assert calls == ["hello"]
+
+
+def test_channels_uses_core_api(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int]] = []
+
+    async def fake_channels(host: str, port: int, **kwargs: object) -> ChannelsResult:
+        del kwargs
+        calls.append((host, port))
+        return ChannelsResult(
+            raw_response='{"op": "channels_ok", "channels": []}',
+            response={"op": "channels_ok", "channels": []},
+            channels=(),
+        )
+
+    monkeypatch.setattr(core_channels, "list_channels", fake_channels)
+
+    code = commands.channels()
+
+    assert code == 0
+    assert calls == [("127.0.0.1", 16837)]
+    assert json.loads(capsys.readouterr().out) == {"op": "channels_ok", "channels": []}
+
+
+def test_subscribe_config_failure_is_adapter_prefixed_and_traceback_free(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """resolve_endpoint config failures stay adapter-prefixed and traceback-free."""
+    monkeypatch.setenv("INTER_AGENT_PORT", "not-an-int")
+
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("control.request must not be called for a config failure")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = main(["subscribe", "updates"])
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+    assert captured.err.startswith("inter-agent-claude: ")
+    assert "INTER_AGENT_PORT" in captured.err
+
+
+def test_unsubscribe_config_failure_is_adapter_prefixed_and_traceback_free(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_PORT", "not-an-int")
+
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("control.request must not be called for a config failure")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    code = main(["unsubscribe", "updates"])
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+    assert captured.err.startswith("inter-agent-claude: ")
+
+
+def test_subscribe_data_dir_oserror_is_adapter_prefixed_and_traceback_free(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An OSError from the data-dir lookup is adapter-prefixed and clean."""
+
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("control.request must not be called for a data-dir failure")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    def boom() -> Path:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(state, "claude_data_dir", boom)
+
+    code = main(["subscribe", "updates"])
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+    assert captured.err.startswith("inter-agent-claude: ")
+    assert "disk full" in captured.err
+
+
+def test_unsubscribe_data_dir_oserror_is_adapter_prefixed_and_traceback_free(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("control.request must not be called for a data-dir failure")
+
+    monkeypatch.setattr(control, "request", fake_request)
+    monkeypatch.setattr(commands, "_connected_from_name", lambda: "agent-a")
+
+    def boom() -> Path:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(state, "claude_data_dir", boom)
+
+    code = main(["unsubscribe", "updates"])
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+    assert captured.err.startswith("inter-agent-claude: ")
+    assert "disk full" in captured.err

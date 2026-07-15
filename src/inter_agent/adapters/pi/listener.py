@@ -21,22 +21,15 @@ import random
 import socket
 import subprocess
 import sys
-import uuid
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TextIO, cast
+from typing import TextIO
 
 import websockets
 
-from inter_agent.core.auth import client_handshake
-from inter_agent.core.client import build_hello
-from inter_agent.core.shared import (
-    DEFAULT_HOST,
-    DEFAULT_PORT,
-    resolve_endpoint,
-    resolve_shared_secret,
-)
-from inter_agent.core.transport import client_ssl_context, websocket_uri
+from inter_agent.adapters import control
+from inter_agent.core.client import AgentSession
+from inter_agent.core.shared import DEFAULT_HOST, DEFAULT_PORT, resolve_endpoint
 
 RECONNECT_BACKOFF_MIN_S = 0.5
 RECONNECT_BACKOFF_MAX_S = 4.0
@@ -61,6 +54,23 @@ _PERMANENT_ERROR_CODES = frozenset(
 log = logging.getLogger("inter-agent.pi.listener")
 
 
+def pi_data_dir() -> Path:
+    """Return the Pi adapter data directory under the core data dir."""
+    from inter_agent.core.shared import data_dir as core_data_dir
+
+    path = core_data_dir() / "pi-sessions"
+    path.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(path, 0o700)
+    except OSError:
+        pass
+    return path
+
+
+def _control_socket_path(host: str, port: int, name: str) -> Path:
+    return control.control_socket_path("pi", host, port, name, pi_data_dir())
+
+
 class PermanentError(Exception):
     """Raised when the server returns an error that reconnecting cannot resolve."""
 
@@ -78,12 +88,6 @@ def _print_frame(payload: str, output: TextIO) -> None:
     """Emit a single JSON frame to stdout, flushed."""
     output.write(payload + "\n")
     output.flush()
-
-
-def _text_frame(frame: str | bytes) -> str:
-    if isinstance(frame, bytes):
-        return frame.decode("utf-8")
-    return frame
 
 
 def _start_server(
@@ -134,44 +138,100 @@ async def _connect_and_stream(
     tls: bool = False,
     data_dir: Path | None = None,
     tls_cert_path: Path | None = None,
+    desired_channels: set[str] | None = None,
+    control_path: Path | None = None,
 ) -> None:
-    """Connect once, print frames, and return when the connection closes.
+    """Connect once, print raw frames, and return when the connection closes.
 
-    Raises PermanentError if the server rejects the connection with a
-    permanent error code.
+    Reapplies the desired subscription set after a welcome so a transient
+    reconnect does not drop subscriptions. Raises PermanentError if the server
+    rejects the connection with a permanent error code as the first frame.
     """
+    desired = desired_channels
 
-    async def handle_first_frame(text: str) -> bool:
+    async with AgentSession(
+        host, port, name, label, tls=tls, data_dir=data_dir, tls_cert_path=tls_cert_path
+    ) as session:
+        control_server: control.ControlServer | None = None
+
+        async def handle_request(op: str, channel: str) -> dict[str, object]:
+            try:
+                if op == "subscribe":
+                    response = await session.subscribe(channel)
+                    if response.get("op") == "subscribe_ok" and desired is not None:
+                        desired.add(channel)
+                    return response
+                response = await session.unsubscribe(channel)
+                if response.get("op") == "unsubscribe_ok" and desired is not None:
+                    desired.discard(channel)
+                return response
+            except Exception as exc:
+                return {"op": "error", "code": "LISTENER_UNAVAILABLE", "message": str(exc)}
+
+        async def reapply_desired() -> None:
+            for channel in sorted(desired or ()):
+                try:
+                    await session.subscribe(channel)
+                except Exception:
+                    pass
+
+        async def bind_control() -> None:
+            # (Re)bind the local control socket. Failures fail closed: the
+            # listener stays usable and the extension is told control is
+            # unavailable rather than rediscovering the connection down.
+            nonlocal control_server
+            if control_server is not None:
+                await control_server.stop()
+                control_server = None
+            if control_path is None:
+                return
+            try:
+                server = control.ControlServer(control_path, handle_request)
+                started = await server.start()
+                if not started:
+                    log.warning("control socket unavailable; subscribe/unsubscribe disabled")
+                    await server.stop()
+                    return
+                control_server = server
+            except OSError as exc:
+                log.warning("control socket setup failed: %s", exc)
+
         try:
-            payload = json.loads(text)
-        except json.JSONDecodeError:
-            return False
-        if payload.get("op") == "error":
-            code = payload.get("code", "")
-            if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
-                raise PermanentError(f"{code}: {payload.get('message', '')}")
-            return True
-        return False
+            first = True
+            async for raw in session:
+                try:
+                    payload = json.loads(raw)
+                except json.JSONDecodeError:
+                    payload = None
+                op = payload.get("op") if payload is not None else None
 
-    ssl_context = client_ssl_context(tls, data_dir, tls_cert_path)
-    uri = websocket_uri(host, port, tls)
-    connection = (
-        websockets.connect(uri, ssl=ssl_context) if ssl_context else websockets.connect(uri)
-    )
-    async with connection as ws:
-        hello = build_hello(os.getenv("INTER_AGENT_SESSION_ID", str(uuid.uuid4())), name, label)
-        if hasattr(ws, "recv"):
-            text = await client_handshake(ws, resolve_shared_secret().secret, hello)
-        else:
-            await ws.send(json.dumps(hello))
-            iterator = cast(AsyncIterator[str], ws)
-            text = await anext(iterator)
-        _print_frame(text, output)
-        if await handle_first_frame(text):
-            return
-        async for raw in ws:
-            text = _text_frame(raw)
-            _print_frame(text, output)
+                if op == "welcome":
+                    # Reapply subscriptions and bind the control socket BEFORE
+                    # emitting the welcome so the host cannot mark the listener
+                    # ready before channels are restored and the bridge is
+                    # accepting requests.
+                    await reapply_desired()
+                    await bind_control()
+                    _print_frame(raw, output)
+                    first = False
+                    continue
+
+                if first:
+                    # The initial frame is part of readiness: emit it exactly
+                    # once before acting on it so the host sees the raw error.
+                    _print_frame(raw, output)
+                    first = False
+                    if op == "error":
+                        code = payload.get("code", "") if payload is not None else ""
+                        if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
+                            raise PermanentError(f"{code}: {payload.get('message', '')}")
+                        return
+                    continue
+                _print_frame(raw, output)
+        finally:
+            if control_server is not None:
+                await control_server.stop()
+                control_server = None
 
 
 def _jittered_delay(backoff: float) -> float:
@@ -202,6 +262,12 @@ async def run_listener(
     Returns 0 on clean shutdown, 1 on permanent error or give-up.
     """
     stream = output or sys.stdout
+    desired_channels: set[str] = set()
+    try:
+        control_path: Path | None = _control_socket_path(host, port, name)
+    except OSError:
+        log.warning("control socket unavailable; subscribe/unsubscribe disabled")
+        control_path = None
     backoff = RECONNECT_BACKOFF_MIN_S
     deadline: float | None = None
     server_started = False
@@ -255,6 +321,8 @@ async def run_listener(
                 tls=tls,
                 data_dir=data_dir,
                 tls_cert_path=tls_cert_path,
+                desired_channels=desired_channels,
+                control_path=control_path,
             )
             # Connection closed normally — reset and reconnect.
             backoff = RECONNECT_BACKOFF_MIN_S
@@ -268,7 +336,7 @@ async def run_listener(
             deadline = asyncio.get_running_loop().time() + deadline_s
         if asyncio.get_running_loop().time() >= deadline:
             print(
-                "[inter-agent] giving up; could not reconnect within " f"{deadline_s:.0f}s",
+                f"[inter-agent] giving up; could not reconnect within {deadline_s:.0f}s",
                 file=sys.stderr,
             )
             return 1

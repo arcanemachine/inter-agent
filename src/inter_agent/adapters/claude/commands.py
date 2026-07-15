@@ -11,13 +11,16 @@ from pathlib import Path
 
 from websockets.exceptions import WebSocketException
 
+from inter_agent.adapters import control
 from inter_agent.adapters.claude import dedup, state
+from inter_agent.core import channels as core_channels
 from inter_agent.core import list as core_list
+from inter_agent.core import publish as core_publish
 from inter_agent.core import send as core_send
 from inter_agent.core import shutdown as core_shutdown
 from inter_agent.core import status as core_status
 from inter_agent.core.send import SendResult
-from inter_agent.core.shared import resolve_endpoint
+from inter_agent.core.shared import Limits, resolve_endpoint, validate_channel_name
 
 
 def _system_exit_code(exc: SystemExit) -> int:
@@ -36,8 +39,7 @@ def _expected_error_code(exc: Exception) -> int:
 def _send_result_code(result: SendResult) -> int:
     if result.error is not None:
         print(
-            f"inter-agent-claude: delivery failed ({result.error.code}): "
-            f"{result.error.message}",
+            f"inter-agent-claude: delivery failed ({result.error.code}): {result.error.message}",
             file=sys.stderr,
         )
         return 1
@@ -76,6 +78,143 @@ def _require_connected_from_name() -> str | None:
         print("not connected. Run '/inter-agent connect' first.", file=sys.stderr)
         return None
     return from_name
+
+
+def _control_response_code(response: dict[str, object], adapter_prefix: str) -> int:
+    op = response.get("op")
+    if op in ("subscribe_ok", "unsubscribe_ok"):
+        print(json.dumps(response, ensure_ascii=False))
+        return 0
+    if op == "error":
+        code = response.get("code", "PROTOCOL_ERROR")
+        message = response.get("message", "protocol error")
+        print(
+            f"{adapter_prefix}: ({code}): {message}",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"{adapter_prefix}: unexpected response: {response}", file=sys.stderr)
+    return 1
+
+
+def _validate_channel_or_error(channel: str, adapter_prefix: str) -> bool:
+    if not validate_channel_name(channel, Limits().channel_name_max):
+        print(f"{adapter_prefix}: invalid channel name: {channel!r}", file=sys.stderr)
+        return False
+    return True
+
+
+def subscribe(channel: str) -> int:
+    """Subscribe the current session's live listener to a channel."""
+    if not _validate_channel_or_error(channel, "inter-agent-claude"):
+        return 1
+    connected_name = _require_connected_from_name()
+    if connected_name is None:
+        return 1
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        response = asyncio.run(
+            control.request(
+                "claude",
+                endpoint.host,
+                endpoint.port,
+                connected_name,
+                state.claude_data_dir(),
+                "subscribe",
+                channel,
+            )
+        )
+    except (SystemExit, control.ControlError, OSError, TimeoutError, ValueError) as exc:
+        print(f"inter-agent-claude: {exc}", file=sys.stderr)
+        return 1
+    return _control_response_code(response, "inter-agent-claude")
+
+
+def unsubscribe(channel: str) -> int:
+    """Unsubscribe the current session's live listener from a channel."""
+    if not _validate_channel_or_error(channel, "inter-agent-claude"):
+        return 1
+    connected_name = _require_connected_from_name()
+    if connected_name is None:
+        return 1
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        response = asyncio.run(
+            control.request(
+                "claude",
+                endpoint.host,
+                endpoint.port,
+                connected_name,
+                state.claude_data_dir(),
+                "unsubscribe",
+                channel,
+            )
+        )
+    except (SystemExit, control.ControlError, OSError, TimeoutError, ValueError) as exc:
+        print(f"inter-agent-claude: {exc}", file=sys.stderr)
+        return 1
+    return _control_response_code(response, "inter-agent-claude")
+
+
+def _publish_send_result_code(result: SendResult) -> int:
+    # Claude publish success is silent (no welcome envelope printed).
+    if result.error is not None:
+        print(
+            f"inter-agent-claude: publish failed ({result.error.code}): {result.error.message}",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+def publish(channel: str, text: str, from_name: str | None = None) -> int:
+    del from_name
+    if not _validate_channel_or_error(channel, "inter-agent-claude"):
+        return 1
+    connected_name = _require_connected_from_name()
+    if connected_name is None:
+        return 1
+    if dedup.is_duplicate_publish(connected_name, channel, text):
+        return 0
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(
+            core_publish.publish_to_channel(
+                endpoint.host,
+                endpoint.port,
+                channel,
+                text,
+                connected_name,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    return _publish_send_result_code(result)
+
+
+def channels(as_json: bool = True) -> int:
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(
+            core_channels.list_channels(
+                endpoint.host,
+                endpoint.port,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    print(result.raw_response)
+    return 0 if result.response.get("op") == "channels_ok" else 1
 
 
 def send(to: str, text: str, from_name: str | None = None) -> int:

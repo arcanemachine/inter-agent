@@ -4,7 +4,7 @@ import asyncio
 import io
 import json
 from collections.abc import Callable
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout, suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +19,7 @@ from inter_agent.adapters.claude.formatting import STDOUT_CAP
 from inter_agent.adapters.claude.listener import Listener
 from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello
+from inter_agent.core.server import run_server
 from inter_agent.core.shared import control_hello
 
 
@@ -49,6 +50,21 @@ def run_claude_function(function: Callable[..., int], *args: object) -> CommandC
 def use_live_claude_defaults(monkeypatch: pytest.MonkeyPatch, server: LiveServer) -> None:
     monkeypatch.setenv("INTER_AGENT_HOST", server.host)
     monkeypatch.setenv("INTER_AGENT_PORT", str(server.port))
+
+
+def use_short_data_dir(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+    server: LiveServer,
+) -> None:
+    """Short isolated data dir so control sockets fit the AF_UNIX path limit.
+
+    The live server already fixed its secret at construction; pinning
+    INTER_AGENT_SECRET lets the listener auth against it without depending on
+    the token file living in this (short) data dir.
+    """
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+    monkeypatch.setenv("INTER_AGENT_SECRET", server.secret)
 
 
 async def wait_for_claude_status_state(state: str) -> dict[str, object]:
@@ -267,9 +283,9 @@ def test_claude_cli_unavailable_identity_failures_use_stderr(
 async def test_listener_receives_direct_message(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
     use_live_claude_defaults(monkeypatch, live_server)
 
     out = io.StringIO()
@@ -302,9 +318,9 @@ async def test_listener_receives_direct_message(
 async def test_listener_receives_broadcast_message(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
     use_live_claude_defaults(monkeypatch, live_server)
 
     out = io.StringIO()
@@ -337,9 +353,9 @@ async def test_listener_receives_broadcast_message(
 async def test_listener_truncates_long_messages(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
     use_live_claude_defaults(monkeypatch, live_server)
 
     out = io.StringIO()
@@ -372,9 +388,9 @@ async def test_listener_truncates_long_messages(
 async def test_listener_retries_name_taken_once(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
     use_live_claude_defaults(monkeypatch, live_server)
 
     out = io.StringIO()
@@ -396,3 +412,174 @@ async def test_listener_retries_name_taken_once(
     output = out.getvalue()
     assert 'name "duplicate-name" is already in use; retrying as "duplicate-name-2"' in output
     assert 'connected as "duplicate-name-2"' in output
+
+
+async def wait_for_connected_name(name: str) -> bool:
+    deadline = asyncio.get_running_loop().time() + 2
+    while asyncio.get_running_loop().time() < deadline:
+        status = await asyncio.to_thread(run_claude, ["status", "--json"])
+        payload = json.loads(status.stdout)
+        if payload.get("connected_name") == name:
+            return True
+        await asyncio.sleep(0.05)
+    return False
+
+
+async def wait_for_channel_subscriber(channel: str, name: str) -> bool:
+    """Poll ``channels`` until ``name`` is registered under ``channel``."""
+    deadline = asyncio.get_running_loop().time() + 5
+    while asyncio.get_running_loop().time() < deadline:
+        result = await asyncio.to_thread(run_claude, ["channels", "--json"])
+        payload = json.loads(result.stdout)
+        for entry in payload.get("channels", []):
+            if entry.get("name") == channel and name in entry.get("subscribers", []):
+                return True
+        await asyncio.sleep(0.1)
+    return False
+
+
+@pytest.mark.asyncio
+async def test_claude_subscribe_unsubscribe_publish_channels_round_trip(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
+    use_live_claude_defaults(monkeypatch, live_server)
+
+    out = io.StringIO()
+    listener = Listener(
+        host=live_server.host,
+        port=live_server.port,
+        name="listener-a",
+        output=out,
+    )
+    task = asyncio.create_task(listener.run())
+    try:
+        assert await wait_for_connected_name("listener-a")
+
+        subscribe_result = await asyncio.to_thread(run_claude, ["subscribe", "updates"])
+        assert subscribe_result.code == 0
+        assert json.loads(subscribe_result.stdout) == {"op": "subscribe_ok", "channel": "updates"}
+
+        channels_result = await asyncio.to_thread(run_claude, ["channels", "--json"])
+        assert channels_result.code == 0
+        payload = json.loads(channels_result.stdout)
+        assert payload["op"] == "channels_ok"
+        assert any(
+            c["name"] == "updates" and "listener-a" in c["subscribers"] for c in payload["channels"]
+        )
+
+        publish_result = await asyncio.to_thread(
+            run_claude, ["publish", "updates", "channel hello"]
+        )
+        assert publish_result.code == 0
+        assert publish_result.stdout == ""  # Claude publish success is silent
+        await asyncio.sleep(0.1)
+        assert 'kind="channel" channel="updates"' in out.getvalue()
+        assert "channel hello" in out.getvalue()
+
+        unsubscribe_result = await asyncio.to_thread(run_claude, ["unsubscribe", "updates"])
+        assert unsubscribe_result.code == 0
+        assert json.loads(unsubscribe_result.stdout) == {
+            "op": "unsubscribe_ok",
+            "channel": "updates",
+        }
+
+        # Publishing to the now-empty channel fails with UNKNOWN_CHANNEL.
+        empty_result = await asyncio.to_thread(run_claude, ["publish", "updates", "no one"])
+        assert empty_result.code == 1
+        assert "UNKNOWN_CHANNEL" in empty_result.stderr
+    finally:
+        listener.stop()
+        await task
+        await asyncio.sleep(0.05)
+
+
+@pytest.mark.asyncio
+async def test_claude_subscribe_without_listener_fails_cleanly(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
+    use_live_claude_defaults(monkeypatch, live_server)
+
+    result = await asyncio.to_thread(run_claude, ["subscribe", "updates"])
+
+    assert result.code == 1
+    assert result.stdout == ""
+    assert "Traceback" not in result.stderr
+    assert "not connected" in result.stderr
+
+
+@pytest.mark.asyncio
+async def test_claude_publish_suppresses_duplicate_within_window(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    use_short_data_dir(monkeypatch, tmp_path_factory, live_server)
+    use_live_claude_defaults(monkeypatch, live_server)
+
+    out = io.StringIO()
+    listener = Listener(
+        host=live_server.host,
+        port=live_server.port,
+        name="listener-a",
+        output=out,
+    )
+    task = asyncio.create_task(listener.run())
+    try:
+        assert await wait_for_connected_name("listener-a")
+        await asyncio.to_thread(run_claude, ["subscribe", "updates"])
+        await asyncio.to_thread(run_claude, ["publish", "updates", "dup hello"])
+        await asyncio.to_thread(run_claude, ["publish", "updates", "dup hello"])
+        await asyncio.sleep(0.1)
+        assert out.getvalue().count("dup hello") == 1
+    finally:
+        listener.stop()
+        await task
+        await asyncio.sleep(0.05)
+
+
+@pytest.mark.asyncio
+async def test_claude_listener_reapplies_subscriptions_after_server_restart(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+    unused_tcp_port: int,
+) -> None:
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+    monkeypatch.setenv("INTER_AGENT_SECRET", "test-secret-fixed")
+    monkeypatch.setenv("INTER_AGENT_HOST", "127.0.0.1")
+    monkeypatch.setenv("INTER_AGENT_PORT", str(unused_tcp_port))
+
+    server_task = asyncio.create_task(run_server("127.0.0.1", unused_tcp_port))
+    await asyncio.sleep(0.1)
+    out = io.StringIO()
+    listener = Listener(host="127.0.0.1", port=unused_tcp_port, name="listener-a", output=out)
+    task = asyncio.create_task(listener.run())
+    try:
+        assert await wait_for_connected_name("listener-a")
+        await asyncio.to_thread(run_claude, ["subscribe", "updates"])
+
+        # Bounce the server; the listener must reconnect and stay subscribed.
+        server_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await server_task
+        server_task = asyncio.create_task(run_server("127.0.0.1", unused_tcp_port))
+        await asyncio.sleep(0.1)
+        # Wait until the listener has reconnected and resubscribed.
+        assert await wait_for_channel_subscriber("updates", "listener-a")
+
+        publish_result = await asyncio.to_thread(run_claude, ["publish", "updates", "post-restart"])
+        assert publish_result.code == 0
+        await asyncio.sleep(0.1)
+        assert 'kind="channel" channel="updates"' in out.getvalue()
+        assert "post-restart" in out.getvalue()
+    finally:
+        listener.stop()
+        await task
+        server_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await server_task
