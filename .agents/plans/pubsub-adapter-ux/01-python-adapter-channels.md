@@ -4,9 +4,23 @@
 
 Expose `subscribe`, `unsubscribe`, `publish`, and `channels` through both Python host adapters while preserving the active listener identity and each adapter's established output, error, reconnection, duplicate-suppression, and inbound-message behavior.
 
-## Allowed files
+## Reading sequence and file authority
 
-The executor may read and modify only these files unless the leader approves an expanded packet:
+The packet is the implementation authority. Do not read `.agents/PLAN.md`, `ROADMAP.md`, the design seed, unrelated documentation, or the full authorized set as an onboarding sweep.
+
+After the mandatory repository instructions and executor role, initially read only:
+
+- `src/inter_agent/core/channels.py` (read only)
+- `src/inter_agent/core/client.py` (read only)
+- `src/inter_agent/core/publish.py` (read only)
+- `src/inter_agent/adapters/claude/commands.py`
+- `src/inter_agent/adapters/claude/listener.py`
+- `src/inter_agent/adapters/pi/commands.py`
+- `src/inter_agent/adapters/pi/listener.py`
+
+Inspect the other authorized files below only immediately before changing them or when a concrete requirement requires them. Tests should be read in focused groups alongside the behavior being implemented, not all at once.
+
+### Writable files
 
 - `src/inter_agent/adapters/control.py` (new shared adapter-local control bridge)
 - `src/inter_agent/adapters/claude/README.md`
@@ -20,11 +34,7 @@ The executor may read and modify only these files unless the leader approves an 
 - `src/inter_agent/adapters/pi/cli.py`
 - `src/inter_agent/adapters/pi/commands.py`
 - `src/inter_agent/adapters/pi/listener.py`
-- `src/inter_agent/adapters/pi/state.py` (new, if needed for listener-control discovery)
-- `src/inter_agent/core/channels.py` (read only)
-- `src/inter_agent/core/client.py` (read only)
-- `src/inter_agent/core/publish.py` (read only)
-- `tests/test_adapter_control.py` (new, if shared bridge coverage is useful)
+- `tests/test_adapter_control.py` (new)
 - `tests/test_claude_adapter_cli.py`
 - `tests/test_claude_dedup.py`
 - `tests/test_claude_listener.py`
@@ -32,6 +42,8 @@ The executor may read and modify only these files unless the leader approves an 
 - `tests/test_pi_listener.py`
 - `tests/integration/test_claude_adapter_live.py`
 - `tests/integration/test_pi_adapter_live.py`
+
+No other file may be read or changed without leader approval. Core files are reference-only.
 
 ## Non-goals
 
@@ -54,7 +66,14 @@ The executor may read and modify only these files unless the leader approves an 
    - `inter-agent-claude publish <channel> <text>`
    - `inter-agent-claude channels [--json]`
 2. `subscribe` and `unsubscribe` must operate on the matching already-connected agent listener, not a new control or agent identity.
-3. Implement a private local Unix-domain socket bridge between short-lived adapter commands and the listener. Use adapter data directories, collision-resistant bounded socket names, restrictive filesystem permissions, bounded request/response waits, and stale-endpoint cleanup. Never expose the shared secret through this bridge.
+3. Implement a private local Unix-domain socket bridge between short-lived adapter commands and the listener in `src/inter_agent/adapters/control.py`:
+   - Place sockets in a `control/` child of the configured adapter data directory.
+   - Derive `control-<adapter>-<16 lowercase hex>.sock` from SHA-256 over adapter, normalized host, port, and routing identity so the Unix path remains bounded and endpoint/name collisions do not occur.
+   - Create the control directory with mode `0700` and set the socket to `0600`.
+   - Exchange one newline-delimited JSON request and response per connection. Requests contain only `op` (`subscribe` or `unsubscribe`) and `channel`; responses are the raw protocol acknowledgment or error object.
+   - Reject malformed, oversized, or unsupported requests. Cap a request at 64 KiB and each connect/read/write wait at 2 seconds.
+   - On listener startup, remove an existing socket only after a failed liveness probe; refuse to replace a live endpoint. On shutdown, unlink only the endpoint owned by that listener instance.
+   - Never expose the shared secret through this bridge.
 4. Pi listener selection is explicit through `--name`. Claude uses its existing current-session listener-state resolution. A missing, stale, reconnecting, or mismatched listener must fail cleanly without traceback.
 5. Listeners must use the persistent `AgentSession` channel operations and retain the desired subscription set across transient WebSocket reconnections. Reapply desired subscriptions after reconnect before reporting normal readiness. Explicit listener shutdown clears the in-memory set.
 6. Successful subscribe/unsubscribe commands print their protocol acknowledgment JSON. Protocol errors print an adapter-prefixed diagnostic to stderr and return nonzero.
@@ -87,7 +106,9 @@ uv run pytest tests/test_adapter_control.py tests/test_claude_adapter_cli.py tes
 ./run-checks.sh
 ```
 
-If `tests/test_adapter_control.py` is not created because bridge coverage is placed in existing test files, omit that path from the focused pytest command.
+## Executor stop conditions
+
+Stop and report instead of improvising if the existing `AgentSession` API cannot support the bridge contract, the exact socket lifecycle is unsafe under an observed repository constraint, a core file appears to require modification, or any unlisted file is needed.
 
 ## User acceptance test
 

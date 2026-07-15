@@ -8,16 +8,29 @@ Task 1 (Python adapter channel commands) must be reviewed and committed first. T
 
 Expose channel membership through user-invoked Pi subcommands that match the existing grouped `/inter-agent <subcommand>` syntax, while deliberately withholding subscribe/unsubscribe from LLM-callable tools.
 
-## Allowed files
+## Reading sequence and file authority
 
-The executor may read and modify only these files unless the leader approves an expanded packet:
+The packet is the implementation authority. Do not read `.agents/PLAN.md`, `ROADMAP.md`, the design seed, unrelated documentation, or all authorized references as an onboarding sweep.
 
-- `integrations/pi/AGENTS.md` (read only)
+After the mandatory repository instructions and executor role:
+
+1. Read `integrations/pi/AGENTS.md` completely.
+2. Read only `integrations/pi/src/index.ts` and the relevant command assertions in `tests/test_pi_extension_static.py`.
+3. Consult the two read-only references below only if the implemented Task 1 CLI contract is unclear.
+4. Read `integrations/pi/README.md` immediately before updating it.
+
+### Writable files
+
 - `integrations/pi/README.md`
 - `integrations/pi/src/index.ts`
-- `src/inter_agent/adapters/pi/README.md` (read only)
 - `tests/test_pi_extension_static.py`
-- `tests/integration/test_pi_adapter_live.py` (read only)
+
+### Additional read-only references
+
+- `src/inter_agent/adapters/pi/README.md`
+- `tests/integration/test_pi_adapter_live.py`
+
+No other file may be read or changed without leader approval.
 
 ## Non-goals
 
@@ -63,6 +76,10 @@ npm --prefix integrations/pi run format
 ```
 
 After formatting, verify only intended files changed.
+
+## Executor stop conditions
+
+Stop and report instead of improvising if Task 1's CLI contract is absent or differs from this packet, static coverage cannot exercise a material requirement, the extension API requires another file, or any unlisted file is needed.
 
 ## User acceptance test
 
