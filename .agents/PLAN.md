@@ -8,7 +8,14 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-No active work is currently tracked here.
+### Pub/sub adapter UX
+
+Approved scope: complete the Python adapter channel surface, then add user-controlled Pi subscription commands.
+
+1. **Python adapter channel commands** — ready for dispatch. Add the private listener-control bridge and expose subscribe, unsubscribe, publish, channel listing, and distinct inbound channel formatting through both Python adapters. Packet: [`plans/pubsub-adapter-ux/01-python-adapter-channels.md`](plans/pubsub-adapter-ux/01-python-adapter-channels.md).
+2. **Pi user-controlled subscription commands** — sequenced after item 1. Add `/inter-agent subscribe <channel>` and `/inter-agent unsubscribe <channel>` without adding LLM-callable subscription tools. Packet: [`plans/pubsub-adapter-ux/02-pi-user-subscription-commands.md`](plans/pubsub-adapter-ux/02-pi-user-subscription-commands.md).
+
+Subscriptions persist across transient listener reconnections only. There are no automatic subscriptions, and explicit listener restart/reload requires the user to subscribe again.
 
 ## Planning workflow
 
