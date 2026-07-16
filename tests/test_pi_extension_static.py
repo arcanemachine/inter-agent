@@ -130,6 +130,22 @@ def test_pi_extension_separates_display_from_agent_context() -> None:
     assert "[outbound inter-agent history — sent by current agent" in content
 
 
+def test_pi_extension_message_renderer_collapses_when_not_expanded() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # The renderer destructures the expanded flag and branches on it so a
+    # compact metadata line is shown when collapsed.
+    assert "{ expanded }" in content
+    assert "if (expanded)" in content
+
+    # The summary reports char length and the outbound/inbound metadata shapes.
+    assert " chars`" in content
+    assert "sent to " in content
+    assert "broadcast " in content
+    assert "published on " in content
+    assert "from " in content
+
+
 def test_pi_extension_supports_user_driven_rename() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 

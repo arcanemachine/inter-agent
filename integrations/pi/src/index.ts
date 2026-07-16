@@ -287,6 +287,34 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max) + " …";
 }
 
+// Compact one-line summary for the collapsed message renderer.
+function messageSummary(details: {
+  from?: string;
+  text?: string;
+  toInfo?: string;
+  outgoing?: boolean;
+}): string | null {
+  const text = details.text ?? "";
+  const chars = text.length;
+  if (details.outgoing) {
+    const toInfo = details.toInfo ?? "";
+    if (toInfo.startsWith("to ")) {
+      return `sent to ${toInfo.slice(3)} • ${chars} chars`;
+    }
+    if (toInfo === "broadcast") {
+      return `broadcast • ${chars} chars`;
+    }
+    if (toInfo.startsWith("on ")) {
+      return `published on ${toInfo.slice(3)} • ${chars} chars`;
+    }
+    return `sent ${toInfo} • ${chars} chars`;
+  }
+  if (details.from) {
+    return `from ${details.from} • ${chars} chars`;
+  }
+  return null;
+}
+
 const FROM_PREFIX_RE = /^\[from: ([^\]]+)\] ?/;
 
 function parseIncoming(text: string): { from: string | null; text: string } {
@@ -892,33 +920,47 @@ export default function (pi: ExtensionAPI) {
   // ── Custom message renderer ──────────────────────────────────────────────
   // Show a clean, user-facing summary in the TUI (from details.displayContent)
   // while the full `content` (with internal agent instructions) goes to the LLM.
-  pi.registerMessageRenderer<{ displayContent?: string }>(
-    "inter-agent-message",
-    (message, _options, theme) => {
-      const display =
-        typeof message.details === "object" &&
-        message.details !== null &&
-        "displayContent" in message.details
-          ? (message.details as { displayContent: string }).displayContent
-          : typeof message.content === "string"
-            ? message.content
-            : "";
-      const box = new Box(1, 1, (t) => theme.bg("customMessageBg", t));
-      box.addChild(
-        new Text(
-          theme.fg(
-            "customMessageLabel",
-            `\x1b[1m[inter-agent-message]\x1b[22m`,
-          ),
-          0,
-          0,
-        ),
-      );
-      box.addChild(new Spacer(1));
+  pi.registerMessageRenderer<{
+    displayContent?: string;
+    from?: string;
+    text?: string;
+    toInfo?: string;
+    outgoing?: boolean;
+  }>("inter-agent-message", (message, { expanded }, theme) => {
+    const details =
+      typeof message.details === "object" &&
+      message.details !== null &&
+      "displayContent" in message.details
+        ? (message.details as {
+            displayContent?: string;
+            from?: string;
+            text?: string;
+            toInfo?: string;
+            outgoing?: boolean;
+          })
+        : undefined;
+    const display =
+      details?.displayContent ??
+      (typeof message.content === "string" ? message.content : "");
+    const box = new Box(1, 1, (t) => theme.bg("customMessageBg", t));
+    box.addChild(
+      new Text(
+        theme.fg("customMessageLabel", `\x1b[1m[inter-agent-message]\x1b[22m`),
+        0,
+        0,
+      ),
+    );
+    box.addChild(new Spacer(1));
+    if (expanded) {
       box.addChild(new Text(theme.fg("customMessageText", display), 0, 0));
-      return box as unknown as Component;
-    },
-  );
+    } else {
+      const summary = details ? messageSummary(details) : null;
+      if (summary) {
+        box.addChild(new Text(theme.fg("muted", summary), 0, 0));
+      }
+    }
+    return box as unknown as Component;
+  });
 
   // ── Session Lifecycle ─────────────────────────────────────────────────────
 
