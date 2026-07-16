@@ -11,6 +11,7 @@ Connect each Pi session once, then Pi can use the extension tools to send messag
 - **Channels** — User-controlled pub/sub: subscribe and unsubscribe to named channels; channel deliveries are shown as channel messages, not direct or broadcast
 - **Tools** — LLM-callable tools for send, broadcast, list, status, and local identity
 - **State persistence** — Connection state survives Pi session reloads
+- **Collapsible messages** — Inter-agent message rows show a compact metadata line (recipient/direction and char count) when collapsed and the full message when expanded
 - **Safe truncation** — Long messages are truncated to 1000 characters in notifications
 
 ## Installation
