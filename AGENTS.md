@@ -28,12 +28,13 @@ The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task pa
 8. Use `.agents/PLAN.md` only for short-term active work. Use `ROADMAP.md` for accepted medium- and long-term direction and its documented activation sequence. Use `docs/plans/**` for future execution notes that are more detailed than the roadmap but not active work. When no active work is selected, follow the next accepted activation step; do not treat exploratory work in `docs/IDEAS.md` as an alternative unless the user asks or no accepted next step exists.
 9. When active plan work is completed, update or remove the relevant plan item. Update `README.md`, `ARCHITECTURE.md`, and `SECURITY.md` only for behavior or architecture that now exists.
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
-11. Match existing project style and conventions in code, tests, docs, and commits.
-12. A `leader` delegates only work required by the active plan or explicitly requested by the user. Do not create or dispatch work merely because it can be bounded.
-13. The `leader` keeps commits atomic per logical step.
-14. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
-15. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
-16. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
+11. Do not inject canned acknowledgment or receipt wording (for example, "Inter-agent message received; no reply needed.") into prompts sent to peer agents. Instructing a model toward a fixed passive receipt biases it into stopping at the receipt instead of acting on the request. Keep outward peer-message guidance about how to *decide whether to reply* and to *stay silent when idle*; never suggest a default response the model can emit in place of doing the work.
+12. Match existing project style and conventions in code, tests, docs, and commits.
+13. A `leader` delegates only work required by the active plan or explicitly requested by the user. Do not create or dispatch work merely because it can be bounded.
+14. The `leader` keeps commits atomic per logical step.
+15. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
+16. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
+17. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
 
 ## Required workflow for every feature/change
 
@@ -44,7 +45,7 @@ The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task pa
    - `uv run black --check .`
    - `uv run mypy src tests`
 
-   Exception: for documentation-only wording changes (for example, skill prompt wording that does not affect code, package metadata, schemas, or generated artifacts), do not spend time running the full gate unless the user asks for it or the edit touches a checked/generated document.
+   Exception: for documentation-only wording changes (for example, skill prompt wording that does not affect code, package metadata, schemas, or generated artifacts), do not spend time running the full gate unless the user asks for it or the edit touches a checked/generated document. This exception does **not** cover wording embedded in agent-facing inter-agent prompts (for example, reply/acknowledgment guidance emitted by an adapter): that wording directly changes model behavior, so treat it as a behavior change — add or update the relevant static prompt assertions and run the gate.
 3. The `leader` commits completed work when the task is done, keeping commits atomic per logical step.
 4. When completing a plan phase, provide a user acceptance test when possible, along with the commit hash where that acceptance test applies.
 5. If Git needs an explicit author identity for a maintainer-requested commit, use `Nicholas Moen <arcanemachine@gmail.com>` unless instructed otherwise.
