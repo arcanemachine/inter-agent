@@ -8,7 +8,13 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-No active work is currently tracked here.
+### Claude Code installed-plugin subscription UX
+
+Expose the already-implemented Claude adapter subscribe/unsubscribe behavior through user-invoked installed-plugin commands, add channel receive guidance, and align static coverage and evergreen documentation.
+
+Task packet:
+
+- [Task 1 — Claude Code installed-plugin subscription UX](plans/claude-code-subscription-ux/01-installed-plugin-subscriptions.md)
 
 ## Planning workflow
 
