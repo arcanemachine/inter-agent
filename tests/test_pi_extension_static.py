@@ -105,9 +105,7 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Keep inter-agent communication purposeful and brief" in content
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
-    assert "do not summarize or discuss the peer message in chat" in content
-    assert "To avoid an empty assistant turn" in content
-    assert "Inter-agent message received; no reply needed." in content
+    assert "do not reply and do not comment on it in chat" in content
     assert "This is historical context only" in content
     assert "Do not reply to it or comment on it" in content
     assert 'deliverAs: "followUp"' in content
@@ -207,13 +205,11 @@ def test_pi_extension_distinguishes_inbound_channel_delivery() -> None:
     assert "`on ${msg.channel}`" in content
 
     # Channel messages get distinct reply guidance that does not reuse the
-    # direct or broadcast instructions, while preserving untrusted-peer and
-    # neutral-receipt conventions.
+    # direct or broadcast instructions, while preserving the untrusted-peer
+    # convention and the rule against idle chatter.
     assert "Peer channel message ${toInfo}" in content
     assert "there is no publish tool" in content
-    assert "do not summarize or discuss the peer message in chat" in content
-    assert "respond only with a neutral receipt such as" in content
-    assert '"Inter-agent message received; no reply needed."' in content
+    assert "do not reply and do not comment on it in chat" in content
 
     # Existing direct/broadcast guidance is preserved unchanged.
     assert "Peer message. Reply to" in content
