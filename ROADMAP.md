@@ -50,9 +50,9 @@ Phase 2 (implemented) adds typed core APIs and CLI entry points for publishing a
 
 Phase 3 (implemented) adds subscribe, unsubscribe, publish, channel diagnostics, reconnect-aware membership, and distinct inbound channel formatting to the Pi and Claude Code Python adapters. A private local listener-control socket lets short-lived membership commands operate on the existing agent identity.
 
-Phase 4 is partially implemented. Pi now provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. Subscription control is intentionally not LLM-callable, and there are no automatic subscriptions. The installed Claude Code plugin channel UX and any separately accepted Pi publish/channel-list UX remain prospective.
+Phase 4 is partially implemented. Pi provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. The installed Claude Code `/inter-agent` skill likewise exposes user-invoked subscribe/unsubscribe and channel-aware notifications. Subscription control is intentionally not LLM-callable, and there are no automatic subscriptions. The installed Claude publish and channel-list UX, and any separately accepted Pi publish/channel-list UX, remain prospective.
 
-Next activation step: inventory the installed Claude Code integration and copy one bounded Phase 4 plugin UX slice into `.agents/PLAN.md`.
+Next activation step: copy one bounded Phase 4 slice for installed Claude Code publish and/or channel-list UX (or accepted Pi publish/channel-list UX) into `.agents/PLAN.md`.
 
 Reference material:
 

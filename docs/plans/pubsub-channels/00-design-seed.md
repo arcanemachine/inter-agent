@@ -98,16 +98,15 @@ Phase 3 exposes consistent subscribe, unsubscribe, publish, and channel-list beh
 
 ### Phase 4 — installed extension UX (partially implemented)
 
-The implemented Pi slice provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. Subscription control is deliberately not exposed as an LLM-callable tool, memberships are not persisted across listener restart or Pi reload, and nothing subscribes automatically.
+The implemented Pi slice provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. The implemented Claude Code slice exposes user-invoked subscribe/unsubscribe through the installed `/inter-agent` skill and treats channel notifications as untrusted collaboration input. Subscription control is deliberately not exposed as an LLM-callable tool in either integration, memberships are not persisted across listener restart, process restart, host reload, or resumed sessions, and nothing subscribes automatically. The installed Claude Code `/inter-agent` skill exposes `subscribe` and `unsubscribe` only; it does not expose `publish` or `channels`.
 
 Remaining prospective Phase 4 work includes:
 
-- Claude Code plugin commands/skills or tools supported by its integration surface;
-- channel-aware installed-plugin behavior and documentation for Claude Code;
-- any separately accepted Pi publish or channel-list UX;
-- static packaging tests and live acceptance coverage for each added slice.
+- installed Claude Code `publish` and `channels` user UX supported by its integration surface;
+- any separately accepted Pi `publish` or `channels` UX;
+- live acceptance and static packaging coverage for each remaining added slice.
 
-Next activation requires a focused inventory of `integrations/claude-code/` and a bounded installed-plugin UX slice.
+Next activation step: copy one bounded slice for installed Claude Code publish and/or channel-list UX (or accepted Pi publish/channel-list UX) into `.agents/PLAN.md`.
 
 ## Whole-feature acceptance criteria
 

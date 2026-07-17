@@ -126,7 +126,7 @@ Direct clients in another runtime have the same obligations:
 
 Host extension config may pass a configured secret to helper subprocesses as `INTER_AGENT_SECRET`. This supports isolated filesystems such as containers without requiring a shared data directory.
 
-The Pi integration currently exposes channel membership changes only as user-invoked slash commands. It does not register LLM-callable subscribe or unsubscribe tools and does not subscribe automatically.
+The Pi and Claude Code installed integrations expose channel membership changes only as user-invoked slash commands. Neither registers LLM-callable subscribe or unsubscribe tools, and neither subscribes automatically. The installed Claude Code `/inter-agent` skill exposes `subscribe` and `unsubscribe` only; it does not expose `publish` or `channels`. Channel memberships live in listener memory, survive transient WebSocket reconnects, and are cleared by listener stop, process restart, host reload, or resumed sessions.
 
 ## Secret rotation
 

@@ -87,17 +87,12 @@ Pi and Claude Code expose the same basic slash commands:
 /inter-agent status
 /inter-agent rename my-agent-2
 /inter-agent broadcast "build is green for everyone"
+/inter-agent subscribe updates
+/inter-agent unsubscribe updates
 /inter-agent disconnect
 ```
 
-Pi also provides user-controlled channel membership:
-
-```text
-/inter-agent subscribe updates
-/inter-agent unsubscribe updates
-```
-
-Nothing is subscribed automatically, and Pi does not expose subscribe or unsubscribe as LLM-callable tools. The Python Pi and Claude adapters also provide `subscribe`, `unsubscribe`, `publish`, and `channels` commands; the installed Claude Code plugin does not yet expose channel commands.
+Both integrations expose user-controlled channel membership as user-invoked slash commands. Nothing is subscribed automatically, and neither integration exposes subscribe or unsubscribe as LLM-callable tools. The Python Pi and Claude adapters also provide `subscribe`, `unsubscribe`, `publish`, and `channels` CLI commands; the installed Claude Code `/inter-agent` skill exposes `subscribe` and `unsubscribe` only, not `publish` or `channels`.
 
 Use direct `send` for normal coordination. Use `broadcast` only when all connected sessions need the message.
 

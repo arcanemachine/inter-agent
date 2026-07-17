@@ -21,7 +21,7 @@
    - May expose only a subset of core-supported operations.
    - A private adapter-local Unix-domain control bridge lets short-lived subscribe/unsubscribe commands operate on the matching persistent listener identity without opening another agent session.
    - Pi adapter (`pi/`) provides channel-capable Python commands and TypeScript extension integration through Python helper entry points. The extension exposes subscribe/unsubscribe as user commands, not LLM tools.
-   - Claude Code adapter (`claude/`) provides Monitor-backed channel-capable listener and CLI commands, distinct channel notifications, and short-window duplicate suppression for sends and publishes.
+   - Claude Code adapter (`claude/`) provides a Monitor-backed channel-capable listener and CLI commands, distinct channel notifications, and short-window duplicate suppression for sends and publishes. The installed `/inter-agent` skill exposes `subscribe` and `unsubscribe` as user-invoked commands, not LLM tools.
    - Integration assets for each host live under `integrations/<host>/`.
 
 3. **Spec (`spec/`)**
@@ -81,6 +81,8 @@ Runtime source is not bus auth/state: adapters may resolve helper binaries throu
 Agent-only subscribe/unsubscribe operations must reuse the connected listener identity. The Python adapters therefore bind a private Unix-domain socket under their adapter data directory after the agent session is ready. Short-lived adapter commands send only an operation and channel name through this local bridge; the listener performs the operation through `AgentSession`. The bridge never carries the shared bus secret.
 
 The desired subscription set lives only in listener memory. It is reapplied before readiness is reported after a transient WebSocket reconnect, but it is cleared by explicit listener shutdown or process restart. There are no automatic subscriptions.
+
+Both the Pi and Claude Code installed integrations expose channel membership changes only as user-invoked commands. Neither integration registers an LLM-callable subscribe or unsubscribe tool, and neither subscribes automatically. The installed Claude Code `/inter-agent` skill exposes `subscribe` and `unsubscribe` only; it does not expose `publish` or `channels`.
 
 ## Messaging model
 
