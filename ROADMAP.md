@@ -42,8 +42,8 @@ Completed execution notes are archived under `docs/archive/plans/` for reference
 
 This queue preserves continuity between active slices. Complete items in order unless a finding changes a dependency or the user explicitly reprioritizes them. Only the current concrete slice belongs in `.agents/PLAN.md`; when that slice is accepted, update its status here, remove its active packet, and activate the next ready item. Inclusion in this queue does not bypass user approval for external publication, credential use, or physical repository migration.
 
-1. **Claude Code installed channel-list UX** — expose the existing read-only `channels` adapter command through the installed `/inter-agent` skill with focused documentation, static/wrapper coverage, and live acceptance. **Status: active; packet linked from `.agents/PLAN.md`.**
-2. **Pi installed publish UX** — expose explicit user-invoked channel publication through the Pi extension without autonomous or peer-triggered publishing. **Status: queued after item 1.**
+1. **Claude Code installed channel-list UX** — expose the existing read-only `channels` adapter command through the installed `/inter-agent` skill with focused documentation, static/wrapper coverage, and live acceptance. **Status: implemented in `4d9e986`.**
+2. **Pi installed publish UX** — expose explicit user-invoked channel publication through the Pi extension without autonomous or peer-triggered publishing. **Status: active; packet linked from `.agents/PLAN.md`.**
 3. **Pi installed channel-list UX** — expose read-only channel diagnostics through the Pi extension. **Status: queued after item 2.**
 4. **Pub/sub Phase 4 closeout** — run cross-integration acceptance, align evergreen documentation, and mark Phase 4 implemented. **Status: queued after item 3.**
 5. **Pi disconnect reliability** — reproduce and fix the flaky `/inter-agent disconnect` behavior recorded in `TODO.md`. **Status: queued after pub/sub closeout.**

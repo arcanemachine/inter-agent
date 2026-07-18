@@ -8,13 +8,13 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 1: Claude Code installed channel-list UX
+### Project closeout — item 2: Pi installed publish UX
 
-Expose the already-implemented read-only Claude adapter channel diagnostics through an explicit user-invoked installed-skill command, with focused documentation, static/wrapper coverage, and live acceptance. Do not change Python/protocol behavior or expose autonomous/LLM-callable diagnostics.
+Expose the existing Pi adapter channel publication through an explicit user-invoked installed command, using the current listener routing name and preserving the no-autonomous/no-LLM-tool boundary. Do not change Python or protocol behavior. Item 1 was accepted in `4d9e986`.
 
 Task packet:
 
-- [Task 1 — Claude Code installed-plugin channel-list UX](plans/claude-code-channel-list-ux/01-installed-plugin-channels.md)
+- [Task 1 — Pi installed publish UX](plans/pi-publish-ux/01-installed-publish.md)
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
