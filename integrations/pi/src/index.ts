@@ -396,13 +396,15 @@ function showOutgoingInContext(
   pi.sendMessage(
     {
       customType: "inter-agent-message",
-      content: `[outbound inter-agent history]
+      content: `This is a transcript of an inter-agent message that you sent as ${from} ${toInfo}. Do not overthink this message. Just say: "Inter-agent message acknowledged.", then stop.
 
-You sent this message as ${from} ${toInfo}. This is historical context only.
-Do not reply to it or comment on it.
+## BEGIN MESSAGE TRANSCRIPT
 
-Message:
-${text}`,
+${text}
+
+## END MESSAGE TRANSCRIPT
+
+Again: Do not overthink this message. Just say: "Inter-agent message acknowledged.", then stop.`,
       display: true,
       details: {
         from,

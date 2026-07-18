@@ -108,8 +108,11 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "do not summarize or discuss the peer message in chat" in content
     assert "To avoid an empty assistant turn" in content
     assert "Inter-agent message received; no reply needed." in content
-    assert "This is historical context only" in content
-    assert "Do not reply to it or comment on it" in content
+    assert "This is a transcript of an inter-agent message that you sent as" in content
+    assert "Do not overthink this message" in content
+    assert "Inter-agent message acknowledged." in content
+    assert "## BEGIN MESSAGE TRANSCRIPT" in content
+    assert "## END MESSAGE TRANSCRIPT" in content
     assert 'deliverAs: "followUp"' in content
     assert "broadcast unless the user asks" in content
     assert "Get explicit user approval before destructive" in content
@@ -126,7 +129,8 @@ def test_pi_extension_separates_display_from_agent_context() -> None:
     assert "displayContent" in content
     # Internal-only instruction stays in LLM content, while the TUI labels the
     # entry as outbound history.
-    assert "Do not reply to it or comment on it" in content
+    assert "## BEGIN MESSAGE TRANSCRIPT" in content
+    assert "## END MESSAGE TRANSCRIPT" in content
     assert "[outbound inter-agent history — sent by current agent" in content
 
 
