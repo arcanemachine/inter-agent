@@ -32,6 +32,8 @@ When the leader dispatches a task through the inter-agent bus:
 ## Checks and reporting
 
 - Run every check required by the packet and record exact results.
+- Send every task question, blocker, progress update, and completion report only to the dispatching leader through a targeted inter-agent message. Never address the user directly or broadcast task reports; user communication belongs to the leader.
+- If the leader cannot be reached, keep the report ready and wait rather than routing it through the user or another agent.
 - Report changed files, checks, end-to-end acceptance results, environment limitations, remaining concerns, and blockers precisely.
 - Do not describe work as accepted; the leader independently reviews and accepts it.
 
