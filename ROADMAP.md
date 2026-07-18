@@ -38,6 +38,38 @@ The current implemented baseline is:
 
 Completed execution notes are archived under `docs/archive/plans/` for reference. They are historical records, not active backlog items.
 
+## Closeout execution queue
+
+This queue preserves continuity between active slices. Complete items in order unless a finding changes a dependency or the user explicitly reprioritizes them. Only the current concrete slice belongs in `.agents/PLAN.md`; when that slice is accepted, update its status here, remove its active packet, and activate the next ready item. Inclusion in this queue does not bypass user approval for external publication, credential use, or physical repository migration.
+
+1. **Claude Code installed channel-list UX** — expose the existing read-only `channels` adapter command through the installed `/inter-agent` skill with focused documentation, static/wrapper coverage, and live acceptance. **Status: active; packet linked from `.agents/PLAN.md`.**
+2. **Pi installed publish UX** — expose explicit user-invoked channel publication through the Pi extension without autonomous or peer-triggered publishing. **Status: queued after item 1.**
+3. **Pi installed channel-list UX** — expose read-only channel diagnostics through the Pi extension. **Status: queued after item 2.**
+4. **Pub/sub Phase 4 closeout** — run cross-integration acceptance, align evergreen documentation, and mark Phase 4 implemented. **Status: queued after item 3.**
+5. **Pi disconnect reliability** — reproduce and fix the flaky `/inter-agent disconnect` behavior recorded in `TODO.md`. **Status: queued after pub/sub closeout.**
+6. **Pi pre-connect list behavior** — make `/inter-agent list` return an intentional result instead of erroring before connection. **Status: queued after item 5.**
+7. **Claude Code sandbox connect failure** — reproduce and resolve the installed `/inter-agent connect` exit-127 failure recorded for the interline sandbox, or document a verified environment constraint. **Status: queued after item 6.**
+8. **Core release-source audit** — verify current versioning, build metadata, artifacts, and the intended stable PyPI install source. **Status: queued after TODO defects.**
+9. **Core PyPI publication checkpoint** — obtain explicit authorization and publish the validated core release, or record the maintainer-owned publication step without handling credentials in agent context. **Status: user-gated after item 8.**
+10. **Published-core installation acceptance** — install from the stable release source in a clean environment and smoke-test the server plus Pi and Claude helper resolution. **Status: queued after item 9 or maintainer publication.**
+11. **OpenCode direct-WebSocket and package-target spike** — validate plugin loading, split TUI/server targets, WebSocket access, authentication, and package targeting against the selected OpenCode version. **Status: queued after current integration and release work.**
+12. **OpenCode extension design finalization** — update and accept the target-version architecture and spike findings. **Status: queued after item 11.**
+13. **OpenCode package scaffold and installation** — add the split-export npm package scaffold and install path. **Status: queued after item 12.**
+14. **OpenCode direct protocol client** — implement shared TypeScript/Bun transport, authentication, TLS, control operations, listener frames, and error mapping. **Status: queued after item 13.**
+15. **OpenCode TUI listener, state, inbox, and notifications** — implement the persistent TUI-owned receive path and lifecycle. **Status: queued after item 14.**
+16. **OpenCode commands, tools, and reaction policy** — implement the user command surface, server-plugin tools, shared sender identity, and collaboration-input boundaries. **Status: queued after item 15.**
+17. **OpenCode live tests and fixtures** — add reliable protocol/integration coverage and complete the available manual UAT. **Status: queued after item 16.**
+18. **OpenCode packaging, documentation, and quality gate** — validate the package, update supported-integration docs, and run the repository gate. **Status: queued after item 17.**
+19. **Codex App Server sidecar validation spike** — validate endpoint attachment, thread selection, `thread/inject_items`, visibility, and bounded-inbox fallback against a real target version. **Status: queued after OpenCode.**
+20. **Codex implementation decision** — use the spike findings to accept a production sidecar plan, a reduced integration, or explicit deferral. **Status: user decision after item 19.**
+21. **Repository-split migration checkpoint** — confirm remote ownership, package names, transition install paths, test ownership, and authorization for physical extraction. **Status: user-gated after product/release work.**
+22. **Pi extension extraction** — move the independent Pi TypeScript package while retaining transitional core-helper compatibility. **Status: queued after item 21 if migration is authorized.**
+23. **Claude Code integration extraction** — move Claude Code plugin assets and adapter helper packaging. **Status: queued after item 22.**
+24. **Core package extraction and naming** — establish the independent core repository/package while preserving practical CLI compatibility. **Status: queued after item 23.**
+25. **Ecosystem superproject and private meta repository** — create the public ecosystem wrapper and move private workflow material to the private meta repository. **Status: queued after item 24.**
+26. **Cross-repository interoperability acceptance** — verify core, Pi, Claude Code, and implemented future integrations across their independent package boundaries. **Status: queued after item 25.**
+27. **Final project completion review** — confirm every accepted item is complete or explicitly deferred, clear active planning state, run final local gates, and prepare the maintainer closeout report. **Status: final queue item.**
+
 ## Prospective protocol follow-ons
 
 ### Pub/sub channels

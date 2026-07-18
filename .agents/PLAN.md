@@ -8,7 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-No active work is currently tracked here.
+### Project closeout — item 1: Claude Code installed channel-list UX
+
+Expose the already-implemented read-only Claude adapter channel diagnostics through an explicit user-invoked installed-skill command, with focused documentation, static/wrapper coverage, and live acceptance. Do not change Python/protocol behavior or expose autonomous/LLM-callable diagnostics.
+
+Task packet:
+
+- [Task 1 — Claude Code installed-plugin channel-list UX](plans/claude-code-channel-list-ux/01-installed-plugin-channels.md)
+
+Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
 ## Planning workflow
 
