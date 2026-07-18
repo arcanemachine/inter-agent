@@ -40,6 +40,7 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 | `/inter-agent messages <msg_id>` | Read the full text of a truncated inbound message. |
 | `/inter-agent subscribe <channel>` | Subscribe this session's listener to a channel. User-invoked only. |
 | `/inter-agent unsubscribe <channel>` | Remove this session's listener from a channel. User-invoked only. |
+| `/inter-agent publish <channel> <text>` | Publish a message to a channel. User-invoked only. |
 | `/inter-agent disconnect` | Stop the listener. |
 | `/inter-agent shutdown` | Stop the inter-agent server. |
 
@@ -115,6 +116,37 @@ connected name as the sender. Use `send` for replies and targeted messages;
 After sending, **stop**. Do not poll, re-list, re-check status, or follow up to
 confirm — replies arrive as later `[inter-agent msg=...]` notifications.
 
+## publish
+
+Publish a message to a channel as a short-lived Bash command:
+
+```bash
+<bin>/inter-agent-claude publish <channel> <text>
+```
+
+Run `publish` **only when the user explicitly asks** to post specific text to a
+specific channel. Do not publish autonomously, based on model inference,
+in response to a peer message, or merely to acknowledge a peer.
+
+`publish` requires this Claude Code session's active listener. The adapter uses
+that listener's connected routing name as `from_name`; it does not accept or
+honor a caller-selected sender identity.
+
+Publishing does not require the publisher to be subscribed to the channel. The
+message is delivered to every current subscriber except the publisher, including
+when the publisher is also subscribed.
+
+Success is silent: the wrapper prints nothing to stdout and there is no protocol
+success acknowledgment. Local and protocol failures print an `inter-agent-claude:`
+diagnostic to stderr and return a non-zero exit status. `UNKNOWN_CHANNEL` is
+returned when the channel does not exist or has no subscribers. After a publish,
+**stop** — do not poll, list channels, or send a follow-up confirmation.
+
+The adapter suppresses identical repeated publish invocations within a short
+window. The duplicate key is the connected sender, channel, and text. A publish
+with a different sender, channel, or text is delivered normally; the exact window
+duration is not guaranteed to be stable.
+
 ## subscribe / unsubscribe
 
 User-invoked channel membership only. Run `subscribe` or `unsubscribe` **only
@@ -145,10 +177,9 @@ them before reporting readiness — but do not survive listener stop, process
 restart, Claude reload, or resumed sessions. There are no persisted or default
 subscriptions.
 
-This installed skill does **not** expose `/inter-agent publish` or
-`/inter-agent channels`. Publishing to a channel and listing channels are not
-user operations here; use the core CLI helpers from a shell if diagnostics are
-genuinely needed.
+This installed skill does **not** expose `/inter-agent channels`. Listing
+channels is not a user operation here; use the core CLI helper from a shell if
+channel diagnostics are genuinely needed.
 
 ## Receiving messages
 

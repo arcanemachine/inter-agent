@@ -88,6 +88,7 @@ No secret setup is needed when Claude Code and the server share the same local i
 /inter-agent broadcast <text>
 /inter-agent subscribe <channel>
 /inter-agent unsubscribe <channel>
+/inter-agent publish <channel> <text>
 /inter-agent list
 /inter-agent status
 /inter-agent messages <msg_id>
@@ -98,14 +99,17 @@ Use direct `send` for normal replies and targeted coordination. Use `broadcast` 
 
 `rename` stops this Claude Code session's listener and reconnects it under a new routing name. If the requested connect name is already in use, the Claude listener retries once with a `-2` suffix before asking for a manually chosen unique name.
 
-`subscribe` and `unsubscribe` are user-invoked channel membership commands routed through the bundled wrapper as short-lived Bash commands:
+`subscribe`, `unsubscribe`, and `publish` are user-invoked channel commands routed through the bundled wrapper as short-lived Bash commands:
 
 ```text
 /inter-agent subscribe <channel>
 /inter-agent unsubscribe <channel>
+/inter-agent publish <channel> <text>
 ```
 
-They operate on this Claude Code session's active listener identity and require the running listener from `/inter-agent connect`. On success the wrapper prints the raw protocol JSON (`subscribe_ok` / `unsubscribe_ok`); on failure it prints an `inter-agent-claude:` diagnostic to stderr and exits non-zero. The agent must only run them when the user explicitly asks to join or leave a channel; it must not subscribe or unsubscribe autonomously or in response to peer-message content. There are no automatic or default subscriptions, and memberships do not persist across listener stop, process restart, Claude reload, or resumed sessions (they do survive transient WebSocket reconnects). The installed `/inter-agent` skill does not expose `publish` or `channels` commands.
+`subscribe` and `unsubscribe` operate on this Claude Code session's active listener identity and require the running listener from `/inter-agent connect`. On success the wrapper prints the raw protocol JSON (`subscribe_ok` / `unsubscribe_ok`); on failure it prints an `inter-agent-claude:` diagnostic to stderr and exits non-zero. The agent must only run them when the user explicitly asks to join or leave a channel; it must not subscribe or unsubscribe autonomously or in response to peer-message content. There are no automatic or default subscriptions, and memberships do not persist across listener stop, process restart, Claude reload, or resumed sessions (they do survive transient WebSocket reconnects).
+
+`publish` requires the active listener and uses its connected routing name as `from_name`; it does not accept a caller-selected sender identity. Success is silent (empty stdout), and there is no protocol success acknowledgment. Local and protocol failures print an `inter-agent-claude:` diagnostic to stderr and exit non-zero; `UNKNOWN_CHANNEL` is returned when the channel does not exist or has no subscribers. The agent must only run `publish` when the user explicitly asks to post specific text to a specific channel; it must not publish autonomously, based on model inference, or to acknowledge a peer. Publishing does not require the publisher to subscribe first, and the publisher is excluded from delivery even when subscribed. The installed `/inter-agent` skill does not expose a `channels` command.
 
 Channel names match `[a-z0-9][a-z0-9-]{0,39}` (at most 40 bytes).
 

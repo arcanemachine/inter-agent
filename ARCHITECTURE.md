@@ -82,7 +82,7 @@ Agent-only subscribe/unsubscribe operations must reuse the connected listener id
 
 The desired subscription set lives only in listener memory. It is reapplied before readiness is reported after a transient WebSocket reconnect, but it is cleared by explicit listener shutdown or process restart. There are no automatic subscriptions.
 
-Both the Pi and Claude Code installed integrations expose channel membership changes only as user-invoked commands. Neither integration registers an LLM-callable subscribe or unsubscribe tool, and neither subscribes automatically. The installed Claude Code `/inter-agent` skill exposes `subscribe` and `unsubscribe` only; it does not expose `publish` or `channels`.
+Both the Pi and Claude Code installed integrations expose channel membership changes only as user-invoked commands. Neither integration registers an LLM-callable subscribe or unsubscribe tool, and neither subscribes automatically. The installed Claude Code `/inter-agent` skill exposes `subscribe`, `unsubscribe`, and `publish` as user-invoked commands through the bundled wrapper, using the active listener's connected routing name as the sender; it does not expose `channels`.
 
 ## Messaging model
 

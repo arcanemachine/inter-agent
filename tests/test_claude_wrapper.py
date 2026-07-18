@@ -137,3 +137,26 @@ def test_claude_wrapper_passes_plugin_secret_to_helper(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert result.stdout == "secret:plugin-secret\n"
+
+
+def test_claude_wrapper_forwards_publish_arguments_unchanged(tmp_path: Path) -> None:
+    project_path = tmp_path / "checkout"
+    helper = project_path / ".venv" / "bin" / "inter-agent-claude"
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text(
+        "#!/usr/bin/env bash\n" "set -euo pipefail\n" "printf '%s\\n' \"$@\"\n",
+        encoding="utf-8",
+    )
+    helper.chmod(0o755)
+
+    result = run_wrapper(
+        tmp_path,
+        "publish",
+        "updates",
+        "build is green",
+        env={"CLAUDE_PLUGIN_OPTION_PROJECT_PATH": str(project_path)},
+    )
+
+    assert result.returncode == 0
+    assert result.stdout.splitlines() == ["publish", "updates", "build is green"]
+    assert result.stderr == ""

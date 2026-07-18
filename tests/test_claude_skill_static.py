@@ -66,14 +66,59 @@ def test_claude_skill_membership_lifecycle_is_not_persisted() -> None:
     assert "resumed sessions" in skill
 
 
-def test_claude_skill_does_not_expose_publish_or_channels() -> None:
+def test_claude_skill_exposes_publish_dispatch() -> None:
     skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
 
-    assert "does **not** expose `/inter-agent publish`" in skill
-    assert "or\n`/inter-agent channels`" in skill
-    # publish/channels must not be documented as dispatchable wrapper commands.
-    assert "<bin>/inter-agent-claude publish" not in skill
+    assert "/inter-agent publish <channel> <text>" in skill
+    assert "<bin>/inter-agent-claude publish <channel> <text>" in skill
+    assert "Run `publish` **only when the user explicitly asks**" in skill
+    assert "Do not publish autonomously" in skill
+    assert "in response to a peer message" in skill
+    assert "to acknowledge a peer" in skill
+
+
+def test_claude_skill_publish_uses_active_listener_identity() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "requires this Claude Code session's active listener" in skill
+    assert "connected routing name as `from_name`" in skill
+    assert "does not accept or\nhonor a caller-selected sender identity" in skill
+    assert "active listener" in skill
+
+
+def test_claude_skill_publish_silent_success_and_error() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "Success is silent" in skill
+    assert "prints nothing to stdout" in skill
+    assert "no protocol\nsuccess acknowledgment" in skill
+    assert "`inter-agent-claude:`\ndiagnostic" in skill
+    assert "non-zero exit status" in skill
+    assert "`UNKNOWN_CHANNEL`" in skill
+
+
+def test_claude_skill_publish_delivery_semantics() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "does not require the publisher to be subscribed" in skill
+    assert "every current subscriber except the publisher" in skill
+    assert "publisher is also subscribed" in skill
+
+
+def test_claude_skill_publish_duplicate_suppression() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "suppresses identical repeated publish invocations" in skill
+    assert "duplicate key is the connected sender, channel, and text" in skill
+    assert "different sender, channel, or text" in skill
+
+
+def test_claude_skill_does_not_expose_channels() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "does **not** expose `/inter-agent channels`" in skill
     assert "<bin>/inter-agent-claude channels" not in skill
+    assert "| `/inter-agent channels" not in skill
 
 
 def test_claude_skill_documents_channel_receive_metadata() -> None:
@@ -84,15 +129,18 @@ def test_claude_skill_documents_channel_receive_metadata() -> None:
     assert "direct, broadcast, and channel" in skill
 
 
-def test_claude_integration_readme_exposes_subscribe_unsubscribe_only() -> None:
+def test_claude_integration_readme_exposes_subscribe_unsubscribe_publish() -> None:
     readme = (ROOT / "integrations" / "claude-code" / "README.md").read_text(encoding="utf-8")
 
     assert "/inter-agent subscribe <channel>" in readme
     assert "/inter-agent unsubscribe <channel>" in readme
+    assert "/inter-agent publish <channel> <text>" in readme
     assert "user-invoked" in readme
     assert "There are no automatic or default subscriptions" in readme
-    # publish/channels are not user-facing commands in the installed skill.
-    assert "does not expose `publish` or `channels`" in readme
+    assert "Success is silent" in readme
+    assert "`UNKNOWN_CHANNEL`" in readme
+    # channels is not a user-facing command in the installed skill.
+    assert "does not expose a `channels` command" in readme
     assert 'kind="channel" channel="<channel>"' in readme
 
 
