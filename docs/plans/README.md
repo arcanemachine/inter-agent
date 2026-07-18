@@ -28,7 +28,11 @@ Plan files should use one of these statuses near the top:
 
 ## Upcoming action queue
 
-1. `pubsub-channels/00-design-seed.md` — next protocol feature; convert to a concrete plan before implementation.
-2. `opencode-support/00-execution-guide.md` — first new host integration after channels; start with direct WebSocket/package scaffold validation.
-3. `codex-support/00-validation-spike.md` — validate Codex App Server sidecar assumptions after OpenCode.
-4. `repo-split/00-first-slices.md` — prepare independent package/repository extraction once core and extension boundaries stabilize.
+1. Complete the active reliability sequence recorded in `ROADMAP.md` and summarized by `important-closeout/03-reliability-closeout.md`.
+2. `important-closeout/01-pi-queued-mailbox.md` — implement queued-by-default Pi delivery for direct, broadcast, and channel messages.
+3. `important-closeout/02-installed-tls-acceptance.md` — prove installed Pi/Claude interoperability over TLS.
+4. `important-closeout/04-migration-checkpoint-and-meta.md` through `important-closeout/11-released-ecosystem-acceptance.md` — split clean repositories before publication, publish stable packages through explicit gates, and verify released artifacts.
+5. `opencode-support/00-execution-guide.md` — first deferred promotion candidate after important-action closeout and a new user activation decision.
+6. `codex-support/00-validation-spike.md` — remains deferred until after the accepted OpenCode outcome.
+
+`important-closeout/00-execution-guide.md` is the durable program index. `repo-split/00-first-slices.md` summarizes the accepted physical topology and links the detailed migration plans. Pub/sub is implemented; `pubsub-channels/00-design-seed.md` remains implementation history/reference rather than upcoming work.

@@ -1,78 +1,95 @@
 # Repository split first slices
 
-Status: concrete planning notes; not active.
+Status: concrete; accepted; detailed by `docs/plans/important-closeout/`
 
 ## Purpose
 
-Prepare the physical repository/package split without disrupting current development.
+Prepare and execute a clean split before initial package publication. Preserve runtime interoperability and project history without shipping transitional monorepo clutter in first releases.
 
-The accepted target remains:
+## Locked topology
 
-- private `inter-agent-meta` wrapper;
-- public `inter-agent/inter-agent` ecosystem superproject;
-- independently deployable `inter-agent-core`, `inter-agent-claude-code`, `inter-agent-pi`, and future extension repositories.
+```text
+inter-agent-meta/                         # private maintainer superproject
+└── ecosystem/                            # submodule: public ecosystem
 
-Reference inventory: `docs/archive/plans/09-host-extension-packaging/01-repository-boundary-inventory.md`.
+inter-agent/                              # public ecosystem superproject
+├── core/                                 # submodule: inter-agent-core
+└── extensions/
+    ├── pi/                               # submodule: inter-agent-pi
+    └── claude-code/                      # submodule: inter-agent-claude-code
+```
 
-## Recommended first physical slice
+Every submodule is an independent repository/package boundary. Git records exact submodule commits internally. Public READMEs use relative/canonical repository links and semantic versions, not copied commit hashes as install instructions.
 
-Extract the Pi TypeScript extension package (`integrations/pi/`) to an independent `inter-agent-pi` repository while leaving Python helper commands in the current/core package.
+## Locked package boundaries
 
-Rationale:
+### Core
 
-- `integrations/pi/` already has package metadata, TypeScript source, README, and extension-specific instructions.
-- The TypeScript extension shells out to helper commands; it does not import Python modules directly.
-- Keeping `src/inter_agent/adapters/pi/` in the current package avoids changing Python packaging boundaries in the first split slice.
-- The root `package.json` Pi install shim can remain during transition.
+- Repository and PyPI distribution: `inter-agent-core`.
+- Import namespace: `inter_agent`.
+- Owns protocol/spec, server, auth, TLS, routing, config/state, generic clients/CLIs, conformance/core tests, and core docs.
+- Does not ship Pi/Claude adapters or host assets.
 
-## Files likely moving in the first slice
+### Pi
 
-Move or copy to `inter-agent-pi`:
+- Repository, npm package, and Python helper distribution: `inter-agent-pi`.
+- Python import package: `inter_agent_pi`.
+- Preserves `inter-agent-pi` console command.
+- Owns TypeScript extension, Python adapter/helper, Pi metadata/docs/tests.
 
-- `integrations/pi/AGENTS.md`
-- `integrations/pi/README.md`
-- `integrations/pi/package.json`
-- `integrations/pi/package-lock.json` if present/tracked
-- `integrations/pi/tsconfig.json`
-- `integrations/pi/src/**`
-- Pi extension static tests or equivalent package-local tests
-- relevant license and package docs
+### Claude Code
 
-Remain in core/current repository for this slice:
+- Repository and Python helper distribution: `inter-agent-claude-code`.
+- Python import package: `inter_agent_claude`.
+- Preserves `inter-agent-claude` console command.
+- Owns plugin/marketplace metadata, skill/wrappers/bootstrap, Python adapter/helper, Claude docs/tests.
 
-- `src/inter_agent/adapters/pi/**`
-- Python console script `inter-agent-pi`
-- core protocol/client/server code
-- root `package.json` shim, unless the user accepts removing the transition install path
+## Sequence
 
-## Required transition decisions
+1. Complete reliability, Pi mailbox, and installed TLS acceptance.
+2. Pass the user-gated migration checkpoint and freeze a clean tested source commit.
+3. Establish private `inter-agent-meta` and move private workflow ownership there.
+4. Extract Pi with its TypeScript and Python helper code/tests.
+5. Extract Claude Code with its plugin and Python helper code/tests.
+6. Extract clean core and rename the distribution.
+7. Build the public ecosystem superproject with real submodules.
+8. Run candidate cross-repository acceptance.
+9. Publish core, then extension helpers/native packages through separate authorization gates.
+10. Replace floating bootstrap sources and run released-artifact acceptance.
 
-Before extraction, decide:
+Detailed requirements and gates:
 
-1. New repository name and remote ownership.
-2. Whether to preserve `pi install https://github.com/arcanemachine/inter-agent` temporarily through the root shim.
-3. Where static extension tests live during transition.
-4. How extension docs point users to the Python/core runtime install source.
-5. Whether Pi TODO items move to the Pi repository immediately.
+- `docs/plans/important-closeout/00-execution-guide.md`
+- `docs/plans/important-closeout/04-migration-checkpoint-and-meta.md`
+- `docs/plans/important-closeout/05-pi-extraction.md`
+- `docs/plans/important-closeout/06-claude-code-extraction.md`
+- `docs/plans/important-closeout/07-core-extraction.md`
+- `docs/plans/important-closeout/08-public-superproject-and-prepublication.md`
 
-## Suggested first active slice
+## First physical slice
 
-Copy this into `.agents/PLAN.md` only when ready:
+The first physical slice is the migration checkpoint/private-meta scaffold, not an immediate code move. It must confirm remote ownership, visibility, package names, registry ownership, current-public-repo disposition, history mapping, backup/recovery, and authorization.
 
-> Prepare Pi extension extraction by creating an `inter-agent-pi` package boundary document, moving Pi extension-specific tests into a package-local test plan or smoke script, and updating docs so the extension can be installed from an independent repository while still resolving the core Python helper commands.
+After that gate, Pi is the first product extraction because its TypeScript package boundary is already distinct. Unlike the older transition plan, Pi's Python adapter/helper moves with Pi rather than remaining in core. This avoids publishing a supposedly clean core that still owns host-specific entry points.
 
-## Acceptance criteria for first slice
+## History and safety
 
-- Current repository checks still pass.
-- Pi extension install docs identify both transitional monorepo and future independent-repo paths without claiming an unpublished package is available.
-- Extension tests have an explicit future home.
-- No Python package boundary changes are made.
-- No default endpoint, state directory, token, or TLS behavior changes are made.
+- Perform path filtering in throwaway clones using a reviewed mapping manifest.
+- Preserve relevant history for files moving into each child.
+- Keep a recoverable freeze ref/backup.
+- Stop all editing agents during physical migration.
+- Never rewrite the only working checkout.
+- Do not create/push remotes or change visibility without explicit authorization.
+- Never expose credentials.
 
-## Later slices
+## Invariants
 
-1. Extract Claude Code plugin assets and Claude adapter helper package.
-2. Rename or publish the core Python package as appropriate while preserving CLI command names where practical.
-3. Create the public ecosystem superproject with clean docs and optional submodules/checkouts.
-4. Move private workflow and rough internal notes to `inter-agent-meta`.
-5. Add cross-repository interoperability smoke tests.
+- Default endpoint, data/state directory, token discovery, TLS defaults, protocol semantics, and CLI behavior remain stable.
+- Different runtime installs continue to share one default bus.
+- Child packages depend on public core APIs rather than copied core logic.
+- Public artifacts contain no private `.agents/**`, maintainer workflow, credentials, caches, or unrelated host source.
+- Public superproject is a thin collector/development orchestrator, not a runtime dependency or aggregate package.
+
+## Acceptance
+
+The split is not complete until all child gates pass, the recursive public superproject works from a clean clone, candidate artifacts interoperate across Pi and Claude over plaintext defaults and explicit TLS, and every child is independently installable from its own root.
