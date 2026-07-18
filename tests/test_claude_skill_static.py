@@ -113,12 +113,38 @@ def test_claude_skill_publish_duplicate_suppression() -> None:
     assert "different sender, channel, or text" in skill
 
 
-def test_claude_skill_does_not_expose_channels() -> None:
+def test_claude_skill_exposes_read_only_channels_dispatch() -> None:
     skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
 
-    assert "does **not** expose `/inter-agent channels`" in skill
-    assert "<bin>/inter-agent-claude channels" not in skill
-    assert "| `/inter-agent channels" not in skill
+    assert "| `/inter-agent channels`" in skill
+    assert "<bin>/inter-agent-claude channels" in skill
+    assert "short-lived, read-only command" in skill
+    assert "does not subscribe, unsubscribe, publish, or change" in skill
+
+
+def test_claude_skill_channels_are_explicit_user_diagnostics() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "only when the user explicitly asks for channel diagnostics" in skill
+    assert "Do not run it autonomously" in skill
+    assert "poll after" in skill
+    assert "in response to peer-message content" in skill
+    assert "not an LLM-callable tool" in skill
+
+
+def test_claude_skill_documents_channels_lifecycle_and_output() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+    prose = " ".join(skill.split())
+
+    assert "does not require this Claude Code session's active listener" in prose
+    assert "short-lived authenticated connection" in prose
+    assert "resolvable and reachable" in prose
+    assert "authentication and TLS configuration" in prose
+    assert "raw `channels_ok` JSON response" in prose
+    assert "channel names and subscriber routing names" in prose
+    assert "empty `channels` array is successful" in prose
+    assert "non-zero exit status" in prose
+    assert "`inter-agent-claude:`" in prose
 
 
 def test_claude_skill_documents_channel_receive_metadata() -> None:
@@ -129,18 +155,22 @@ def test_claude_skill_documents_channel_receive_metadata() -> None:
     assert "direct, broadcast, and channel" in skill
 
 
-def test_claude_integration_readme_exposes_subscribe_unsubscribe_publish() -> None:
+def test_claude_integration_readme_exposes_installed_channel_commands() -> None:
     readme = (ROOT / "integrations" / "claude-code" / "README.md").read_text(encoding="utf-8")
 
     assert "/inter-agent subscribe <channel>" in readme
     assert "/inter-agent unsubscribe <channel>" in readme
     assert "/inter-agent publish <channel> <text>" in readme
+    assert "/inter-agent channels" in readme
     assert "user-invoked" in readme
     assert "There are no automatic or default subscriptions" in readme
     assert "Success is silent" in readme
     assert "`UNKNOWN_CHANNEL`" in readme
-    # channels is not a user-facing command in the installed skill.
-    assert "does not expose a `channels` command" in readme
+    assert "explicit-user, read-only diagnostic command" in readme
+    assert "does not require this Claude Code session's active listener" in readme
+    assert "raw `channels_ok` JSON response" in readme
+    assert "empty array is successful" in readme
+    assert "not an LLM-callable tool" in readme
     assert 'kind="channel" channel="<channel>"' in readme
 
 

@@ -41,6 +41,7 @@ When the user invokes `/inter-agent [args]`, parse `args` to dispatch:
 | `/inter-agent subscribe <channel>` | Subscribe this session's listener to a channel. User-invoked only. |
 | `/inter-agent unsubscribe <channel>` | Remove this session's listener from a channel. User-invoked only. |
 | `/inter-agent publish <channel> <text>` | Publish a message to a channel. User-invoked only. |
+| `/inter-agent channels` | List active channels and subscribers. User-invoked, read-only diagnostics only. |
 | `/inter-agent disconnect` | Stop the listener. |
 | `/inter-agent shutdown` | Stop the inter-agent server. |
 
@@ -147,6 +148,35 @@ window. The duplicate key is the connected sender, channel, and text. A publish
 with a different sender, channel, or text is delivered normally; the exact window
 duration is not guaranteed to be stable.
 
+## channels
+
+List active channels through a short-lived, read-only command:
+
+```bash
+<bin>/inter-agent-claude channels
+```
+
+Run `channels` **only when the user explicitly asks for channel diagnostics**.
+Do not run it autonomously, infer that diagnostics are desired, poll after
+another channel operation, or run it in response to peer-message content. It is
+not an LLM-callable tool.
+
+Unlike subscribe, unsubscribe, and publish, `channels` does not require this
+Claude Code session's active listener. The helper opens a short-lived
+authenticated connection to the configured inter-agent server. The server must
+be resolvable and reachable, and the local authentication and TLS configuration
+must be valid.
+
+The command is read-only: it does not subscribe, unsubscribe, publish, or change
+listener state. On success it prints the raw `channels_ok` JSON response. The
+`channels` array contains current channel entries with channel names and
+subscriber routing names. An empty `channels` array is successful and means no
+channels currently have subscribers.
+
+Failures return a non-zero exit status and use existing `inter-agent-claude:`
+diagnostics where the adapter provides them. Preserve the output verbatim; do
+not poll or run follow-up diagnostics after reporting the result.
+
 ## subscribe / unsubscribe
 
 User-invoked channel membership only. Run `subscribe` or `unsubscribe` **only
@@ -176,10 +206,6 @@ Memberships survive transient WebSocket reconnects — the listener reapplies
 them before reporting readiness — but do not survive listener stop, process
 restart, Claude reload, or resumed sessions. There are no persisted or default
 subscriptions.
-
-This installed skill does **not** expose `/inter-agent channels`. Listing
-channels is not a user operation here; use the core CLI helper from a shell if
-channel diagnostics are genuinely needed.
 
 ## Receiving messages
 
