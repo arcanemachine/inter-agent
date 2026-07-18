@@ -17,6 +17,7 @@ from inter_agent.adapters.claude import commands as claude_commands
 from inter_agent.adapters.claude.cli import main as claude_main
 from inter_agent.adapters.claude.formatting import STDOUT_CAP
 from inter_agent.adapters.claude.listener import Listener
+from inter_agent.core import publish as core_publish
 from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello
 from inter_agent.core.server import run_server
@@ -476,8 +477,9 @@ async def test_claude_subscribe_unsubscribe_publish_channels_round_trip(
         assert publish_result.code == 0
         assert publish_result.stdout == ""  # Claude publish success is silent
         await asyncio.sleep(0.1)
-        assert 'kind="channel" channel="updates"' in out.getvalue()
-        assert "channel hello" in out.getvalue()
+        # The short-lived publisher uses the listener routing name, so the
+        # listener suppresses its own channel delivery.
+        assert "channel hello" not in out.getvalue()
 
         unsubscribe_result = await asyncio.to_thread(run_claude, ["unsubscribe", "updates"])
         assert unsubscribe_result.code == 0
@@ -532,11 +534,18 @@ async def test_claude_publish_suppresses_duplicate_within_window(
     task = asyncio.create_task(listener.run())
     try:
         assert await wait_for_connected_name("listener-a")
-        await asyncio.to_thread(run_claude, ["subscribe", "updates"])
-        await asyncio.to_thread(run_claude, ["publish", "updates", "dup hello"])
-        await asyncio.to_thread(run_claude, ["publish", "updates", "dup hello"])
-        await asyncio.sleep(0.1)
-        assert out.getvalue().count("dup hello") == 1
+        async with websockets.connect(live_server.url) as subscriber:
+            await connect_agent(subscriber, live_server, "subscriber", "subscriber")
+            subscribe_result = await send_json(
+                subscriber, {"op": "subscribe", "channel": "updates"}
+            )
+            assert subscribe_result["op"] == "subscribe_ok"
+
+            await asyncio.to_thread(run_claude, ["publish", "updates", "dup hello"])
+            await asyncio.to_thread(run_claude, ["publish", "updates", "dup hello"])
+            delivered = await recv_json(subscriber)
+            assert delivered["text"] == "dup hello"
+            await assert_no_message(subscriber)
     finally:
         listener.stop()
         await task
@@ -572,8 +581,14 @@ async def test_claude_listener_reapplies_subscriptions_after_server_restart(
         # Wait until the listener has reconnected and resubscribed.
         assert await wait_for_channel_subscriber("updates", "listener-a")
 
-        publish_result = await asyncio.to_thread(run_claude, ["publish", "updates", "post-restart"])
-        assert publish_result.code == 0
+        publish_result = await core_publish.publish_to_channel(
+            "127.0.0.1",
+            unused_tcp_port,
+            "updates",
+            "post-restart",
+            "external-publisher",
+        )
+        assert publish_result.error is None
         await asyncio.sleep(0.1)
         assert 'kind="channel" channel="updates"' in out.getvalue()
         assert "post-restart" in out.getvalue()

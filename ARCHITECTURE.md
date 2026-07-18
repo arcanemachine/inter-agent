@@ -82,7 +82,7 @@ Agent-only subscribe/unsubscribe operations must reuse the connected listener id
 
 The desired subscription set lives only in listener memory. It is reapplied before readiness is reported after a transient WebSocket reconnect, but it is cleared by explicit listener shutdown or process restart. There are no automatic subscriptions.
 
-Both the Pi and Claude Code installed integrations expose channel membership changes, publication, and read-only diagnostics only as explicit user-invoked commands. Neither integration registers an LLM-callable subscribe, unsubscribe, publish, or channels tool, and neither subscribes, publishes, or polls automatically. Membership and publication use the active listener's connected routing name. Channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
+Both the Pi and Claude Code installed integrations expose channel membership changes, publication, and read-only diagnostics only as explicit user-invoked commands. Neither integration registers an LLM-callable subscribe, unsubscribe, publish, or channels tool, and neither subscribes, publishes, or polls automatically. Membership and publication use the active listener's connected routing name. Because short-lived control publishers are separate protocol connections, adapter listeners suppress channel messages from their own routing name to preserve publisher exclusion at the host UX boundary. Channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
 
 ## Messaging model
 

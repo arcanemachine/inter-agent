@@ -267,6 +267,56 @@ class TestConnectAndStream:
         assert session.subscribe_calls == ["updates"]
 
     @pytest.mark.asyncio
+    async def test_suppresses_only_own_channel_messages(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        frames = [
+            json.dumps({"op": "welcome"}),
+            json.dumps(
+                {
+                    "op": "msg",
+                    "msg_id": "self-channel",
+                    "channel": "updates",
+                    "from_name": "test",
+                    "text": "suppress me",
+                }
+            ),
+            json.dumps(
+                {
+                    "op": "msg",
+                    "msg_id": "self-direct",
+                    "to": "test",
+                    "from_name": "test",
+                    "text": "keep direct",
+                }
+            ),
+            json.dumps(
+                {
+                    "op": "msg",
+                    "msg_id": "other-channel",
+                    "channel": "updates",
+                    "from_name": "other",
+                    "text": "keep channel",
+                }
+            ),
+        ]
+        session = FakeSession(frames)
+        monkeypatch.setattr(
+            "inter_agent.adapters.pi.listener.AgentSession",
+            lambda *args, **kwargs: session,
+        )
+        out = io.StringIO()
+        from inter_agent.adapters.pi.listener import _connect_and_stream
+
+        await _connect_and_stream("127.0.0.1", 12345, "test", None, out)
+
+        output = out.getvalue()
+        assert "suppress me" not in output
+        assert "keep direct" in output
+        assert "keep channel" in output
+
+    @pytest.mark.asyncio
     async def test_welcome_emitted_only_after_reapply_and_control_bound(
         self,
         monkeypatch: pytest.MonkeyPatch,

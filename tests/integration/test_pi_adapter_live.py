@@ -323,15 +323,14 @@ async def test_pi_subscribe_unsubscribe_publish_channels_round_trip(
         assert publish_result.code == 0
         assert json.loads(publish_result.stdout)["op"] == "welcome"
         await asyncio.sleep(0.1)
-        # Pi prints raw protocol JSON; a channel delivery is distinguished by
-        # its channel field and lack of to.
+        # The short-lived publisher uses the listener routing name, so the
+        # listener suppresses its own channel delivery.
         delivered = [
             json.loads(line)
             for line in out.getvalue().splitlines()
             if line.strip() and json.loads(line).get("op") == "msg"
         ]
-        assert any(m.get("channel") == "updates" and "to" not in m for m in delivered)
-        assert any(m.get("text") == "channel hello" for m in delivered)
+        assert not any(m.get("text") == "channel hello" for m in delivered)
 
         unsubscribe_result = await asyncio.to_thread(
             run_pi, ["unsubscribe", "updates", "--name", "pi-agent-a"]
@@ -402,7 +401,7 @@ async def test_pi_listener_reapplies_subscriptions_after_server_restart(
         assert await wait_for_pi_channel_subscriber("updates", "pi-agent-a")
 
         publish_result = await asyncio.to_thread(
-            run_pi, ["publish", "updates", "post-restart", "--from", "pi-agent-a"]
+            run_pi, ["publish", "updates", "post-restart", "--from", "external-publisher"]
         )
         assert publish_result.code == 0
         await asyncio.sleep(0.1)

@@ -341,6 +341,43 @@ class TestChannels:
         assert 'kind="broadcast"' not in out
         assert "hello" in out
 
+    def test_suppresses_only_own_channel_messages(self) -> None:
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="agent-b", output=out)
+
+        listener._on_msg(
+            {
+                "op": "msg",
+                "msg_id": "self-channel",
+                "from_name": "agent-b",
+                "channel": "updates",
+                "text": "suppress me",
+            }
+        )
+        listener._on_msg(
+            {
+                "op": "msg",
+                "msg_id": "self-direct",
+                "from_name": "agent-b",
+                "to": "agent-b",
+                "text": "keep direct",
+            }
+        )
+        listener._on_msg(
+            {
+                "op": "msg",
+                "msg_id": "other-channel",
+                "from_name": "agent-a",
+                "channel": "updates",
+                "text": "keep channel",
+            }
+        )
+
+        output = out.getvalue()
+        assert "suppress me" not in output
+        assert "keep direct" in output
+        assert "keep channel" in output
+
     @pytest.mark.asyncio
     async def test_reapply_subscriptions_on_welcome(
         self,

@@ -70,11 +70,11 @@ This queue preserves continuity between active slices. Complete items in order u
 26. **Cross-repository interoperability acceptance** — verify core, Pi, Claude Code, and implemented future integrations across their independent package boundaries. **Status: queued after item 25.**
 27. **Final project completion review** — confirm every accepted item is complete or explicitly deferred, clear active planning state, run final local gates, and prepare the maintainer closeout report. **Status: final queue item.**
 
-## Prospective protocol follow-ons
+## Protocol status and follow-ons
 
 ### Pub/sub channels
 
-Status: Phases 1–3 implemented; Phase 4 partially implemented and not active.
+Status: Phases 1–4 implemented.
 
 Phase 1 (implemented) covers the core protocol operations (`subscribe`, `unsubscribe`, `publish`, `channels`), protocol schemas and examples, canonical errors and limits, conformance tests, capability advertisement, and present-behavior documentation. Direct messages and broadcast remain unchanged.
 
@@ -82,9 +82,9 @@ Phase 2 (implemented) adds typed core APIs and CLI entry points for publishing a
 
 Phase 3 (implemented) adds subscribe, unsubscribe, publish, channel diagnostics, reconnect-aware membership, and distinct inbound channel formatting to the Pi and Claude Code Python adapters. A private local listener-control socket lets short-lived membership commands operate on the existing agent identity.
 
-Phase 4 is partially implemented. Pi provides user-invoked subscribe/unsubscribe commands and channel-aware notifications/context. The installed Claude Code `/inter-agent` skill exposes user-invoked subscribe/unsubscribe, user-invoked publish, and channel-aware notifications/context. Subscription control and publish are intentionally not LLM-callable, and there are no automatic subscriptions. The installed Claude Code channel-list UX and any separately accepted Pi publish/channel-list UX remain prospective.
+Phase 4 (implemented) provides user-invoked subscribe, unsubscribe, publish, and read-only channel diagnostics through both installed Pi and Claude Code integrations, plus channel-aware notifications/context. These operations are intentionally not LLM-callable; there are no automatic subscriptions, publications, or diagnostics. Short-lived publishers use the active listener routing name, and each adapter listener suppresses its own routing name's channel delivery so publisher exclusion remains consistent at the installed UX boundary. Cross-adapter live acceptance proves Pi and Claude publication, subscription, diagnostics, and delivery interoperate on one server.
 
-Next activation step: copy one bounded Phase 4 slice for installed Claude Code channel-list UX (or accepted Pi publish/channel-list UX) into `.agents/PLAN.md`.
+Next activation step: follow closeout queue item 5, Pi disconnect reliability.
 
 Reference material:
 
@@ -92,7 +92,7 @@ Reference material:
 
 ## Prospective follow-on integrations
 
-Near-term package/release readiness for the current implemented integrations, including stable PyPI release sources for the core runtime, remains important. Pub/sub channels should be addressed before new host-integration implementation. OpenCode is the accepted prospective host-integration direction ahead of Codex. Codex should be investigated after the current release work, pub/sub channel work, and OpenCode work are addressed.
+Near-term package/release readiness for the current implemented integrations, including stable PyPI release sources for the core runtime, remains important. Pub/sub channels are implemented. OpenCode is the accepted prospective host-integration direction ahead of Codex. Codex should be investigated after the current release work, pub/sub channel work, and OpenCode work are addressed.
 
 ### OpenCode support
 
@@ -171,6 +171,5 @@ Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap
 - stable runtime install sources;
 - Pi direct WebSocket client refactor informed by the prospective OpenCode client;
 - Codex App Server sidecar support after current release/PyPI package work and OpenCode work;
-- remaining installed-integration pub/sub channel UX;
 - policy middleware examples;
 - remote transport mode with a separate threat model.

@@ -227,6 +227,12 @@ async def _connect_and_stream(
                             raise PermanentError(f"{code}: {payload.get('message', '')}")
                         return
                     continue
+                if (
+                    op == "msg"
+                    and isinstance(payload.get("channel"), str)
+                    and payload.get("from_name") == name
+                ):
+                    continue
                 _print_frame(raw, output)
         finally:
             if control_server is not None:

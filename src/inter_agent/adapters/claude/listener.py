@@ -456,6 +456,8 @@ class Listener:
         channel = payload.get("channel")
         if not isinstance(text, str):
             return
+        if isinstance(channel, str) and from_name == self.name:
+            return
 
         line = formatting.format_notification(
             msg_id,

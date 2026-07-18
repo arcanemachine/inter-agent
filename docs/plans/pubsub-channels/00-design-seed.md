@@ -96,13 +96,13 @@ Phase 2 adds typed core APIs and command surfaces for publish and channel diagno
 
 Phase 3 exposes consistent subscribe, unsubscribe, publish, and channel-list behavior through the Pi and Claude Python adapters. It preserves each adapter's connection lifecycle and output conventions, retains desired memberships across transient reconnects, and formats inbound channel messages distinctly from direct and broadcast messages. A private local listener-control socket lets short-lived membership commands reuse the existing agent session.
 
-### Phase 4 — installed extension UX (partially implemented)
+### Phase 4 — installed extension UX (implemented)
 
-The implemented Pi and Claude Code installed integrations provide user-invoked subscribe/unsubscribe/publish commands, explicit-user read-only channel diagnostics, and channel-aware notifications/context. Subscription control, publish, and channel diagnostics are deliberately not exposed as LLM-callable tools, memberships are not persisted across listener restart, process restart, host reload, or resumed sessions, and nothing subscribes, publishes, or polls automatically. Channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
+The Pi and Claude Code installed integrations provide user-invoked subscribe/unsubscribe/publish commands, explicit-user read-only channel diagnostics, and channel-aware notifications/context. Subscription control, publish, and channel diagnostics are deliberately not exposed as LLM-callable tools, memberships are not persisted across listener restart, process restart, host reload, or resumed sessions, and nothing subscribes, publishes, or polls automatically. Channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
 
-The installed UX surfaces are implemented. Phase 4 remains partially implemented until cross-integration acceptance, evergreen documentation alignment, and the whole-phase quality gate are completed.
+Short-lived publishers use the active listener routing name. Because the protocol excludes the publishing connection while adapter publishers use separate control connections, each adapter listener suppresses channel deliveries whose `from_name` matches its own routing name. This preserves identity-level publisher exclusion in installed host UX without changing server routing semantics.
 
-Next activation step: copy the bounded Pub/sub Phase 4 closeout into `.agents/PLAN.md`.
+Cross-adapter live acceptance proves both adapter listeners can subscribe to one server, both diagnostics surfaces report the same subscribers, Claude publication reaches Pi, Pi publication reaches Claude, and neither listener surfaces its own routing name's publication. Static installed-surface coverage, Pi package checks, strict Claude plugin validation, conformance/spec checks, and the full repository gate complete Phase 4 acceptance.
 
 ## Whole-feature acceptance criteria
 
