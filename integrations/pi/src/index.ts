@@ -255,6 +255,8 @@ const DEFAULT_NAME = "pi";
 const AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300;
 const SERVER_START_WAIT_ATTEMPTS = 30;
 const SERVER_START_WAIT_MS = 500;
+const LISTENER_STOP_SIGTERM_TIMEOUT_MS = 2000;
+const LISTENER_STOP_SIGKILL_TIMEOUT_MS = 2000;
 
 // ── State ───────────────────────────────────────────────────────────────────
 
@@ -279,6 +281,7 @@ let currentCtx: ExtensionContext | null = null;
 let messageBuffer = "";
 let listenerReady = false;
 let currentConnection: ConnectionState | null = null;
+let activeStop: Promise<boolean> | null = null;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -750,20 +753,28 @@ function formatConnectError(code: string, text: string): string {
 
 // ── Listener Management ─────────────────────────────────────────────────────
 
-function startListener(
+async function startListener(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
   config: InterAgentConfig,
   name: string,
   label: string | null,
   options: ListenerOptions = {},
-) {
-  stopListener();
+): Promise<boolean> {
+  const stopped = await stopListener(pi, ctx, { expected: true });
+  if (!stopped) {
+    notify(
+      "[inter-agent] listener error",
+      "previous listener did not terminate; cannot start a new listener",
+      "error",
+    );
+    return false;
+  }
 
   const scripts = getScripts(config);
   if (scripts.unavailableMessage) {
     notify("[inter-agent] listener error", scripts.unavailableMessage, "error");
-    return;
+    return false;
   }
   const args = ["connect", name];
   if (label) args.push("--label", label);
@@ -780,6 +791,15 @@ function startListener(
   currentConnection = null;
 
   proc.stdout?.on("data", (data: Buffer) => {
+    // Ignore output from a child that is no longer the current listener or is
+    // being explicitly stopped, so stale frames cannot reanimate readiness,
+    // overwrite a replacement listener's state, or deliver stale messages.
+    if (listenerProc !== proc) return;
+    const expected =
+      (proc as ChildProcess & { __expectedStop?: boolean }).__expectedStop ===
+      true;
+    if (expected) return;
+
     messageBuffer += data.toString();
     const lines = messageBuffer.split("\n");
     messageBuffer = lines.pop() || "";
@@ -812,7 +832,7 @@ function startListener(
           );
           listenerReady = false;
           currentConnection = null;
-          stopListener();
+          void stopListener(pi, ctx, { expected: true });
           const state = getConnectionState(ctx);
           if (state) {
             persistState(pi, { ...state, connected: false });
@@ -841,6 +861,12 @@ function startListener(
   });
 
   proc.stderr?.on("data", (data: Buffer) => {
+    if (listenerProc !== proc) return;
+    const expected =
+      (proc as ChildProcess & { __expectedStop?: boolean }).__expectedStop ===
+      true;
+    if (expected) return;
+
     const text = data.toString().trim();
     if (text) {
       notify("[inter-agent] listener stderr", text, "warning");
@@ -848,40 +874,47 @@ function startListener(
   });
 
   proc.on("exit", (code) => {
-    if (listenerProc === proc) {
-      const state = getConnectionState(ctx);
-      const previousName = currentConnection?.name || state?.name || name;
-      const wasConnected =
-        listenerReady ||
-        currentConnection !== null ||
-        state?.connected === true;
-      listenerProc = null;
-      listenerReady = false;
-      currentConnection = null;
-      if (state) {
-        persistState(pi, { ...state, connected: false });
-        updateStatus(ctx, { ...state, connected: false });
-      }
-      if (code !== 0 && code !== null) {
-        const reconnectHint = wasConnected
-          ? `. Use /inter-agent connect ${previousName} to reconnect.`
-          : "";
-        notify(
-          "[inter-agent] listener exited",
-          `code ${code}${reconnectHint}`,
-          "warning",
-        );
-      } else if (wasConnected) {
-        notify(
-          "[inter-agent] disconnected",
-          `server connection closed. Use '/inter-agent connect ${previousName}' to reconnect.`,
-          "warning",
-        );
-      }
+    if (listenerProc !== proc) return;
+    const expected =
+      (proc as ChildProcess & { __expectedStop?: boolean }).__expectedStop ===
+      true;
+    const state = getConnectionState(ctx);
+    const previousName = currentConnection?.name || state?.name || name;
+    const wasConnected =
+      listenerReady || currentConnection !== null || state?.connected === true;
+    listenerProc = null;
+    listenerReady = false;
+    currentConnection = null;
+    if (state) {
+      persistState(pi, { ...state, connected: false });
+      updateStatus(ctx, { ...state, connected: false });
+    }
+    if (expected) return;
+    if (code !== 0 && code !== null) {
+      const reconnectHint = wasConnected
+        ? `. Use /inter-agent connect ${previousName} to reconnect.`
+        : "";
+      notify(
+        "[inter-agent] listener exited",
+        `code ${code}${reconnectHint}`,
+        "warning",
+      );
+    } else if (wasConnected) {
+      notify(
+        "[inter-agent] disconnected",
+        `server connection closed. Use '/inter-agent connect ${previousName}' to reconnect.`,
+        "warning",
+      );
     }
   });
 
   proc.on("error", (err) => {
+    if (listenerProc !== proc) return;
+    const expected =
+      (proc as ChildProcess & { __expectedStop?: boolean }).__expectedStop ===
+      true;
+    if (expected) return;
+
     const nodeErr = err as NodeJS.ErrnoException;
     if (nodeErr.code === "ENOENT") {
       notify(
@@ -893,15 +926,123 @@ function startListener(
       notify("[inter-agent] listener error", String(err), "error");
     }
   });
+
+  return true;
 }
 
-function stopListener() {
-  if (listenerProc) {
-    listenerProc.kill("SIGTERM");
-    listenerProc = null;
-    messageBuffer = "";
+async function stopListener(
+  pi?: ExtensionAPI,
+  ctx?: ExtensionContext,
+  options: { expected?: boolean } = {},
+): Promise<boolean> {
+  const proc = listenerProc;
+  if (!proc) {
     listenerReady = false;
     currentConnection = null;
+    messageBuffer = "";
+    if (ctx && pi) {
+      const state = getConnectionState(ctx);
+      if (state) {
+        persistState(pi, { ...state, connected: false });
+        updateStatus(ctx, { ...state, connected: false });
+      }
+    }
+    return true;
+  }
+
+  if (activeStop) {
+    return await activeStop;
+  }
+
+  const expected = options.expected === true;
+  (proc as ChildProcess & { __expectedStop?: boolean }).__expectedStop =
+    expected;
+
+  activeStop = (async (): Promise<boolean> => {
+    // Mark in-memory listener state unavailable immediately so no command
+    // can use the terminating listener.
+    listenerReady = false;
+    currentConnection = null;
+    messageBuffer = "";
+
+    if (proc.exitCode !== null || proc.signalCode !== null) {
+      listenerProc = null;
+      return true;
+    }
+
+    proc.kill("SIGTERM");
+
+    const termPromise = new Promise<void>((resolve) => {
+      const onExit = () => {
+        cleanup();
+        resolve();
+      };
+      const onClose = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        proc.off("exit", onExit);
+        proc.off("close", onClose);
+      };
+      proc.once("exit", onExit);
+      proc.once("close", onClose);
+      if (proc.exitCode !== null || proc.signalCode !== null) {
+        cleanup();
+        resolve();
+      }
+    });
+
+    await Promise.race([termPromise, sleep(LISTENER_STOP_SIGTERM_TIMEOUT_MS)]);
+    if (proc.exitCode !== null || proc.signalCode !== null) {
+      listenerProc = null;
+      return true;
+    }
+
+    proc.kill("SIGKILL");
+
+    const killPromise = new Promise<void>((resolve) => {
+      const onExit = () => {
+        cleanup();
+        resolve();
+      };
+      const onClose = () => {
+        cleanup();
+        resolve();
+      };
+      const cleanup = () => {
+        proc.off("exit", onExit);
+        proc.off("close", onClose);
+      };
+      proc.once("exit", onExit);
+      proc.once("close", onClose);
+      if (proc.exitCode !== null || proc.signalCode !== null) {
+        cleanup();
+        resolve();
+      }
+    });
+
+    await Promise.race([killPromise, sleep(LISTENER_STOP_SIGKILL_TIMEOUT_MS)]);
+
+    if (proc.exitCode !== null || proc.signalCode !== null) {
+      listenerProc = null;
+      return true;
+    }
+    return false;
+  })();
+
+  try {
+    const exited = await activeStop;
+    if (exited && ctx && pi) {
+      const state = getConnectionState(ctx);
+      if (state) {
+        persistState(pi, { ...state, connected: false });
+        updateStatus(ctx, { ...state, connected: false });
+      }
+    }
+    return exited;
+  } finally {
+    activeStop = null;
   }
 }
 
@@ -976,15 +1117,28 @@ export default function (pi: ExtensionAPI) {
         updateStatus(ctx, { ...state, connected: false });
         return;
       }
-      startListener(pi, ctx, config, state.name, state.label, {
-        notifyOnReady: true,
-      });
-      notify("[inter-agent] reconnecting", `as ${state.name}`);
+      const started = await startListener(
+        pi,
+        ctx,
+        config,
+        state.name,
+        state.label,
+        {
+          notifyOnReady: true,
+        },
+      );
+      if (started) {
+        notify("[inter-agent] reconnecting", `as ${state.name}`);
+      }
     }
   });
 
   pi.on("session_shutdown", async () => {
-    stopListener();
+    if (currentCtx) {
+      await stopListener(pi, currentCtx, { expected: true });
+    } else {
+      await stopListener();
+    }
     currentCtx = null;
   });
 
@@ -1063,9 +1217,18 @@ export default function (pi: ExtensionAPI) {
     const ready = await ensureServerAvailable(currentScripts());
     if (!ready) return;
 
-    startListener(pi, ctx, config, parsed.name, parsed.label, {
-      notifyOnReady: true,
-    });
+    const started = await startListener(
+      pi,
+      ctx,
+      config,
+      parsed.name,
+      parsed.label,
+      {
+        notifyOnReady: true,
+      },
+    );
+    if (!started) return;
+
     notify(
       "[inter-agent] connecting",
       `as ${parsed.name}${parsed.label ? ` (${parsed.label})` : ""}`,
@@ -1073,13 +1236,16 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function handleDisconnect(_args: string, ctx: ExtensionContext) {
-    stopListener();
-    const state = getConnectionState(ctx);
-    if (state) {
-      persistState(pi, { ...state, connected: false });
-      updateStatus(ctx, { ...state, connected: false });
+    const stopped = await stopListener(pi, ctx, { expected: true });
+    if (stopped) {
+      notify("[inter-agent] disconnected", "listener stopped");
+    } else {
+      notify(
+        "[inter-agent] disconnect failed",
+        "listener did not terminate",
+        "error",
+      );
     }
-    notify("[inter-agent] disconnected", "listener stopped");
   }
 
   async function handleRename(args: string, ctx: ExtensionContext) {
@@ -1102,7 +1268,18 @@ export default function (pi: ExtensionAPI) {
     const ready = await ensureServerAvailable(currentScripts());
     if (!ready) return;
 
-    startListener(pi, ctx, config, parsed.name, label, { notifyOnReady: true });
+    const started = await startListener(pi, ctx, config, parsed.name, label, {
+      notifyOnReady: true,
+    });
+    if (!started) {
+      notify(
+        "[inter-agent] rename failed",
+        "previous listener did not terminate",
+        "error",
+      );
+      return;
+    }
+
     notify(
       "[inter-agent] renaming",
       `${oldName} -> ${parsed.name}${label ? ` (${label})` : ""}`,

@@ -42,12 +42,146 @@ def test_pi_extension_disconnect_does_not_shutdown_server() -> None:
     assert '["shutdown"]' not in content
 
 
+def test_pi_extension_stop_listener_is_awaitable_and_bounded() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    stop_body = content.split("async function stopListener", 1)[1]
+    stop_body = stop_body.split("async function updateStatus", 1)[0]
+
+    assert "async function stopListener" in content
+    assert "pi?: ExtensionAPI" in stop_body
+    assert "ctx?: ExtensionContext" in stop_body
+    assert "Promise<boolean>" in stop_body
+    assert "LISTENER_STOP_SIGTERM_TIMEOUT_MS" in stop_body
+    assert "LISTENER_STOP_SIGKILL_TIMEOUT_MS" in stop_body
+    assert 'proc.kill("SIGTERM")' in stop_body
+    assert 'proc.kill("SIGKILL")' in stop_body
+    assert "await Promise.race([termPromise, sleep(LISTENER_STOP_SIGTERM_TIMEOUT_MS)])" in stop_body
+    assert "await Promise.race([killPromise, sleep(LISTENER_STOP_SIGKILL_TIMEOUT_MS)])" in stop_body
+
+
+def test_pi_extension_stop_listener_is_idempotent_for_missing_listener() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    stop_body = content.split("async function stopListener", 1)[1]
+    stop_body = stop_body.split("async function updateStatus", 1)[0]
+
+    assert "const proc = listenerProc;" in stop_body
+    assert "if (!proc)" in stop_body
+    assert "listenerReady = false;" in stop_body
+    assert "currentConnection = null;" in stop_body
+    assert 'messageBuffer = "";' in stop_body
+    assert "return true;" in stop_body
+
+
+def test_pi_extension_stop_listener_is_awaited_by_lifecycle_callers() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    start_body = content.split("async function startListener", 1)[1]
+    start_body = start_body.split("async function stopListener", 1)[0]
+
+    disconnect_body = content.split("async function handleDisconnect", 1)[1]
+    disconnect_body = disconnect_body.split("async function handleRename", 1)[0]
+
+    shutdown_body = content.split('pi.on("session_shutdown"', 1)[1]
+    shutdown_body = shutdown_body.split('pi.on("before_agent_start"', 1)[0]
+
+    assert "await stopListener(pi, ctx, { expected: true })" in start_body
+    assert "await stopListener(pi, ctx, { expected: true })" in disconnect_body
+    assert "await stopListener(pi, currentCtx, { expected: true })" in shutdown_body
+
+
+def test_pi_extension_disconnect_reports_success_or_failure_after_stop() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    disconnect_body = content.split("async function handleDisconnect", 1)[1]
+    disconnect_body = disconnect_body.split("async function handleRename", 1)[0]
+
+    assert "await stopListener(pi, ctx, { expected: true })" in disconnect_body
+    assert 'notify("[inter-agent] disconnected", "listener stopped")' in disconnect_body
+    assert (
+        "notify(\n"
+        '        "[inter-agent] disconnect failed",\n'
+        '        "listener did not terminate",\n'
+        '        "error",\n'
+        "      )" in disconnect_body
+    )
+
+
+def test_pi_extension_expected_stop_does_not_show_reconnect_warning() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    stop_body = content.split("async function stopListener", 1)[1]
+    stop_body = stop_body.split("async function updateStatus", 1)[0]
+
+    start_body = content.split("async function startListener", 1)[1]
+    start_body = start_body.split("async function stopListener", 1)[0]
+
+    assert "__expectedStop" in stop_body
+    assert "expected" in stop_body
+    assert "if (expected) return;" in start_body
+
+
+def test_pi_extension_listener_io_is_guarded_by_identity_and_expected_stop() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    listener_body = content.split("async function startListener", 1)[1]
+    listener_body = listener_body.split("async function stopListener", 1)[0]
+
+    stdout_handler = listener_body.split('proc.stdout?.on("data"', 1)[1]
+    stdout_handler = stdout_handler.split('proc.stderr?.on("data"', 1)[0]
+
+    stderr_handler = listener_body.split('proc.stderr?.on("data"', 1)[1]
+    stderr_handler = stderr_handler.split('proc.on("exit"', 1)[0]
+
+    error_handler = listener_body.split('proc.on("error"', 1)[1]
+    error_handler = error_handler.split("async function stopListener", 1)[0]
+
+    for handler in [stdout_handler, stderr_handler, error_handler]:
+        assert "if (listenerProc !== proc) return;" in handler
+        assert "__expectedStop" in handler
+        assert "if (expected) return;" in handler
+
+
+def test_pi_extension_start_listener_awaits_stop_and_returns_boolean() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    start_body = content.split("async function startListener", 1)[1]
+    start_body = start_body.split("async function stopListener", 1)[0]
+
+    assert "async function startListener" in content
+    assert "Promise<boolean>" in start_body
+    assert "await stopListener(pi, ctx, { expected: true })" in start_body
+
+
+def test_pi_extension_connect_and_rename_await_start_listener() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    connect_body = content.split("async function handleConnect", 1)[1]
+    connect_body = connect_body.split("async function handleDisconnect", 1)[0]
+
+    rename_body = content.split("async function handleRename", 1)[1]
+    rename_body = rename_body.split("async function handleSend", 1)[0]
+
+    assert (
+        "await startListener(\n"
+        "      pi,\n"
+        "      ctx,\n"
+        "      config,\n"
+        "      parsed.name,\n"
+        "      parsed.label,"
+    ) in connect_body
+    assert "await startListener(pi, ctx, config, parsed.name, label," in rename_body
+
+
 def test_pi_extension_notifies_when_server_connection_closes() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
-    assert 'notify(\n          "[inter-agent] disconnected"' in content
-    assert "server connection closed" in content
-    assert "Use /inter-agent connect" in content
+    listener_body = content.split("async function startListener", 1)[1]
+    listener_body = listener_body.split("async function stopListener", 1)[0]
+    assert 'notify(\n        "[inter-agent] disconnected"' in listener_body
+    assert "server connection closed" in listener_body
+    assert "Use /inter-agent connect" in listener_body
 
 
 def test_pi_extension_send_command_gates_on_connection() -> None:

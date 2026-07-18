@@ -132,7 +132,7 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | Subcommand    | Usage                                           | Description                                                               |
 | ------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
 | `connect`     | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                                              |
-| `disconnect`  | `/inter-agent disconnect`                       | Disconnect from the bus                                                   |
+| `disconnect`  | `/inter-agent disconnect`                       | Disconnect from the bus and wait for the listener to exit                 |
 | `rename`      | `/inter-agent rename <name> [--label <label>]`  | Reconnect with a new routing name                                         |
 | `send`        | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)                               |
 | `broadcast`   | `/inter-agent broadcast <text>`                 | Broadcast to all agents only when messaging everyone is explicitly needed |
@@ -281,7 +281,7 @@ When you're done using the inter-agent bus, disconnect this Pi session:
 /inter-agent disconnect
 ```
 
-This stops your listener and removes you from the bus. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
+This stops your listener, waits for the process to exit, and removes you from the bus. The same routing name can be reconnected immediately afterward. If Pi auto-started the server, it shuts itself down after 300 seconds with no connected sessions. If you started the server manually, it runs until you shut it down.
 
 If the server connection closes unexpectedly, the listener reconnects automatically with bounded backoff. It auto-starts the server if it is not running. After repeated failures the listener gives up and shows a notification with the exact `/inter-agent connect ...` command to retry manually.
 
