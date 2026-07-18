@@ -14,6 +14,8 @@ Before task work begins, the user must explicitly assign one of these roles to t
 - A `leader` must follow `.agents/roles/leader.md` after reading this file.
 - An `executor` must follow `.agents/roles/executor.md` after reading this file.
 
+Role assignment and task dispatch are separate. A newly assigned executor without a task packet finishes the short onboarding in its role document, does not inspect project work, and waits for the leader. The leader alone selects active work, prepares and commits its packet, obtains dispatch authorization, and assigns it.
+
 The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task packets live in `.agents/plans/`.
 
 ## Core rules
@@ -37,6 +39,8 @@ The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task pa
 17. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
 
 ## Required workflow for every feature/change
+
+Apply these requirements within the assigned role: executors perform only packet-authorized work and never commit, while leader-labeled acceptance and history steps belong only to the leader.
 
 1. Add or update tests for the behavior change.
 2. Run all configured repository checks locally before finishing, including tests, linters, formatters/style checks, type checkers, and spec validation. Use `./run-checks.sh` for the full gate. It runs `uv sync --locked` and the current required commands:
