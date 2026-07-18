@@ -8,13 +8,13 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 4: Pub/sub Phase 4 closeout
+### Project closeout — item 5: Pi disconnect reliability
 
-Prove Pi/Claude pub/sub interoperability on one live server, run the installed integration/package acceptance matrix, align evergreen docs, and mark Phase 4 implemented only after the whole gate passes. Item 3 was accepted in `e3153a9`.
+Make `/inter-agent disconnect` await the owned listener's exit, preserve correct state/notifications, and release the routing name reliably for immediate reconnect. Item 4 was accepted in `e7b44fa`.
 
 Task packet:
 
-- [Task 1 — Pub/sub Phase 4 closeout](plans/pubsub-phase4-closeout/01-cross-integration-acceptance.md)
+- [Task 1 — Pi disconnect reliability](plans/pi-disconnect-reliability/01-await-listener-exit.md)
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
