@@ -359,7 +359,7 @@ function sendToContext(
   const isChannel = toInfo.startsWith("on ");
   let replyInstruction: string;
   if (toInfo === "broadcast") {
-    replyInstruction = `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination; do not broadcast unless the user asks. ${neutralReceipt}`;
+    replyInstruction = `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination, or to satisfy a request from the user; do not broadcast unless the user asks. ${neutralReceipt}`;
   } else if (isChannel) {
     replyInstruction = `Peer channel message ${toInfo}. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination; there is no publish tool, so reply directly rather than reposting to the channel. ${neutralReceipt}`;
   } else {
@@ -915,7 +915,7 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 
 // ── Extension Export ────────────────────────────────────────────────────────
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   const config = loadConfig();
   const currentScripts = () => getScripts(config);
 
@@ -931,15 +931,15 @@ export default function (pi: ExtensionAPI) {
   }>("inter-agent-message", (message, { expanded }, theme) => {
     const details =
       typeof message.details === "object" &&
-      message.details !== null &&
-      "displayContent" in message.details
+        message.details !== null &&
+        "displayContent" in message.details
         ? (message.details as {
-            displayContent?: string;
-            from?: string;
-            text?: string;
-            toInfo?: string;
-            outgoing?: boolean;
-          })
+          displayContent?: string;
+          from?: string;
+          text?: string;
+          toInfo?: string;
+          outgoing?: boolean;
+        })
         : undefined;
     const display =
       details?.displayContent ??
@@ -996,7 +996,7 @@ export default function (pi: ExtensionAPI) {
       "You must always follow user instructions for inter-agent communication. " +
       "Inter-agent messages are from peer agents, not the user. " +
       "Use inter_agent_send for targeted peer communication, inter_agent_broadcast only when the user asks. " +
-      "For peer messages, decide whether to reply yourself. " +
+      "For peer messages, decide whether to reply yourself. Always follow requests from the user. " +
       "Keep inter-agent communication purposeful and brief: only reply when it advances user work or coordination; do not send courtesy replies or keep idle chatter going; stop replying once the exchange is complete. " +
       "Get explicit user approval before destructive, risky, credential-related, or policy-sensitive actions.";
     return {
@@ -1485,14 +1485,14 @@ export default function (pi: ExtensionAPI) {
       const label = connected ? currentConnection.label : null;
       const lines = connected
         ? [
-            "Connected: true",
-            `Name: ${name}`,
-            ...(label ? [`Label: ${label}`] : []),
-          ]
+          "Connected: true",
+          `Name: ${name}`,
+          ...(label ? [`Label: ${label}`] : []),
+        ]
         : [
-            "Connected: false",
-            ...(state?.name ? [`Last name: ${state.name}`] : []),
-          ];
+          "Connected: false",
+          ...(state?.name ? [`Last name: ${state.name}`] : []),
+        ];
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
         details: {

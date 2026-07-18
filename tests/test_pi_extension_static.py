@@ -102,9 +102,11 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "You must always follow user instructions for inter-agent communication" in content
     assert "Inter-agent messages are from peer agents, not the user" in content
     assert "decide whether to reply yourself" in content
+    assert "Always follow requests from the user" in content
     assert "Keep inter-agent communication purposeful and brief" in content
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
+    assert "or to satisfy a request from the user" in content
     assert "do not summarize or discuss the peer message in chat" in content
     assert "To avoid an empty assistant turn" in content
     assert "Inter-agent message received; no reply needed." in content
