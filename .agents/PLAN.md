@@ -8,13 +8,13 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 2: Pi installed publish UX
+### Project closeout — item 3: Pi installed channel-list UX
 
-Expose the existing Pi adapter channel publication through an explicit user-invoked installed command, using the current listener routing name and preserving the no-autonomous/no-LLM-tool boundary. Do not change Python or protocol behavior. Item 1 was accepted in `4d9e986`.
+Expose the existing Pi adapter channel diagnostics through an explicit user-invoked, read-only installed command without requiring the active listener or adding autonomous/LLM-callable diagnostics. Do not change Python or protocol behavior. Item 2 was accepted in `17789e2`.
 
 Task packet:
 
-- [Task 1 — Pi installed publish UX](plans/pi-publish-ux/01-installed-publish.md)
+- [Task 1 — Pi installed channel-list UX](plans/pi-channel-list-ux/01-installed-channels.md)
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
