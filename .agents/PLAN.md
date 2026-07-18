@@ -8,13 +8,13 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 3: Pi installed channel-list UX
+### Project closeout — item 4: Pub/sub Phase 4 closeout
 
-Expose the existing Pi adapter channel diagnostics through an explicit user-invoked, read-only installed command without requiring the active listener or adding autonomous/LLM-callable diagnostics. Do not change Python or protocol behavior. Item 2 was accepted in `17789e2`.
+Prove Pi/Claude pub/sub interoperability on one live server, run the installed integration/package acceptance matrix, align evergreen docs, and mark Phase 4 implemented only after the whole gate passes. Item 3 was accepted in `e3153a9`.
 
 Task packet:
 
-- [Task 1 — Pi installed channel-list UX](plans/pi-channel-list-ux/01-installed-channels.md)
+- [Task 1 — Pub/sub Phase 4 closeout](plans/pubsub-phase4-closeout/01-cross-integration-acceptance.md)
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 

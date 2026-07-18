@@ -44,8 +44,8 @@ This queue preserves continuity between active slices. Complete items in order u
 
 1. **Claude Code installed channel-list UX** — expose the existing read-only `channels` adapter command through the installed `/inter-agent` skill with focused documentation, static/wrapper coverage, and live acceptance. **Status: implemented in `4d9e986`.**
 2. **Pi installed publish UX** — expose explicit user-invoked channel publication through the Pi extension without autonomous or peer-triggered publishing. **Status: implemented in `17789e2`.**
-3. **Pi installed channel-list UX** — expose read-only channel diagnostics through the Pi extension. **Status: active; packet linked from `.agents/PLAN.md`.**
-4. **Pub/sub Phase 4 closeout** — run cross-integration acceptance, align evergreen documentation, and mark Phase 4 implemented. **Status: queued after item 3.**
+3. **Pi installed channel-list UX** — expose read-only channel diagnostics through the Pi extension. **Status: implemented in `e3153a9`.**
+4. **Pub/sub Phase 4 closeout** — run cross-integration acceptance, align evergreen documentation, and mark Phase 4 implemented. **Status: active; packet linked from `.agents/PLAN.md`.**
 5. **Pi disconnect reliability** — reproduce and fix the flaky `/inter-agent disconnect` behavior recorded in `TODO.md`. **Status: queued after pub/sub closeout.**
 6. **Pi pre-connect list behavior** — make `/inter-agent list` return an intentional result instead of erroring before connection. **Status: queued after item 5.**
 7. **Claude Code sandbox connect failure** — reproduce and resolve the installed `/inter-agent connect` exit-127 failure recorded for the interline sandbox, or document a verified environment constraint. **Status: queued after item 6.**
