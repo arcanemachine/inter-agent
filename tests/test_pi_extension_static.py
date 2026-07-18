@@ -168,7 +168,7 @@ def test_pi_extension_registers_user_publish_command() -> None:
     assert 'value: "publish"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "publish|subscribe|unsubscribe|list|status> [args]"
+        "publish|channels|subscribe|unsubscribe|list|status> [args]"
     ) in content
     assert 'case "publish":' in content
     assert "async function handlePublish" in content
@@ -177,7 +177,7 @@ def test_pi_extension_registers_user_publish_command() -> None:
     assert "Not connected to the inter-agent bus. Use /inter-agent connect first." in content
 
     publish_body = content.split("async function handlePublish", 1)[1]
-    publish_body = publish_body.split("async function handleSubscribe", 1)[0]
+    publish_body = publish_body.split("async function handleChannels", 1)[0]
     assert '"publish",\n      channel,\n      text,\n      "--from",\n      name,' in publish_body
     assert '"--name"' not in publish_body
     assert 'notify("[inter-agent] published", `on ${channel}`)' in publish_body
@@ -185,6 +185,30 @@ def test_pi_extension_registers_user_publish_command() -> None:
 
     # Publish remains an explicit user command, not an agent-callable tool.
     assert 'name: "inter_agent_publish"' not in content
+
+
+def test_pi_extension_registers_read_only_channels_command() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'value: "channels"' in content
+    assert (
+        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "publish|channels|subscribe|unsubscribe|list|status> [args]"
+    ) in content
+    assert 'case "channels":' in content
+    assert "async function handleChannels" in content
+    assert "usage: /inter-agent channels" in content
+
+    channels_body = content.split("async function handleChannels", 1)[1]
+    channels_body = channels_body.split("async function handleSubscribe", 1)[0]
+    assert '["channels", "--json"]' in channels_body
+    assert "listenerReady" not in channels_body
+    assert "currentConnection" not in channels_body
+    assert '!== "channels_ok"' in channels_body
+    assert "Array.isArray" in channels_body
+    assert "no channels currently have subscribers" in channels_body
+    assert 'notify("[inter-agent] channels failed", "invalid response", "error")' in channels_body
+    assert 'name: "inter_agent_channels"' not in content
 
 
 def test_pi_extension_registers_user_subscription_commands() -> None:
@@ -195,7 +219,7 @@ def test_pi_extension_registers_user_subscription_commands() -> None:
     assert 'value: "unsubscribe"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "publish|subscribe|unsubscribe|list|status> [args]"
+        "publish|channels|subscribe|unsubscribe|list|status> [args]"
     ) in content
 
     # Both subcommands are dispatched from the grouped command handler.

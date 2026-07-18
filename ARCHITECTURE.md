@@ -20,7 +20,7 @@
    - Non-Python host-native integrations may implement a small direct protocol client when the host runtime makes that the safer package boundary; those clients must mirror the documented protocol, security checks, and shared state resolution.
    - May expose only a subset of core-supported operations.
    - A private adapter-local Unix-domain control bridge lets short-lived subscribe/unsubscribe commands operate on the matching persistent listener identity without opening another agent session.
-   - Pi adapter (`pi/`) provides channel-capable Python commands and TypeScript extension integration through Python helper entry points. The extension exposes subscribe, unsubscribe, and publish as explicit user commands, not LLM tools.
+   - Pi adapter (`pi/`) provides channel-capable Python commands and TypeScript extension integration through Python helper entry points. The extension exposes subscribe, unsubscribe, publish, and read-only channels diagnostics as explicit user commands, not LLM tools.
    - Claude Code adapter (`claude/`) provides a Monitor-backed channel-capable listener and CLI commands, distinct channel notifications, and short-window duplicate suppression for sends and publishes. The installed `/inter-agent` skill exposes `subscribe`, `unsubscribe`, `publish`, and read-only `channels` as explicit user-invoked commands, not LLM tools.
    - Integration assets for each host live under `integrations/<host>/`.
 
@@ -82,7 +82,7 @@ Agent-only subscribe/unsubscribe operations must reuse the connected listener id
 
 The desired subscription set lives only in listener memory. It is reapplied before readiness is reported after a transient WebSocket reconnect, but it is cleared by explicit listener shutdown or process restart. There are no automatic subscriptions.
 
-Both the Pi and Claude Code installed integrations expose channel membership changes and publication only as explicit user-invoked commands. Neither integration registers an LLM-callable subscribe, unsubscribe, or publish tool, and neither subscribes or publishes automatically. Membership and publication use the active listener's connected routing name. The installed Claude Code `/inter-agent` skill also exposes read-only `channels` diagnostics only on explicit user request; diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
+Both the Pi and Claude Code installed integrations expose channel membership changes, publication, and read-only diagnostics only as explicit user-invoked commands. Neither integration registers an LLM-callable subscribe, unsubscribe, publish, or channels tool, and neither subscribes, publishes, or polls automatically. Membership and publication use the active listener's connected routing name. Channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
 
 ## Messaging model
 

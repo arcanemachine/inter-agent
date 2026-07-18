@@ -1031,6 +1031,11 @@ export default function (pi: ExtensionAPI) {
       description: "Publish to a channel when explicitly requested",
     },
     {
+      value: "channels",
+      label: "channels",
+      description: "List active channels when explicitly requested",
+    },
+    {
       value: "subscribe",
       label: "subscribe",
       description: "Subscribe to a channel",
@@ -1215,6 +1220,60 @@ export default function (pi: ExtensionAPI) {
     showOutgoingInContext(pi, name, text, `on ${channel}`);
   }
 
+  async function handleChannels(args: string, _ctx: ExtensionContext) {
+    if (args.trim()) {
+      notify(
+        "[inter-agent] channels failed",
+        "usage: /inter-agent channels",
+        "error",
+      );
+      return;
+    }
+    const result = await execPiScript(currentScripts(), ["channels", "--json"]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] channels failed",
+        scriptFailureMessage(result, "channels"),
+        "error",
+      );
+      return;
+    }
+    try {
+      const payload: unknown = JSON.parse(result.stdout);
+      if (
+        !payload ||
+        typeof payload !== "object" ||
+        Array.isArray(payload) ||
+        (payload as { op?: unknown }).op !== "channels_ok" ||
+        !Array.isArray((payload as { channels?: unknown }).channels)
+      ) {
+        throw new Error("invalid response");
+      }
+      const channels = (payload as { channels: unknown[] }).channels;
+      const lines = channels.map((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+          throw new Error("invalid response");
+        }
+        const name = (entry as { name?: unknown }).name;
+        const subscribers = (entry as { subscribers?: unknown }).subscribers;
+        if (
+          typeof name !== "string" ||
+          !Array.isArray(subscribers) ||
+          !subscribers.every((subscriber) => typeof subscriber === "string")
+        ) {
+          throw new Error("invalid response");
+        }
+        return `${name}: ${subscribers.join(", ")}`;
+      });
+      notify(
+        "[inter-agent] channels",
+        lines.join("; ") || "no channels currently have subscribers",
+      );
+    } catch {
+      notify("[inter-agent] channels failed", "invalid response", "error");
+    }
+  }
+
   async function handleSubscribe(args: string, _ctx: ExtensionContext) {
     const channel = args.trim();
     const parts = channel.split(/\s+/).filter(Boolean);
@@ -1346,7 +1405,7 @@ export default function (pi: ExtensionAPI) {
   function showInterAgentUsage() {
     notify(
       "[inter-agent] usage",
-      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|publish|subscribe|unsubscribe|list|status> [args]",
+      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|publish|channels|subscribe|unsubscribe|list|status> [args]",
       "warning",
     );
   }
@@ -1385,6 +1444,9 @@ export default function (pi: ExtensionAPI) {
           break;
         case "publish":
           await handlePublish(rest, ctx);
+          break;
+        case "channels":
+          await handleChannels(rest, ctx);
           break;
         case "subscribe":
           await handleSubscribe(rest, ctx);

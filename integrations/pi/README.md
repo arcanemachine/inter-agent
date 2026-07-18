@@ -7,7 +7,7 @@ Connect each Pi session once, then Pi can use the extension tools to send messag
 ## Features
 
 - **Background listener** — Stay connected to the bus and receive messages as Pi notifications, with automatic reconnection if the server restarts
-- **Commands** — Connect, disconnect, rename, send, broadcast, publish, subscribe, unsubscribe, list, and status
+- **Commands** — Connect, disconnect, rename, send, broadcast, publish, channels, subscribe, unsubscribe, list, and status
 - **Channels** — User-controlled pub/sub: subscribe, unsubscribe, and publish through explicit slash commands; channel deliveries are shown as channel messages, not direct or broadcast
 - **Tools** — LLM-callable tools for send, broadcast, list, status, and local identity
 - **State persistence** — Connection state survives Pi session reloads
@@ -137,12 +137,13 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | `send`        | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)                               |
 | `broadcast`   | `/inter-agent broadcast <text>`                 | Broadcast to all agents only when messaging everyone is explicitly needed |
 | `publish`     | `/inter-agent publish <channel> <text>`         | Publish to channel subscribers (requires connection; user-only)           |
+| `channels`    | `/inter-agent channels`                         | List channels and subscribers (read-only; user-only)                      |
 | `subscribe`   | `/inter-agent subscribe <channel>`              | Subscribe to a channel (requires connection; user-only)                   |
 | `unsubscribe` | `/inter-agent unsubscribe <channel>`            | Unsubscribe from a channel (requires connection; user-only)               |
 | `list`        | `/inter-agent list`                             | List connected sessions                                                   |
 | `status`      | `/inter-agent status`                           | Check server status                                                       |
 
-`send`, `broadcast`, and `publish` automatically use the current Pi connection name as the sender. `subscribe` and `unsubscribe` operate on the current Pi listener's live session and pass its routing name internally; you never provide or manage the listener name.
+`send`, `broadcast`, and `publish` automatically use the current Pi connection name as the sender. `subscribe` and `unsubscribe` operate on the current Pi listener's live session and pass its routing name internally; you never provide or manage the listener name. `channels` is read-only and does not require an active Pi listener; it uses a short-lived authenticated connection to the configured server.
 
 ## Channels
 
@@ -152,6 +153,7 @@ Channels are user-controlled pub/sub. Subscribe to a named channel to receive me
 - **Not persisted across restarts.** Subscriptions are not retained across an explicit `/inter-agent disconnect`, a Pi listener restart, or a Pi session reload. Re-establish subscriptions after any of these.
 - **User-only control.** Subscribe, unsubscribe, and publish are slash commands only. There are no LLM-callable tools for these operations, so channel membership and publication remain under explicit user control. Pi does not publish autonomously, infer publication from peer messages, or publish acknowledgments.
 - **Publication identity and delivery.** `/inter-agent publish <channel> <text>` requires the current Pi listener and always uses its connected routing name as the publisher. The publisher does not need to subscribe first and is excluded from delivery even when subscribed. Success shows a Pi notification and outbound-history entry. Local or protocol failures use the existing helper diagnostic; `UNKNOWN_CHANNEL` means the channel does not exist or has no subscribers.
+- **Read-only diagnostics.** `/inter-agent channels` runs only when the user explicitly requests channel diagnostics. It opens a short-lived authenticated connection to the configured, reachable server and does not require or change the Pi listener. It lists current channel names and subscriber routing names; no channels is a successful result. It is not an LLM-callable tool and is never run autonomously, after another operation, or because of peer-message content.
 - **Distinct delivery.** An inbound channel message is shown with an `on <channel>` label in both the Pi notification and the agent context, so it is not mistaken for a direct or broadcast message. Existing untrusted-peer guidance, truncation, and display/context separation still apply.
 
 ## Tools
@@ -257,7 +259,13 @@ Relative project-local example for `/workspace/.pi/settings.json`:
    /inter-agent publish updates "build is green"
    ```
 
-   Subscribers should see a channel-specific notification labeled `on updates`, distinct from direct and broadcast messages. Unsubscribe when done:
+   Subscribers should see a channel-specific notification labeled `on updates`, distinct from direct and broadcast messages. List current membership without changing listener state:
+
+   ```
+   /inter-agent channels
+   ```
+
+   Unsubscribe when done:
 
    ```
    /inter-agent unsubscribe updates
@@ -296,6 +304,7 @@ To verify the extension works end-to-end:
    - `/inter-agent send test-agent "hello self"` → should show "sent" (only works when connected)
    - `/inter-agent broadcast "test broadcast for everyone"` → should show "sent" (only works when connected; reserve for messages everyone needs)
    - `/inter-agent publish updates "test channel message"` → should show publication success when `updates` has another subscriber; otherwise it should report `UNKNOWN_CHANNEL`
+   - `/inter-agent channels` → should list channel names and subscriber routing names, or report that no channels have subscribers; it does not require a Pi listener
    - `/inter-agent subscribe updates` → should show "subscribed: updates" (only works when connected)
    - `/inter-agent unsubscribe updates` → should show "unsubscribed: updates" (only works when connected)
    - `/inter-agent rename test-agent-2` → should reconnect under the new name
@@ -303,7 +312,7 @@ To verify the extension works end-to-end:
 
 4. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.
 
-5. **Verify channel delivery**: Subscribe a second session to `updates`, then run `/inter-agent publish updates "hello channel"` in Pi. The second subscriber should receive a channel-specific notification labeled `on updates`; Pi should show publication success and an `on updates` outbound-history entry, while the publisher receives no copy. Run `/inter-agent unsubscribe updates`, publish again after all subscribers leave, and confirm `UNKNOWN_CHANNEL`. Confirm the tool list does not contain publish, subscribe, or unsubscribe tools. Subscriptions do not persist across `/inter-agent disconnect` or a listener restart; re-subscribe after these.
+5. **Verify channel delivery**: Subscribe a second session to `updates`, then run `/inter-agent publish updates "hello channel"` in Pi. The second subscriber should receive a channel-specific notification labeled `on updates`; Pi should show publication success and an `on updates` outbound-history entry, while the publisher receives no copy. Run `/inter-agent unsubscribe updates`, publish again after all subscribers leave, and confirm `UNKNOWN_CHANNEL`. Confirm `/inter-agent channels` reports `updates` and the subscriber routing name, then reports no channels after the last unsubscribe. Confirm the tool list does not contain publish, channels, subscribe, or unsubscribe tools. Subscriptions do not persist across `/inter-agent disconnect` or a listener restart; re-subscribe after these.
 
 ## Development
 

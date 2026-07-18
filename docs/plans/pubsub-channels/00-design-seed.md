@@ -98,14 +98,11 @@ Phase 3 exposes consistent subscribe, unsubscribe, publish, and channel-list beh
 
 ### Phase 4 — installed extension UX (partially implemented)
 
-The implemented Pi slice provides user-invoked subscribe/unsubscribe/publish commands and channel-aware notifications/context. The implemented Claude Code slice exposes user-invoked subscribe/unsubscribe/publish and explicit-user read-only channel diagnostics through the installed `/inter-agent` skill and treats channel notifications as untrusted collaboration input. Subscription control, publish, and channel diagnostics are deliberately not exposed as LLM-callable tools, memberships are not persisted across listener restart, process restart, host reload, or resumed sessions, and nothing subscribes, publishes, or polls automatically. Claude channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
+The implemented Pi and Claude Code installed integrations provide user-invoked subscribe/unsubscribe/publish commands, explicit-user read-only channel diagnostics, and channel-aware notifications/context. Subscription control, publish, and channel diagnostics are deliberately not exposed as LLM-callable tools, memberships are not persisted across listener restart, process restart, host reload, or resumed sessions, and nothing subscribes, publishes, or polls automatically. Channel diagnostics use a short-lived authenticated server connection and do not require or change the active listener.
 
-Remaining prospective Phase 4 work includes:
+The installed UX surfaces are implemented. Phase 4 remains partially implemented until cross-integration acceptance, evergreen documentation alignment, and the whole-phase quality gate are completed.
 
-- installed Pi `channels` UX;
-- live acceptance and static packaging coverage for that remaining slice.
-
-Next activation step: copy one bounded slice for installed Pi channel-list UX into `.agents/PLAN.md`.
+Next activation step: copy the bounded Pub/sub Phase 4 closeout into `.agents/PLAN.md`.
 
 ## Whole-feature acceptance criteria
 
