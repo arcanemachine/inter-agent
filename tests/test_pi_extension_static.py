@@ -162,6 +162,31 @@ def test_pi_extension_supports_user_driven_rename() -> None:
     assert "startListener(pi, ctx, config, parsed.name, label" in content
 
 
+def test_pi_extension_registers_user_publish_command() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'value: "publish"' in content
+    assert (
+        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "publish|subscribe|unsubscribe|list|status> [args]"
+    ) in content
+    assert 'case "publish":' in content
+    assert "async function handlePublish" in content
+    assert "usage: /inter-agent publish <channel> <text>" in content
+    assert '"[inter-agent] publish failed"' in content
+    assert "Not connected to the inter-agent bus. Use /inter-agent connect first." in content
+
+    publish_body = content.split("async function handlePublish", 1)[1]
+    publish_body = publish_body.split("async function handleSubscribe", 1)[0]
+    assert '"publish",\n      channel,\n      text,\n      "--from",\n      name,' in publish_body
+    assert '"--name"' not in publish_body
+    assert 'notify("[inter-agent] published", `on ${channel}`)' in publish_body
+    assert "showOutgoingInContext(pi, name, text, `on ${channel}`)" in publish_body
+
+    # Publish remains an explicit user command, not an agent-callable tool.
+    assert 'name: "inter_agent_publish"' not in content
+
+
 def test_pi_extension_registers_user_subscription_commands() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 
@@ -170,7 +195,7 @@ def test_pi_extension_registers_user_subscription_commands() -> None:
     assert 'value: "unsubscribe"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "subscribe|unsubscribe|list|status> [args]"
+        "publish|subscribe|unsubscribe|list|status> [args]"
     ) in content
 
     # Both subcommands are dispatched from the grouped command handler.

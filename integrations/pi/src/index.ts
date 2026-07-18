@@ -915,7 +915,7 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 
 // ── Extension Export ────────────────────────────────────────────────────────
 
-export default function(pi: ExtensionAPI) {
+export default function (pi: ExtensionAPI) {
   const config = loadConfig();
   const currentScripts = () => getScripts(config);
 
@@ -931,15 +931,15 @@ export default function(pi: ExtensionAPI) {
   }>("inter-agent-message", (message, { expanded }, theme) => {
     const details =
       typeof message.details === "object" &&
-        message.details !== null &&
-        "displayContent" in message.details
+      message.details !== null &&
+      "displayContent" in message.details
         ? (message.details as {
-          displayContent?: string;
-          from?: string;
-          text?: string;
-          toInfo?: string;
-          outgoing?: boolean;
-        })
+            displayContent?: string;
+            from?: string;
+            text?: string;
+            toInfo?: string;
+            outgoing?: boolean;
+          })
         : undefined;
     const display =
       details?.displayContent ??
@@ -1024,6 +1024,11 @@ export default function(pi: ExtensionAPI) {
       label: "broadcast",
       description:
         "Broadcast only when messaging everyone is explicitly needed",
+    },
+    {
+      value: "publish",
+      label: "publish",
+      description: "Publish to a channel when explicitly requested",
     },
     {
       value: "subscribe",
@@ -1171,6 +1176,45 @@ export default function(pi: ExtensionAPI) {
     showOutgoingInContext(pi, name, text, "broadcast");
   }
 
+  async function handlePublish(args: string, _ctx: ExtensionContext) {
+    const match = args.trim().match(/^(\S+)\s+(.+)$/s);
+    if (!match) {
+      notify(
+        "[inter-agent] publish failed",
+        "usage: /inter-agent publish <channel> <text>",
+        "error",
+      );
+      return;
+    }
+    const [, channel, text] = match;
+    if (!listenerReady || !currentConnection) {
+      notify(
+        "[inter-agent] publish failed",
+        "Not connected to the inter-agent bus. Use /inter-agent connect first.",
+        "error",
+      );
+      return;
+    }
+    const name = currentConnection.name;
+    const result = await execPiScript(currentScripts(), [
+      "publish",
+      channel,
+      text,
+      "--from",
+      name,
+    ]);
+    if (result.code !== 0) {
+      notify(
+        "[inter-agent] publish failed",
+        scriptFailureMessage(result, "publish"),
+        "error",
+      );
+      return;
+    }
+    notify("[inter-agent] published", `on ${channel}`);
+    showOutgoingInContext(pi, name, text, `on ${channel}`);
+  }
+
   async function handleSubscribe(args: string, _ctx: ExtensionContext) {
     const channel = args.trim();
     const parts = channel.split(/\s+/).filter(Boolean);
@@ -1302,7 +1346,7 @@ export default function(pi: ExtensionAPI) {
   function showInterAgentUsage() {
     notify(
       "[inter-agent] usage",
-      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|subscribe|unsubscribe|list|status> [args]",
+      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|publish|subscribe|unsubscribe|list|status> [args]",
       "warning",
     );
   }
@@ -1338,6 +1382,9 @@ export default function(pi: ExtensionAPI) {
           break;
         case "broadcast":
           await handleBroadcast(rest, ctx);
+          break;
+        case "publish":
+          await handlePublish(rest, ctx);
           break;
         case "subscribe":
           await handleSubscribe(rest, ctx);
@@ -1485,14 +1532,14 @@ export default function(pi: ExtensionAPI) {
       const label = connected ? currentConnection.label : null;
       const lines = connected
         ? [
-          "Connected: true",
-          `Name: ${name}`,
-          ...(label ? [`Label: ${label}`] : []),
-        ]
+            "Connected: true",
+            `Name: ${name}`,
+            ...(label ? [`Label: ${label}`] : []),
+          ]
         : [
-          "Connected: false",
-          ...(state?.name ? [`Last name: ${state.name}`] : []),
-        ];
+            "Connected: false",
+            ...(state?.name ? [`Last name: ${state.name}`] : []),
+          ];
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
         details: {
