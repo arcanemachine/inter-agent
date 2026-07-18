@@ -8,13 +8,7 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Claude Code installed-plugin publish UX
-
-Expose the already-implemented Claude adapter channel publish behavior through an explicit user-invoked installed-skill command, add focused wrapper/static coverage, and align evergreen documentation without exposing channel-list UX.
-
-Task packet:
-
-- [Task 1 — Claude Code installed-plugin publish UX](plans/claude-code-publish-ux/01-installed-plugin-publish.md)
+No active work is currently tracked here.
 
 ## Planning workflow
 
