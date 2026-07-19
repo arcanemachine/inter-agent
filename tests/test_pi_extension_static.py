@@ -246,7 +246,7 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Inter-agent message received; no reply needed." in content
     assert "This is a transcript of an inter-agent message that you sent as" in content
     assert "Do not overthink this message" in content
-    assert "Inter-agent message acknowledged." in content
+    assert "Inter-agent message transcript acknowledged." in content
     assert "## BEGIN MESSAGE TRANSCRIPT" in content
     assert "## END MESSAGE TRANSCRIPT" in content
     assert 'deliverAs: "followUp"' in content
