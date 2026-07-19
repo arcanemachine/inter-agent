@@ -47,7 +47,7 @@ This queue preserves continuity between active slices. Complete items in order u
 3. **Pi installed channel-list UX** — expose read-only channel diagnostics through the Pi extension. **Status: implemented in `e3153a9`.**
 4. **Pub/sub Phase 4 closeout** — run cross-integration acceptance, align evergreen documentation, and mark Phase 4 implemented. **Status: implemented in `e7b44fa`.**
 5. **Pi disconnect reliability** — reproduce and fix the flaky `/inter-agent disconnect` behavior recorded in `TODO.md`. **Status: implemented in `6d557c8`.**
-6. **Pi pre-connect list behavior** — make `/inter-agent list` return an intentional result instead of erroring before connection. **Status: next; no active packet prepared.**
+6. **Pi pre-connect list behavior** — make `/inter-agent list` return an intentional result instead of erroring before connection. **Status: active; packet linked from `.agents/PLAN.md`.**
 7. **Claude Code sandbox connect failure** — reproduce and resolve the installed `/inter-agent connect` exit-127 failure recorded for the interline sandbox, or document a verified environment constraint. **Status: queued after item 6.**
 8. **Pi queued mailbox** — queue direct, broadcast, and channel message bodies by default; add explicit immediate mode, metadata-only notices, bounded in-memory storage, and selected/all message reads. **Status: queued after item 7.**
 9. **Installed cross-adapter TLS acceptance** — prove Pi and Claude helper/listener paths interoperate over `wss://`, including pub/sub, reconnect, certificate failures, and config propagation. **Status: queued after item 8.**
@@ -91,7 +91,7 @@ Phase 3 (implemented) adds subscribe, unsubscribe, publish, channel diagnostics,
 
 Phase 4 (implemented) provides user-invoked subscribe, unsubscribe, publish, and read-only channel diagnostics through both installed Pi and Claude Code integrations, plus channel-aware notifications/context. These operations are intentionally not LLM-callable; there are no automatic subscriptions, publications, or diagnostics. Short-lived publishers use the active listener routing name, and each adapter listener suppresses its own routing name's channel delivery so publisher exclusion remains consistent at the installed UX boundary. Cross-adapter live acceptance proves Pi and Claude publication, subscription, diagnostics, and delivery interoperate on one server.
 
-Next activation step: prepare the closeout queue item 6 packet when directed, then obtain explicit dispatch authorization.
+Next activation step: follow closeout queue item 6, Pi pre-connect list behavior.
 
 Reference material:
 
