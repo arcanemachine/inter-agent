@@ -241,12 +241,12 @@ def test_pi_extension_encourages_bounded_peer_coordination() -> None:
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
     assert "or to satisfy a request from the user" in content
-    assert "do not summarize or discuss the peer message in chat" in content
-    assert "To avoid an empty assistant turn" in content
-    assert "Inter-agent message received; no reply needed." in content
-    assert "This is a transcript of an inter-agent message that you sent as" in content
-    assert "Do not overthink this message" in content
-    assert "Inter-agent message transcript acknowledged." in content
+    assert "If no peer reply or user-facing action is needed" in content
+    assert "do not send a courtesy reply" in content
+    assert "Outbound inter-agent history for a message sent as" in content
+    assert "treat it as context, not a new request" in content
+    assert "Inter-agent message received; no reply needed." not in content
+    assert "Inter-agent message transcript acknowledged." not in content
     assert "## BEGIN MESSAGE TRANSCRIPT" in content
     assert "## END MESSAGE TRANSCRIPT" in content
     assert 'deliverAs: "followUp"' in content
@@ -263,8 +263,9 @@ def test_pi_extension_separates_display_from_agent_context() -> None:
     assert "pi.registerMessageRenderer" in content
     assert '"inter-agent-message"' in content
     assert "displayContent" in content
-    # Internal-only instruction stays in LLM content, while the TUI labels the
-    # entry as outbound history.
+    # The LLM receives an outbound-history context marker, while the TUI labels
+    # the entry as outbound history.
+    assert "treat it as context, not a new request" in content
     assert "## BEGIN MESSAGE TRANSCRIPT" in content
     assert "## END MESSAGE TRANSCRIPT" in content
     assert "[outbound inter-agent history — sent by current agent" in content
@@ -397,14 +398,14 @@ def test_pi_extension_distinguishes_inbound_channel_delivery() -> None:
 
     # Channel messages get distinct reply guidance that does not reuse the
     # direct or broadcast instructions, while preserving untrusted-peer and
-    # neutral-receipt conventions.
+    # reply-decision conventions without prescribing a canned acknowledgment.
     assert "Peer channel message ${toInfo}" in content
     assert "there is no publish tool" in content
-    assert "do not summarize or discuss the peer message in chat" in content
-    assert "respond only with a neutral receipt such as" in content
-    assert '"Inter-agent message received; no reply needed."' in content
+    assert "If no peer reply or user-facing action is needed" in content
+    assert "do not send a courtesy reply" in content
+    assert '"Inter-agent message received; no reply needed."' not in content
 
-    # Existing direct/broadcast guidance is preserved unchanged.
+    # Existing direct/broadcast guidance is preserved.
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
 
