@@ -22,6 +22,9 @@ Make inbound Pi inter-agent bodies queued by default so a receiving agent can co
 - With no IDs, the tool reads all unread messages. With IDs, it returns all valid requested messages and reports missing/already-read IDs without failing valid selections.
 - Reading removes the selected messages. Tool results remain in ordinary Pi history.
 - Configuration `interAgent.mailboxNoticeDebounceMs` controls notice coalescing; integer range 0–5000, default 0, recommended opt-in 200. It affects notices only, never storage.
+- Queued-mode mailbox notices enter model context with Pi's `deliverAs: "nextTurn"` behavior. They wait for the next user prompt and never trigger, steer, abort, or otherwise start an agent turn.
+- Immediate-mode bodies use non-steering follow-up delivery. They may trigger a turn when Pi is idle, but while Pi is active they wait until the current run and queued continuations settle.
+- Every timer and asynchronous delivery captures the current extension runtime generation and must no-op after reload, session replacement, or shutdown.
 
 ## Required data model
 
@@ -45,7 +48,7 @@ Each emitted mailbox notice describes the complete current unread set using meta
 
 Use an `inter-agent-mailbox` custom message/renderer distinct from normal `inter-agent-message` bodies. Compact rendering shows unread count grouped by sender. Expanded rendering lists every ID, sender, kind, and channel when present. The model-visible notice must contain the complete selection metadata even if compact human rendering is shorter.
 
-A notice should trigger a Pi turn when appropriate, using Pi's supported queued delivery semantics, without injecting a peer body. Debounce must cancel/replace the pending timer safely and emit the latest full mailbox snapshot. Clear timers on `session_shutdown`.
+A notice must use Pi's `nextTurn` delivery mode without `triggerTurn`, so it becomes context for the next user-initiated turn without causing an automatic agent response. Debounce must cancel/replace the pending timer safely and retain only the latest full mailbox snapshot. If more messages arrive before that snapshot is delivered, replace it rather than enqueueing stale intermediate notices. Clear timers and pending notice work on `session_shutdown`, and reject callbacks whose captured runtime generation is stale.
 
 Persisted transcript notices are snapshots, not mailbox storage. On reload/restart the in-memory mailbox is empty; the read tool must report that previously shown IDs are no longer unread rather than reconstructing bodies from session history.
 
@@ -54,8 +57,10 @@ Persisted transcript notices are snapshots, not mailbox storage. On reload/resta
 Immediate mode preserves the current bounded notification/context behavior:
 
 - direct, broadcast, and channel formatting remain distinct;
-- existing collaboration-input and reply-decision guidance remains attached;
-- delivery does not bypass Pi turn ordering;
+- existing collaboration-input and reply-decision guidance remains attached, without prescribing any canned acknowledgment;
+- use `deliverAs: "followUp"` with `triggerTurn: true`, never `steer` or `ctx.abort()`;
+- when Pi is active, bodies wait for the current run and queued continuations to settle before delivery;
+- a burst waiting behind one active run triggers at most one new turn, with any remaining bodies delivered as follow-up context rather than separate turn triggers;
 - immediate messages never enter the unread mailbox.
 
 ## Configuration validation
@@ -115,7 +120,10 @@ Cover at minimum:
 11. reconnect preserves queue; session restart clears it;
 12. debounce 0, burst coalescing, range validation, and timer cleanup;
 13. malformed/duplicate IDs do not silently lose unread bodies;
-14. no autonomous send/read/reply behavior.
+14. no autonomous send/read/reply behavior;
+15. queued notices use `nextTurn` without triggering, steering, or aborting an active turn;
+16. immediate delivery waits behind active work, triggers at most once per waiting burst, and never steers or aborts;
+17. stale timer/async callbacks after reload, session replacement, or shutdown cannot emit notices or bodies.
 
 Prefer behavior-level TypeScript tests over brittle source-string assertions. Retain static assertions for security/tool-surface boundaries where appropriate.
 
