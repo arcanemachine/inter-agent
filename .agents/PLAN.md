@@ -8,13 +8,9 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 6: Pi pre-connect list behavior
+### No active task packet
 
-Make `/inter-agent list` an intentional read-only short-lived diagnostic before Pi connects, preserving empty/populated success and bounded actionable failures without listener or connection-state mutation. Item 5 was accepted in `6d557c8`.
-
-Task packet:
-
-- [Task 1 — Pi pre-connect list behavior](plans/pi-pre-connect-list/01-read-only-short-lived-list.md)
+Project closeout item 6, Pi pre-connect list behavior, was accepted in `6244234`. Closeout item 7, Claude Code sandbox connect exit 127, is next in `ROADMAP.md`, but no executor packet has been prepared. Do not dispatch item 7 until a committed packet exists and the user explicitly authorizes dispatch.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
