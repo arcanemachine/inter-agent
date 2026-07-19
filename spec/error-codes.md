@@ -14,7 +14,8 @@ Protocol errors are returned as `{"op":"error","code":"...","message":"..."}`. T
 | `BAD_LABEL` | `hello.label` is present but is neither a string nor `null`. | Omit the label, send `null`, or send a string display label. |
 | `NAME_TAKEN` | An agent routing name is already connected. | Choose a different routing name or disconnect the existing session. |
 | `UNKNOWN_OP` | A post-handshake frame uses an unsupported `op`. | Use a supported core operation or an extension envelope. |
-| `BAD_TEXT` | A `send` or `broadcast` operation has a non-string `text`. | Send message text as a string. |
+| `BAD_TEXT` | A `send`, `broadcast`, or `publish` operation has a non-string `text`. | Send message text as a string. |
+| `BAD_FROM_NAME` | A message operation has a non-string `from_name`. | Omit `from_name` or send it as a string. |
 | `BAD_CUSTOM_TYPE` | A `custom` operation has a missing, empty, non-string, or oversized `custom_type`. | Send a non-empty custom type within the configured byte limit. |
 | `TEXT_TOO_LARGE` | A direct or broadcast message exceeds configured UTF-8 byte text limits (`INTER_AGENT_DIRECT_MAX` or `INTER_AGENT_BROADCAST_MAX`). | Shorten or split the message. |
 | `CUSTOM_PAYLOAD_TOO_LARGE` | A `custom.payload` exceeds the configured JSON-encoded UTF-8 byte limit (`INTER_AGENT_CUSTOM_PAYLOAD_MAX`). | Shorten or split the custom payload. |

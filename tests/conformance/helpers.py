@@ -5,10 +5,12 @@ import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
 
 import pytest
+from jsonschema import Draft202012Validator
 from websockets.asyncio.client import ClientConnection
 
 from inter_agent.core.auth import build_auth_response, client_handshake, parse_auth_challenge
@@ -17,8 +19,25 @@ from inter_agent.core.server import run_server
 from inter_agent.core.shared import Limits, resolve_shared_secret
 from inter_agent.core.shared import control_hello as build_control_hello
 
+ROOT = Path(__file__).resolve().parents[2]
+SCHEMA_DIR = ROOT / "spec" / "schemas"
 HOST = "127.0.0.1"
 MISSING = object()
+
+
+@lru_cache
+def _server_frame_validator(op: str) -> Draft202012Validator:
+    schema_path = SCHEMA_DIR / f"{op}.json"
+    assert schema_path.exists(), f"server emitted unknown protocol operation: {op!r}"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    assert isinstance(schema, dict)
+    return Draft202012Validator(schema)
+
+
+def assert_server_frame_matches_schema(response: dict[str, object]) -> None:
+    op = response.get("op")
+    assert isinstance(op, str), "server frame must include a string operation"
+    _server_frame_validator(op).validate(response)
 
 
 class HasSecret(Protocol):
@@ -109,7 +128,9 @@ def control_hello_payload(
 async def recv_json(ws: ClientConnection) -> dict[str, object]:
     response = json.loads(await ws.recv())
     assert isinstance(response, dict)
-    return {str(key): value for key, value in response.items()}
+    normalized = {str(key): value for key, value in response.items()}
+    assert_server_frame_matches_schema(normalized)
+    return normalized
 
 
 def _client_nonce(hello: dict[str, object]) -> str:

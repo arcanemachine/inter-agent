@@ -389,6 +389,9 @@ class BusServer:
             return
         target = resolution.target
         from_name = msg.get("from_name", sender.name)
+        if not isinstance(from_name, str):
+            await self.send_error(sender.ws, ErrorCode.BAD_FROM_NAME, "from_name must be a string")
+            return
         await target.ws.send(
             json.dumps(
                 {
@@ -415,6 +418,9 @@ class BusServer:
             )
             return
         from_name = msg.get("from_name", sender.name)
+        if not isinstance(from_name, str):
+            await self.send_error(sender.ws, ErrorCode.BAD_FROM_NAME, "from_name must be a string")
+            return
         payload = json.dumps(
             {
                 "op": "msg",
@@ -554,6 +560,11 @@ class BusServer:
                 await self.send_error(sender.ws, ErrorCode.UNKNOWN_CHANNEL, "unknown channel")
                 return
             from_name = msg.get("from_name", sender.name)
+            if not isinstance(from_name, str):
+                await self.send_error(
+                    sender.ws, ErrorCode.BAD_FROM_NAME, "from_name must be a string"
+                )
+                return
             payload = json.dumps(
                 {
                     "op": "msg",

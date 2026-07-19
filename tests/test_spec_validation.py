@@ -51,8 +51,23 @@ def _resolve_internal_ref(doc: dict[str, object], ref: str) -> object:
 def test_asyncapi_file_is_valid_yaml_and_has_basics() -> None:
     doc = _load_asyncapi()
     assert doc["asyncapi"] == "2.6.0"
+    assert isinstance(doc.get("id"), str)
+    assert doc.get("defaultContentType") == "application/json"
+    assert isinstance(doc.get("servers"), dict) and doc["servers"]
+    assert isinstance(doc.get("tags"), list) and doc["tags"]
     assert "channels" in doc
     assert "components" in doc
+
+
+def test_asyncapi_operations_have_stable_ids() -> None:
+    doc = _load_asyncapi()
+    channels = cast(dict[str, object], doc["channels"])
+    channel = cast(dict[str, object], channels["/"])
+
+    for operation_name in ("publish", "subscribe"):
+        operation = cast(dict[str, object], channel[operation_name])
+        operation_id = operation.get("operationId")
+        assert isinstance(operation_id, str) and operation_id
 
 
 def test_schema_files_are_valid_json_schemas() -> None:
@@ -165,6 +180,10 @@ def test_asyncapi_messages_use_component_schema_refs() -> None:
 
     for message_name, message in messages.items():
         assert isinstance(message, dict), f"message {message_name} must be an object"
+        message_id = message.get("messageId")
+        assert (
+            isinstance(message_id, str) and message_id
+        ), f"message {message_name} must define a messageId"
         payload = cast(dict[str, object], message).get("payload")
         assert isinstance(payload, dict), f"message {message_name} must define a payload object"
         ref = cast(dict[str, object], payload).get("$ref")

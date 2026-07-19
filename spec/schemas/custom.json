@@ -8,15 +8,14 @@
     "custom_type": {
       "type": "string",
       "minLength": 1,
-      "maxLength": 128,
-      "description": "Extension message type. The default server limit is 128 UTF-8 bytes."
+      "description": "Extension message type. The server applies the configured UTF-8 byte limit (INTER_AGENT_CUSTOM_TYPE_MAX)."
     },
     "to": {
       "type": ["string", "null"],
       "description": "Optional target routing name or unambiguous routing-name prefix. Exact names are resolved before prefixes."
     },
     "payload": {
-      "description": "Pass-through JSON payload. The default server limit is 1 MiB of JSON-encoded UTF-8 bytes."
+      "description": "Pass-through JSON payload. The server applies the configured JSON-encoded UTF-8 byte limit (INTER_AGENT_CUSTOM_PAYLOAD_MAX)."
     }
   },
   "additionalProperties": true

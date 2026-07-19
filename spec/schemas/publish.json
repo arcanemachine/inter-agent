@@ -7,13 +7,17 @@
     "op": { "const": "publish" },
     "channel": {
       "type": "string",
-      "description": "Channel name to publish to."
+      "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+      "description": "Channel name. The server also applies INTER_AGENT_CHANNEL_NAME_MAX as a UTF-8 byte limit."
     },
     "text": {
       "type": "string",
       "description": "Publish message text. The server accepts UTF-8 encoded text bytes up to INTER_AGENT_BROADCAST_MAX."
     },
-    "from_name": { "type": "string" }
+    "from_name": {
+      "type": "string",
+      "description": "Optional display name for delivered messages; defaults to the sender routing name."
+    }
   },
   "additionalProperties": true
 }

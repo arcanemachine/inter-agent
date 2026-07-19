@@ -18,6 +18,7 @@
         "NAME_TAKEN",
         "UNKNOWN_OP",
         "BAD_TEXT",
+        "BAD_FROM_NAME",
         "BAD_CUSTOM_TYPE",
         "TEXT_TOO_LARGE",
         "CUSTOM_PAYLOAD_TOO_LARGE",

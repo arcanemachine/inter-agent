@@ -12,6 +12,10 @@
     "text": {
       "type": "string",
       "description": "Direct message text. The server accepts UTF-8 encoded text bytes up to INTER_AGENT_DIRECT_MAX."
+    },
+    "from_name": {
+      "type": "string",
+      "description": "Optional display name for the delivered message; defaults to the sender routing name."
     }
   },
   "additionalProperties": true

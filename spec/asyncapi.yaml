@@ -1,9 +1,10 @@
 asyncapi: 2.6.0
+id: urn:inter-agent:protocol
 info:
   title: inter-agent protocol
   version: 0.1.0
   description: >
-    Minimal universal-friendly protocol for inter-agent bus. Clients connect
+    Minimal universal-friendly protocol for an inter-agent bus. Clients connect
     over WebSocket (`ws://` or `wss://`) and start with `hello`, complete an
     HMAC-SHA-256 challenge-response using a shared secret, then receive
     `welcome`. Loopback hosts default to plaintext `ws://` unless TLS is
@@ -12,9 +13,32 @@ info:
     declare optional known or extension keys in `hello`, and the server
     advertises supported baseline capabilities in `welcome`. Unknown client
     capability keys may be ignored.
+  contact:
+    name: Arcane Machine
+    url: https://github.com/arcanemachine/inter-agent
+    email: arcanemachine@gmail.com
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit
+tags:
+  - name: agent-coordination
+defaultContentType: application/json
+servers:
+  default:
+    url: '{host}:{port}'
+    protocol: ws
+    description: >
+      The resolved local endpoint. Use wss with the same host and port when
+      TLS is enabled.
+    variables:
+      host:
+        default: 127.0.0.1
+      port:
+        default: '16837'
 channels:
   /:
     publish:
+      operationId: clientToServer
       message:
         oneOf:
           - $ref: '#/components/messages/Hello'
@@ -32,6 +56,7 @@ channels:
           - $ref: '#/components/messages/Publish'
           - $ref: '#/components/messages/Channels'
     subscribe:
+      operationId: serverToClient
       message:
         oneOf:
           - $ref: '#/components/messages/AuthChallenge'
@@ -47,8 +72,6 @@ channels:
           - $ref: '#/components/messages/ChannelsOk'
 components:
   schemas:
-    Envelope:
-      $ref: './schemas/envelope.json'
     Hello:
       $ref: './schemas/hello.json'
     AuthChallenge:
@@ -101,77 +124,102 @@ components:
       $ref: './schemas/channels_ok.json'
   messages:
     Hello:
+      messageId: inter-agent.hello
       payload:
         $ref: '#/components/schemas/Hello'
     AuthChallenge:
+      messageId: inter-agent.auth-challenge
       payload:
         $ref: '#/components/schemas/AuthChallenge'
     AuthResponse:
+      messageId: inter-agent.auth-response
       payload:
         $ref: '#/components/schemas/AuthResponse'
     Welcome:
+      messageId: inter-agent.welcome
       payload:
         $ref: '#/components/schemas/Welcome'
     Send:
+      messageId: inter-agent.send
       payload:
         $ref: '#/components/schemas/Send'
     Broadcast:
+      messageId: inter-agent.broadcast
       payload:
         $ref: '#/components/schemas/Broadcast'
     Ping:
+      messageId: inter-agent.ping
       payload:
         $ref: '#/components/schemas/Ping'
     Pong:
+      messageId: inter-agent.pong
       payload:
         $ref: '#/components/schemas/Pong'
     Bye:
+      messageId: inter-agent.bye
       payload:
         $ref: '#/components/schemas/Bye'
     Msg:
+      messageId: inter-agent.msg
       payload:
         $ref: '#/components/schemas/Msg'
     Error:
+      messageId: inter-agent.error
       payload:
         $ref: '#/components/schemas/Error'
     List:
+      messageId: inter-agent.list
       payload:
         $ref: '#/components/schemas/List'
     ListOk:
+      messageId: inter-agent.list-ok
       payload:
         $ref: '#/components/schemas/ListOk'
     Shutdown:
+      messageId: inter-agent.shutdown
       payload:
         $ref: '#/components/schemas/Shutdown'
     ShutdownOk:
+      messageId: inter-agent.shutdown-ok
       payload:
         $ref: '#/components/schemas/ShutdownOk'
     Kick:
+      messageId: inter-agent.kick
       payload:
         $ref: '#/components/schemas/Kick'
     KickOk:
+      messageId: inter-agent.kick-ok
       payload:
         $ref: '#/components/schemas/KickOk'
     Custom:
+      messageId: inter-agent.custom
       payload:
         $ref: '#/components/schemas/Custom'
     Subscribe:
+      messageId: inter-agent.subscribe
       payload:
         $ref: '#/components/schemas/Subscribe'
     SubscribeOk:
+      messageId: inter-agent.subscribe-ok
       payload:
         $ref: '#/components/schemas/SubscribeOk'
     Unsubscribe:
+      messageId: inter-agent.unsubscribe
       payload:
         $ref: '#/components/schemas/Unsubscribe'
     UnsubscribeOk:
+      messageId: inter-agent.unsubscribe-ok
       payload:
         $ref: '#/components/schemas/UnsubscribeOk'
     Publish:
+      messageId: inter-agent.publish
       payload:
         $ref: '#/components/schemas/Publish'
     Channels:
+      messageId: inter-agent.channels
       payload:
         $ref: '#/components/schemas/Channels'
     ChannelsOk:
+      messageId: inter-agent.channels-ok
       payload:
         $ref: '#/components/schemas/ChannelsOk'

@@ -7,7 +7,8 @@
     "op": { "const": "subscribe" },
     "channel": {
       "type": "string",
-      "description": "Channel name to subscribe to. Must match [a-z0-9][a-z0-9-]{0,39} and fit within INTER_AGENT_CHANNEL_NAME_MAX UTF-8 bytes."
+      "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+      "description": "Channel name. The server also applies INTER_AGENT_CHANNEL_NAME_MAX as a UTF-8 byte limit."
     }
   },
   "additionalProperties": true

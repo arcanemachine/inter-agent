@@ -1,0 +1,13 @@
+{
+  "op": "msg",
+  "msg_id": "msg-b",
+  "from": "sess-a",
+  "from_name": "agent-a",
+  "to": "agent-b",
+  "custom_type": "acme.sync.v1",
+  "payload": {
+    "action": "sync",
+    "id": 42
+  },
+  "ts": "2026-01-01T00:00:00+00:00"
+}

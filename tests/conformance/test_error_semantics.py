@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import websockets
-from helpers import agent_hello, connect_agent, running_server, send_json
+from helpers import agent_hello, assert_no_message, connect_agent, running_server, send_json
 
 from inter_agent.core.errors import ErrorCode
 
@@ -110,6 +110,38 @@ async def test_routing_errors_use_canonical_codes(
 
     assert err["op"] == "error"
     assert err["code"] == expected_code.value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "message",
+    [
+        {"op": "send", "to": "agent-b", "text": "hi", "from_name": 123},
+        {"op": "broadcast", "text": "hi", "from_name": 123},
+        {"op": "publish", "channel": "build", "text": "hi", "from_name": 123},
+    ],
+)
+async def test_non_string_from_name_is_rejected_without_delivery(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    unused_tcp_port: int,
+    message: dict[str, object],
+) -> None:
+    async with running_server(monkeypatch, tmp_path, unused_tcp_port) as context:
+        async with (
+            websockets.connect(context.url) as sender,
+            websockets.connect(context.url) as recipient,
+        ):
+            await connect_agent(sender, context, "a", "agent-a")
+            await connect_agent(recipient, context, "b", "agent-b")
+            if message["op"] == "publish":
+                await send_json(recipient, {"op": "subscribe", "channel": "build"})
+
+            err = await send_json(sender, message)
+            await assert_no_message(recipient)
+
+    assert err["op"] == "error"
+    assert err["code"] == ErrorCode.BAD_FROM_NAME.value
 
 
 @pytest.mark.asyncio

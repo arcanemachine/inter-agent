@@ -1,0 +1,9 @@
+{
+  "op": "msg",
+  "msg_id": "msg-a",
+  "from": "sess-a",
+  "from_name": "agent-a",
+  "to": "agent-b",
+  "text": "run tests",
+  "ts": "2026-01-01T00:00:00+00:00"
+}
