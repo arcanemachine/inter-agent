@@ -14,7 +14,7 @@ import inter_agent.core.shutdown as core_shutdown
 from inter_agent.adapters.pi import commands, listener
 from inter_agent.adapters.pi.cli import main
 from inter_agent.core.channels import ChannelsResult
-from inter_agent.core.list import ListResult
+from inter_agent.core.list import ListResult, SessionInfo
 from inter_agent.core.send import ProtocolErrorResult, SendResult
 from inter_agent.core.shutdown import ShutdownResult
 
@@ -214,6 +214,58 @@ def test_list_uses_core_api(
     assert code == 0
     assert calls == [("127.0.0.1", 16837)]
     assert capsys.readouterr().out == '{"op": "list_ok", "sessions": []}\n'
+
+
+def test_list_cli_reports_populated_sessions(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_list(host: str, port: int, **kwargs: object) -> ListResult:
+        del kwargs
+        return ListResult(
+            raw_response=(
+                '{"op": "list_ok", "sessions": [{'
+                '"session_id": "a", "name": "agent-a", "label": "Agent A"}]}'
+            ),
+            response={
+                "op": "list_ok",
+                "sessions": [{"session_id": "a", "name": "agent-a", "label": "Agent A"}],
+            },
+            sessions=(SessionInfo(session_id="a", name="agent-a", label="Agent A"),),
+        )
+
+    monkeypatch.setattr(core_list, "list_sessions", fake_list)
+
+    code = commands.list_sessions()
+
+    assert code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "op": "list_ok",
+        "sessions": [{"session_id": "a", "name": "agent-a", "label": "Agent A"}],
+    }
+
+
+def test_list_cli_preserves_malformed_success_output(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The CLI prints the raw helper response; the Pi extension validates shape."""
+
+    async def fake_list(host: str, port: int, **kwargs: object) -> ListResult:
+        del kwargs
+        return ListResult(
+            raw_response='{"op": "list_ok", "sessions": "not-an-array"}',
+            response={"op": "list_ok", "sessions": "not-an-array"},
+            sessions=(),
+        )
+
+    monkeypatch.setattr(core_list, "list_sessions", fake_list)
+
+    code = commands.list_sessions()
+
+    assert code == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "op": "list_ok",
+        "sessions": "not-an-array",
+    }
 
 
 def test_shutdown_uses_core_api(

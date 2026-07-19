@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import subprocess
 from collections.abc import Callable
 from contextlib import redirect_stderr, redirect_stdout, suppress
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ from inter_agent.core.auth import client_handshake
 from inter_agent.core.client import build_hello
 from inter_agent.core.server import run_server
 from inter_agent.core.shared import control_hello
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -146,6 +149,38 @@ async def test_pi_cli_list_reports_live_agent_sessions(
 
 
 @pytest.mark.asyncio
+async def test_pi_cli_list_reports_empty_sessions_when_no_agents_connected(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_live_pi_defaults(monkeypatch, live_server)
+
+    result = await asyncio.to_thread(run_pi, ["list"])
+
+    assert result.code == 0
+    assert result.stderr == ""
+    assert json.loads(result.stdout) == {"op": "list_ok", "sessions": []}
+
+
+@pytest.mark.asyncio
+async def test_pi_cli_list_auth_failure_reports_bounded_error(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """A mismatched secret must not be turned into an empty list or a traceback."""
+    monkeypatch.setenv("INTER_AGENT_HOST", live_server.host)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(live_server.port))
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+
+    result = await asyncio.to_thread(run_pi, ["list"])
+
+    assert result.code == 1
+    assert result.stdout == ""
+    assert "Traceback" not in result.stderr
+    assert "authentication failed" in result.stderr.lower()
+
+
 async def test_pi_python_send_delivers_to_live_agent(
     live_server: LiveServer,
     monkeypatch: pytest.MonkeyPatch,
@@ -418,3 +453,152 @@ async def test_pi_listener_reapplies_subscriptions_after_server_restart(
         server_task.cancel()
         with suppress(asyncio.CancelledError):
             await server_task
+
+
+PI_EXTENSION_HARNESS = r"""const path = require("path");
+
+const extensionPath = path.resolve(process.argv[2]);
+const helperPath = process.argv[3];
+
+const notifications = [];
+const contextEntries = [];
+
+const fakeCtx = {
+  sessionManager: {
+    getBranch: () => contextEntries,
+  },
+  ui: {
+    notify: (body, type = "info") => {
+      notifications.push({ body, type });
+    },
+    setStatus: () => {},
+  },
+};
+
+const handlers = {};
+const tools = {};
+const eventHandlers = {};
+
+const fakeApi = {
+  registerCommand: (name, opts) => {
+    handlers[name] = opts.handler;
+  },
+  registerTool: (tool) => {
+    tools[tool.name] = tool;
+  },
+  registerMessageRenderer: () => {},
+  on: (event, fn) => {
+    if (!eventHandlers[event]) eventHandlers[event] = [];
+    eventHandlers[event].push(fn);
+  },
+  sendMessage: () => {},
+  appendEntry: (type, data) => {
+    contextEntries.push({ type: "custom", customType: type, data });
+  },
+};
+
+const ext = require(extensionPath);
+ext.default(fakeApi);
+
+async function main() {
+  process.env.INTER_AGENT_PI_HELPER = helperPath;
+
+  for (const fn of eventHandlers["session_start"] || []) {
+    await fn({}, fakeCtx);
+  }
+
+  await handlers["inter-agent"]("list", fakeCtx);
+  console.log(JSON.stringify(notifications));
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
+"""
+
+
+@pytest.mark.asyncio
+async def test_pi_extension_list_command_before_connect_reports_empty_sessions(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+    tmp_path: Path,
+) -> None:
+    """The Pi extension /inter-agent list command works before its listener starts."""
+    monkeypatch.setenv("INTER_AGENT_HOST", live_server.host)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(live_server.port))
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+    monkeypatch.setenv("INTER_AGENT_SECRET", live_server.secret)
+
+    dist_path = ROOT / "integrations" / "pi" / "dist" / "index.js"
+    src_path = ROOT / "integrations" / "pi" / "src" / "index.ts"
+    if not dist_path.exists() or dist_path.stat().st_mtime < src_path.stat().st_mtime:
+        subprocess.run(["npm", "run", "build"], cwd=ROOT / "integrations" / "pi", check=True)
+
+    harness = tmp_path / "harness.js"
+    harness.write_text(PI_EXTENSION_HARNESS, encoding="utf-8")
+    helper = ROOT / ".venv" / "bin" / "inter-agent-pi"
+
+    result = await asyncio.to_thread(
+        subprocess.run,
+        ["node", str(harness), str(dist_path), str(helper)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    notifications = json.loads(result.stdout)
+    assert notifications == [{"body": "[inter-agent] list: no agents connected", "type": "info"}]
+
+
+@pytest.mark.asyncio
+async def test_pi_extension_list_command_rejects_malformed_helper_response(
+    live_server: LiveServer,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
+    tmp_path: Path,
+) -> None:
+    """Malformed helper success output is rejected as an invalid response, not an empty list."""
+    monkeypatch.setenv("INTER_AGENT_HOST", live_server.host)
+    monkeypatch.setenv("INTER_AGENT_PORT", str(live_server.port))
+    monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path_factory.mktemp("d")))
+    monkeypatch.setenv("INTER_AGENT_SECRET", live_server.secret)
+
+    dist_path = ROOT / "integrations" / "pi" / "dist" / "index.js"
+    src_path = ROOT / "integrations" / "pi" / "src" / "index.ts"
+    if not dist_path.exists() or dist_path.stat().st_mtime < src_path.stat().st_mtime:
+        subprocess.run(["npm", "run", "build"], cwd=ROOT / "integrations" / "pi", check=True)
+
+    fake_bin = tmp_path / "fake-bin"
+    fake_bin.mkdir()
+    real_bin = ROOT / ".venv" / "bin"
+    fake_pi = fake_bin / "inter-agent-pi"
+    fake_pi.write_text(
+        "#!/bin/bash\n"
+        'if [ "$1" = "list" ] && [ "$2" = "--json" ]; then\n'
+        '  echo \'{"op": "list_ok", "sessions": "not-an-array"}\'\n'
+        "  exit 0\n"
+        "fi\n"
+        f'exec {real_bin / "inter-agent-pi"} "$@"\n',
+        encoding="utf-8",
+    )
+    fake_pi.chmod(0o755)
+    (fake_bin / "inter-agent-connect").write_bytes((real_bin / "inter-agent-connect").read_bytes())
+    (fake_bin / "inter-agent-connect").chmod(0o755)
+    (fake_bin / "inter-agent-server").write_bytes((real_bin / "inter-agent-server").read_bytes())
+    (fake_bin / "inter-agent-server").chmod(0o755)
+
+    harness = tmp_path / "harness.js"
+    harness.write_text(PI_EXTENSION_HARNESS, encoding="utf-8")
+
+    result = await asyncio.to_thread(
+        subprocess.run,
+        ["node", str(harness), str(dist_path), str(fake_pi)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    notifications = json.loads(result.stdout)
+    assert notifications == [
+        {"body": "[inter-agent] list failed: invalid response", "type": "error"}
+    ]

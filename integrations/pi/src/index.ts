@@ -290,6 +290,37 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max) + " …";
 }
 
+interface ListSession {
+  name: string;
+  label?: string | null;
+}
+
+function isListSession(value: unknown): value is ListSession {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as Record<string, unknown>;
+  if (typeof entry.name !== "string") return false;
+  return (
+    entry.label === undefined ||
+    entry.label === null ||
+    typeof entry.label === "string"
+  );
+}
+
+function parseListSessions(value: unknown): ListSession[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("invalid response");
+  }
+  const payload = value as Record<string, unknown>;
+  if (payload.op !== "list_ok") {
+    throw new Error("invalid response");
+  }
+  const sessions = payload.sessions;
+  if (!Array.isArray(sessions) || !sessions.every(isListSession)) {
+    throw new Error("invalid response");
+  }
+  return sessions as ListSession[];
+}
+
 // Compact one-line summary for the collapsed message renderer.
 function messageSummary(details: {
   from?: string;
@@ -1534,12 +1565,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     try {
-      const payload = JSON.parse(result.stdout);
-      const sessions =
-        (payload.sessions as Array<{
-          name: string;
-          label?: string | null;
-        }>) || [];
+      const sessions = parseListSessions(JSON.parse(result.stdout));
       const lines = sessions.map(
         (s) => `• ${s.name}${s.label ? ` (${s.label})` : ""}`,
       );
@@ -1730,12 +1756,7 @@ export default function (pi: ExtensionAPI) {
         throw new Error(`List failed: ${scriptFailureMessage(result, "list")}`);
       }
       try {
-        const payload = JSON.parse(result.stdout);
-        const sessions =
-          (payload.sessions as Array<{
-            name: string;
-            label?: string | null;
-          }>) || [];
+        const sessions = parseListSessions(JSON.parse(result.stdout));
         const lines = sessions.map(
           (s) => `• ${s.name}${s.label ? ` (${s.label})` : ""}`,
         );

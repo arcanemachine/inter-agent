@@ -346,6 +346,52 @@ def test_pi_extension_registers_read_only_channels_command() -> None:
     assert 'name: "inter_agent_channels"' not in content
 
 
+def test_pi_extension_registers_read_only_list_command() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'value: "list"' in content
+    assert (
+        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "publish|channels|subscribe|unsubscribe|list|status> [args]"
+    ) in content
+    assert 'case "list":' in content
+    assert "async function handleList" in content
+
+    list_body = content.split("async function handleList", 1)[1]
+    list_body = list_body.split("async function handleStatus", 1)[0]
+    assert '["list", "--json"]' in list_body
+    # list is a short-lived read-only diagnostic; it must not require a Pi
+    # listener or mutate listener/connection state.
+    assert "listenerReady" not in list_body
+    assert "currentConnection" not in list_body
+    assert "listenerProc" not in list_body
+    assert "startListener" not in list_body
+    assert 'notify("[inter-agent] list", "no agents connected")' in list_body
+    assert 'notify("[inter-agent] list failed", "invalid response", "error")' in list_body
+
+    # The list response shape is validated before rendering.
+    assert "function parseListSessions" in content
+    assert "function isListSession" in content
+    assert 'payload.op !== "list_ok"' in content
+    assert "Array.isArray(sessions)" in content
+    assert "sessions.every(isListSession)" in content
+    assert 'typeof entry.name !== "string"' in content
+    assert "parseListSessions" in list_body
+
+
+def test_pi_extension_list_tool_does_not_gate_on_connection() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    tool_body = content.split('name: "inter_agent_list"', 1)[1]
+    tool_body = tool_body.split('name: "inter_agent_whoami"', 1)[0]
+    assert '["list", "--json"]' in tool_body
+    assert "listenerReady" not in tool_body
+    assert "currentConnection" not in tool_body
+    assert "listenerProc" not in tool_body
+    assert "parseListSessions" in tool_body
+    assert "Invalid list response" in tool_body
+
+
 def test_pi_extension_registers_user_subscription_commands() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
 

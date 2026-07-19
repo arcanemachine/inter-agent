@@ -140,7 +140,7 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | `channels`    | `/inter-agent channels`                         | List channels and subscribers (read-only; user-only)                      |
 | `subscribe`   | `/inter-agent subscribe <channel>`              | Subscribe to a channel (requires connection; user-only)                   |
 | `unsubscribe` | `/inter-agent unsubscribe <channel>`            | Unsubscribe from a channel (requires connection; user-only)               |
-| `list`        | `/inter-agent list`                             | List connected sessions                                                   |
+| `list`        | `/inter-agent list`                             | List connected sessions (read-only; works before Pi connects)             |
 | `status`      | `/inter-agent status`                           | Check server status                                                       |
 
 `send`, `broadcast`, and `publish` automatically use the current Pi connection name as the sender. `subscribe` and `unsubscribe` operate on the current Pi listener's live session and pass its routing name internally; you never provide or manage the listener name. `channels` is read-only and does not require an active Pi listener; it uses a short-lived authenticated connection to the configured server.
@@ -154,6 +154,7 @@ Channels are user-controlled pub/sub. Subscribe to a named channel to receive me
 - **User-only control.** Subscribe, unsubscribe, and publish are slash commands only. There are no LLM-callable tools for these operations, so channel membership and publication remain under explicit user control. Pi does not publish autonomously, infer publication from peer messages, or publish acknowledgments.
 - **Publication identity and delivery.** `/inter-agent publish <channel> <text>` requires the current Pi listener and always uses its connected routing name as the publisher. The publisher does not need to subscribe first and is excluded from delivery even when subscribed. Success shows a Pi notification and outbound-history entry. Local or protocol failures use the existing helper diagnostic; `UNKNOWN_CHANNEL` means the channel does not exist or has no subscribers.
 - **Read-only diagnostics.** `/inter-agent channels` runs only when the user explicitly requests channel diagnostics. It opens a short-lived authenticated connection to the configured, reachable server and does not require or change the Pi listener. It lists current channel names and subscriber routing names; no channels is a successful result. It is not an LLM-callable tool and is never run autonomously, after another operation, or because of peer-message content.
+- **List is also read-only.** `/inter-agent list` uses the same short-lived authenticated connection to the configured server. It works before Pi connects, shows an intentional empty result when no agents are present, and reports the same bounded diagnostics as `/inter-agent status` when the server is unavailable, authentication fails, TLS setup fails, command execution fails, or the response is malformed. Listing never starts, stops, or mutates the Pi listener.
 - **Distinct delivery.** An inbound channel message is shown with an `on <channel>` label in both the Pi notification and the agent context, so it is not mistaken for a direct or broadcast message. Existing untrusted-peer guidance, truncation, and display/context separation still apply.
 
 ## Tools
@@ -300,7 +301,7 @@ To verify the extension works end-to-end:
 3. **Run these commands in Pi** and confirm each works:
    - `/inter-agent connect test-agent` → should auto-start the server if needed, then show "connected"
    - `/inter-agent status` → should show "State: available"
-   - `/inter-agent list` → should show "no agents connected" (or your own session)
+   - `/inter-agent list` → should show "no agents connected" (or your own session); works before Pi connects and uses a short-lived authenticated server connection
    - `/inter-agent send test-agent "hello self"` → should show "sent" (only works when connected)
    - `/inter-agent broadcast "test broadcast for everyone"` → should show "sent" (only works when connected; reserve for messages everyone needs)
    - `/inter-agent publish updates "test channel message"` → should show publication success when `updates` has another subscriber; otherwise it should report `UNKNOWN_CHANNEL`
