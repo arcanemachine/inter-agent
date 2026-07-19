@@ -8,13 +8,9 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 5: Pi disconnect reliability
+### No active task packet
 
-Make `/inter-agent disconnect` await the owned listener's exit, preserve correct state/notifications, and release the routing name reliably for immediate reconnect. Item 4 was accepted in `e7b44fa`.
-
-Task packet:
-
-- [Task 1 — Pi disconnect reliability](plans/pi-disconnect-reliability/01-await-listener-exit.md)
+Project closeout item 5, Pi disconnect reliability, was accepted in `6d557c8`. Closeout item 6, Pi pre-connect list behavior, is next in `ROADMAP.md`, but no executor packet has been prepared. Do not dispatch item 6 until a committed packet exists and the user explicitly authorizes dispatch.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
