@@ -9,7 +9,7 @@ This repository uses exactly two agent roles:
 - `leader` — plans, prepares bounded task packets, and dispatches work.
 - `executor` — executes one bounded task packet at a time.
 
-Before task work begins, the user must explicitly assign one of these roles to the agent. An agent with no assigned role must stop and ask for one. An agent assigned an unknown role must stop and list the available roles (`leader`, `executor`).
+Before task work begins, the user must explicitly assign one of these roles to the agent. An agent with no assigned role must stop and ask for one. An agent assigned an unknown role must stop and list the available roles (`leader`, `executor`). This may be bypassed only if explicitly authorized by the user.
 
 - A `leader` must follow `.agents/roles/leader.md` after reading this file.
 - An `executor` must follow `.agents/roles/executor.md` after reading this file.
