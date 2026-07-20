@@ -451,6 +451,29 @@ class TestChannels:
             await listener._connect_and_serve(1)
 
     @pytest.mark.asyncio
+    async def test_session_setup_exit_becomes_permanent_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class FailedSession:
+            async def __aenter__(self) -> FailedSession:
+                raise SystemExit("server authentication failed")
+
+            async def __aexit__(self, *args: object) -> None:
+                return None
+
+        monkeypatch.setattr(
+            "inter_agent.adapters.claude.listener.AgentSession",
+            lambda *args, **kwargs: FailedSession(),
+        )
+        listener = Listener(host="127.0.0.1", port=12345, name="test")
+
+        with pytest.raises(
+            PermanentError,
+            match="SESSION_SETUP_FAILED: server authentication failed",
+        ):
+            await listener._connect_and_serve(1)
+
+    @pytest.mark.asyncio
     async def test_non_permanent_error_does_not_raise(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

@@ -342,6 +342,13 @@ class Listener:
         )
 
     async def _connect_and_serve(self, ppid: int) -> None:
+        try:
+            await self._run_session(ppid)
+        except SystemExit as exc:
+            message = str(exc) or "listener session setup failed"
+            raise PermanentError("SESSION_SETUP_FAILED", message) from exc
+
+    async def _run_session(self, ppid: int) -> None:
         async with AgentSession(
             self.host,
             self.port,
