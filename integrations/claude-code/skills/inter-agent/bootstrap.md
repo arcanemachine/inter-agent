@@ -18,7 +18,7 @@ order:
    `~/.claude/data/inter-agent/venv/bin/inter-agent-claude`.
 4. `inter-agent-claude` on PATH.
 
-If plugin config provides `secret`, the wrapper exports it as `INTER_AGENT_SECRET` before running the selected helper. If no helper exists, the wrapper prints a short setup-needed message and exits. Do not guess alternate commands.
+If plugin config provides `secret`, the wrapper exports it as `INTER_AGENT_SECRET` before running the selected helper. If no helper resolves, the wrapper prints `[inter-agent] setup needed: run /inter-agent bootstrap` and exits `127` — the setup-needed signal Claude Code renders as `Monitor "..." script failed (exit 127)`. Recover by running `/inter-agent bootstrap` after approval, by configuring `project_path` to a prepared checkout, or by installing `inter-agent` so `inter-agent-claude` is on `PATH`. If a helper resolves but cannot run (not executable, or a stale venv whose shebang interpreter no longer exists), the wrapper instead prints a bounded `[inter-agent] setup failed:` line naming the helper or broken interpreter; reprepare that runtime rather than guessing alternate commands. Do not print the `secret`.
 
 ## Configure a local checkout
 

@@ -181,3 +181,148 @@ def test_claude_wrapper_forwards_publish_arguments_unchanged(tmp_path: Path) -> 
     assert result.returncode == 0
     assert result.stdout.splitlines() == ["publish", "updates", "build is green"]
     assert result.stderr == ""
+
+
+def make_broken_interpreter_helper(path: Path) -> None:
+    """An executable helper whose shebang interpreter does not exist."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "#!/no/such/interpreter\n" "echo should-not-run\n",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+
+
+def test_claude_wrapper_bin_assets_are_executable() -> None:
+    """The bundled wrapper and bootstrap must ship executable."""
+    for asset in (WRAPPER, BOOTSTRAP):
+        assert asset.is_file()
+        assert asset.stat().st_mode & 0o111, f"{asset} is not executable"
+
+
+def test_claude_wrapper_env_helper_not_executable_fails_bounded(tmp_path: Path) -> None:
+    helper = tmp_path / "env" / "inter-agent-claude"
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text("#!/usr/bin/env bash\necho nope\n", encoding="utf-8")
+    # Deliberately not executable.
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={"INTER_AGENT_CLAUDE_HELPER": str(helper)},
+    )
+
+    assert result.returncode == 127
+    assert result.stdout == ""
+    assert "[inter-agent] setup failed:" in result.stderr
+    assert "helper from INTER_AGENT_CLAUDE_HELPER not executable" in result.stderr
+    assert "integrations/claude-code/README.md#runtime-setup" in result.stderr
+    assert "setup needed" not in result.stderr
+
+
+def test_claude_wrapper_env_helper_broken_interpreter_fails_bounded(tmp_path: Path) -> None:
+    helper = tmp_path / "env" / "inter-agent-claude"
+    make_broken_interpreter_helper(helper)
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={"INTER_AGENT_CLAUDE_HELPER": str(helper)},
+    )
+
+    assert result.returncode == 127
+    assert result.stdout == ""
+    assert "[inter-agent] setup failed:" in result.stderr
+    assert "INTER_AGENT_CLAUDE_HELPER interpreter not executable" in result.stderr
+    assert "/no/such/interpreter" in result.stderr
+    assert "integrations/claude-code/README.md#runtime-setup" in result.stderr
+    # The bounded wrapper diagnostic must replace a raw shell exec error.
+    assert "cannot execute" not in result.stderr
+    assert "setup needed" not in result.stderr
+
+
+def test_claude_wrapper_project_path_helper_not_executable_fails_bounded(
+    tmp_path: Path,
+) -> None:
+    project_path = tmp_path / "checkout"
+    helper = project_path / ".venv" / "bin" / "inter-agent-claude"
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    helper.write_text("#!/usr/bin/env bash\necho nope\n", encoding="utf-8")
+    # Deliberately not executable.
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={"CLAUDE_PLUGIN_OPTION_PROJECT_PATH": str(project_path)},
+    )
+
+    assert result.returncode == 127
+    assert result.stdout == ""
+    assert "[inter-agent] setup failed:" in result.stderr
+    assert "configured project_path helper not found" in result.stderr
+    assert "setup needed" not in result.stderr
+
+
+def test_claude_wrapper_managed_helper_broken_interpreter_fails_bounded(
+    tmp_path: Path,
+) -> None:
+    managed = tmp_path / "home" / ".claude" / "data" / "inter-agent" / "venv"
+    make_broken_interpreter_helper(managed / "bin" / "inter-agent-claude")
+
+    result = run_wrapper(tmp_path, "status")
+
+    assert result.returncode == 127
+    assert result.stdout == ""
+    assert "[inter-agent] setup failed:" in result.stderr
+    assert "managed venv interpreter not executable" in result.stderr
+    assert "/no/such/interpreter" in result.stderr
+    assert "setup needed" not in result.stderr
+
+
+def test_claude_wrapper_uses_path_helper_when_no_managed_or_project(tmp_path: Path) -> None:
+    path_helper = tmp_path / "path" / "inter-agent-claude"
+    make_helper(path_helper, "path")
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={"PATH": f"{path_helper.parent}{os.pathsep}/usr/bin:/bin"},
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "path:status\n"
+
+
+def test_claude_wrapper_path_helper_broken_interpreter_fails_bounded(
+    tmp_path: Path,
+) -> None:
+    path_helper = tmp_path / "path" / "inter-agent-claude"
+    make_broken_interpreter_helper(path_helper)
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={"PATH": f"{path_helper.parent}{os.pathsep}/usr/bin:/bin"},
+    )
+
+    assert result.returncode == 127
+    assert result.stdout == ""
+    assert "[inter-agent] setup failed:" in result.stderr
+    assert "PATH interpreter not executable" in result.stderr
+    assert "/no/such/interpreter" in result.stderr
+    assert "setup needed" not in result.stderr
+
+
+def test_claude_wrapper_skips_path_helper_equal_to_self(tmp_path: Path) -> None:
+    # The wrapper must not exec itself when its own bin directory is on PATH;
+    # that guard is what prevents a setup-needed 127 from hiding behind a
+    # recursive wrapper invocation.
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        env={"PATH": f"{SKILL_BIN}{os.pathsep}/usr/bin:/bin"},
+    )
+
+    assert result.returncode == 127
+    assert result.stdout == ""
+    assert "[inter-agent] setup needed: run /inter-agent bootstrap" in result.stderr

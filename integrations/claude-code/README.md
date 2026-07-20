@@ -72,6 +72,12 @@ Then connect from inside Claude Code:
 
 The listener auto-starts the local server when needed. Auto-started servers use a 300-second idle timeout. Manually started servers run until explicit shutdown unless started with `--idle-timeout <seconds>`.
 
+### Connect exit 127
+
+When none of the four helper sources resolves — no `INTER_AGENT_CLAUDE_HELPER`, no configured `project_path` helper, no Claude-managed venv, and no `inter-agent-claude` on `PATH` — the bundled wrapper prints `[inter-agent] setup needed: run /inter-agent bootstrap` and exits `127`. Claude Code surfaces that as a Monitor failure such as `Monitor "inter-agent bus messages" script failed (exit 127)`; exit `127` is the intentional setup-needed signal, not a crash. Read `skills/inter-agent/bootstrap.md`, then recover with one of the supported paths: run `/inter-agent bootstrap` after explicit user approval (managed runtime), configure the plugin `project_path` option to a checkout whose venv you have prepared with `uv sync --locked`, or install the `inter-agent` package so `inter-agent-claude` is on `PATH`.
+
+A helper that resolves but cannot run — missing executable bit, or a stale venv whose shebang interpreter no longer exists — produces a distinct bounded `[inter-agent] setup failed:` line naming the helper and the broken interpreter, not the `setup needed` line. Both diagnostics stay short, point here for recovery, and never print the plugin `secret`.
+
 The plugin monitor runs the bundled wrapper, which delegates to the selected `inter-agent-claude` CLI. The helper uses the same endpoint, secret, and TLS discovery as the core commands: `INTER_AGENT_HOST`, `INTER_AGENT_PORT`, `INTER_AGENT_SECRET`, `INTER_AGENT_DATA_DIR`, `INTER_AGENT_CONFIG`, `INTER_AGENT_TLS`, `INTER_AGENT_TLS_CERT`, `INTER_AGENT_TLS_KEY`, and the platform inter-agent config file. No Claude-specific endpoint settings are required.
 
 TLS defaults to off for loopback hosts (`127.0.0.1`, `localhost`, `::1`) and on for non-loopback hosts. Enable or disable it with `--tls` / `--no-tls`, `INTER_AGENT_TLS`, or the `tls` config key. Provide a certificate and key with `--tls-cert` / `--tls-key`, `INTER_AGENT_TLS_CERT` / `INTER_AGENT_TLS_KEY`, or `tlsCert` / `tlsKey` config keys. If TLS is enabled without configured certificate/key material, the server generates `tls-cert.pem` and `tls-key.pem` in the data directory; clients trust the generated certificate or the configured `INTER_AGENT_TLS_CERT` / `tlsCert`.

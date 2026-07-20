@@ -20,6 +20,27 @@ fail() {
   exit "${2:-127}"
 }
 
+# A selected helper may pass the executable-bit check yet still fail to exec when
+# its shebang interpreter is gone (a stale or relocated venv). Catch that before
+# exec so the failure is a bounded [inter-agent] setup-failed line instead of a
+# raw shell error and a bare exit 127 that looks like setup-needed.
+verify_helper() {
+  local helper="$1"
+  local label="$2"
+  local shebang rest interp
+  shebang="$(head -n1 "$helper" 2>/dev/null || true)"
+  case "$shebang" in
+    '#!'*)
+      rest="${shebang#\#!}"
+      rest="${rest#"${rest%%[![:space:]]*}"}"
+      interp="${rest%%[[:space:]]*}"
+      if [[ -z "$interp" || ! -x "$interp" || -d "$interp" ]]; then
+        fail "$label interpreter not executable: $interp (in $helper)"
+      fi
+      ;;
+  esac
+}
+
 if [[ "${1:-}" == "bootstrap" ]]; then
   shift
   exec "$SCRIPT_DIR/bootstrap-runtime" "$@"
@@ -34,6 +55,7 @@ if [[ -n "${INTER_AGENT_CLAUDE_HELPER:-}" ]]; then
   if [[ ! -x "$helper" || -d "$helper" ]]; then
     fail "helper from INTER_AGENT_CLAUDE_HELPER not executable: $helper"
   fi
+  verify_helper "$helper" "INTER_AGENT_CLAUDE_HELPER"
   exec "$helper" "$@"
 fi
 
@@ -43,15 +65,18 @@ if [[ -n "${CLAUDE_PLUGIN_OPTION_PROJECT_PATH:-}" ]]; then
   if [[ ! -x "$helper" || -d "$helper" ]]; then
     fail "configured project_path helper not found: $helper"
   fi
+  verify_helper "$helper" "project_path"
   exec "$helper" "$@"
 fi
 
 if [[ -x "$MANAGED_HELPER" && ! -d "$MANAGED_HELPER" ]]; then
+  verify_helper "$MANAGED_HELPER" "managed venv"
   exec "$MANAGED_HELPER" "$@"
 fi
 
 path_helper="$(command -v inter-agent-claude || true)"
 if [[ -n "$path_helper" && "$path_helper" != "$SCRIPT_DIR/inter-agent-claude" ]]; then
+  verify_helper "$path_helper" "PATH"
   exec "$path_helper" "$@"
 fi
 
