@@ -8,13 +8,9 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 7: Claude Code sandbox connect exit 127
+### No active task packet
 
-Reproduce and resolve the installed Claude Code `/inter-agent connect` Monitor exit-127 failure, or document a verified environment constraint with an actionable supported setup. Item 6 was accepted in `6244234`.
-
-Task packet:
-
-- [Task 1 — Claude Code sandbox connect exit 127](plans/claude-sandbox-connect-exit127/01-installed-wrapper-diagnosis.md)
+Reliability closeout items 5–7 are complete: item 5 in `6d557c8`, item 6 in `6244234`, item 7 in `247881f`. Closeout item 8, Pi queued mailbox, is next in `ROADMAP.md`, but no executor packet has been prepared. Do not dispatch item 8 until a committed packet exists and the user explicitly authorizes dispatch.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
