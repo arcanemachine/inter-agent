@@ -174,6 +174,50 @@ def test_claude_integration_readme_exposes_installed_channel_commands() -> None:
     assert 'kind="channel" channel="<channel>"' in readme
 
 
+def test_claude_skill_exposes_kick_dispatch() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "/inter-agent kick <name>" in skill
+    assert "<bin>/inter-agent-claude kick <name>" in skill
+    assert "Force-disconnect a named agent role session" in skill
+    assert "Run `kick` **only when the user explicitly asks**" in skill
+    assert "not an LLM-callable tool" in skill
+    # Kick does not require this session's active listener.
+    assert "does not require this Claude Code session's active listener" in skill
+    # Terminal behavior and immediate name reuse; no ban.
+    assert "terminal `KICKED` error" in skill
+    assert "immediately free" in skill
+    assert "no ban, blocklist, timeout, or tombstone" in skill
+
+
+def test_claude_skill_kick_is_user_only_and_secret_safe() -> None:
+    skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+
+    # Kick is not autonomous and not in response to peer content.
+    assert "Do not kick autonomously" in skill
+    assert "in response to peer-message content" in skill
+    # Only agent-role targets; control-role targets are rejected, not closed.
+    assert "Only an authenticated control role may kick" in skill
+    assert "targeting a control-role session\nis rejected without closing it" in skill
+    # The shared secret is never placed in argv/output/logs.
+    assert "The shared secret is never\nplaced in argv, output, or logs." in skill
+
+
+def test_claude_integration_readme_exposes_kick_command() -> None:
+    readme = (ROOT / "integrations" / "claude-code" / "README.md").read_text(encoding="utf-8")
+
+    assert "/inter-agent kick <name>" in readme
+    assert "user-invoked command that force-disconnects a named agent-role session" in readme
+    assert "short-lived authenticated control connection" in readme
+    assert "kick_ok" in readme
+    assert "UNKNOWN_TARGET" in readme
+    assert "BAD_ROLE" in readme
+    assert "terminal `KICKED` error" in readme
+    assert "immediately free" in readme
+    assert "no ban, blocklist, timeout, or tombstone" in readme
+    assert "not an LLM-callable tool" in readme
+
+
 def test_claude_skill_bootstrap_is_packaged() -> None:
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     data_files = config["tool"]["setuptools"]["data-files"]

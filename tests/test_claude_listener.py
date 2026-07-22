@@ -818,3 +818,53 @@ class TestControlFailurePaths:
         assert 'connected as "myname"' in out
         assert "control socket unavailable" in out
         assert listener._control_server is None
+
+
+class TestKickedTerminal:
+    @pytest.mark.asyncio
+    async def test_kicked_after_welcome_raises_permanent_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A post-welcome KICKED error is terminal for this listener process."""
+        patch_session(
+            monkeypatch,
+            [
+                json.dumps({"op": "welcome"}),
+                json.dumps({"op": "error", "code": "KICKED", "message": "removed by kick"}),
+            ],
+        )
+        listener = Listener(host="127.0.0.1", port=12345, name="test")
+        with pytest.raises(PermanentError, match="KICKED"):
+            await listener._connect_and_serve(1)
+
+    @pytest.mark.asyncio
+    async def test_kicked_is_terminal_no_reconnect(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """run() exits non-zero on KICKED and does not retry/reconnect."""
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(state, "_resolve_listener_key", lambda: 123)
+        monkeypatch.setattr(state, "acquire_lock", lambda ppid: 1)
+        monkeypatch.setattr(state, "release_lock", lambda fd: None)
+        monkeypatch.setattr(state, "delete_session_state", lambda ppid: None)
+        monkeypatch.setattr(
+            "inter_agent.adapters.claude.listener.endpoint_available",
+            lambda h, p: True,
+        )
+
+        call_count = 0
+
+        async def fake_connect_and_serve(self: Listener, ppid: int) -> None:
+            nonlocal call_count
+            call_count += 1
+            raise PermanentError("KICKED", "removed by kick")
+
+        monkeypatch.setattr(Listener, "_connect_and_serve", fake_connect_and_serve)
+
+        out = io.StringIO()
+        listener = Listener(host="127.0.0.1", port=12345, name="test", output=out)
+        result = await listener.run()
+        assert result == 1
+        assert call_count == 1  # no reconnect/retry after terminal kick
+        # KICKED is not NAME_TAKEN: no suffixed retry is attempted.
+        assert "retrying as" not in out.getvalue()

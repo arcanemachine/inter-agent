@@ -305,7 +305,7 @@ def test_pi_extension_registers_user_publish_command() -> None:
 
     assert 'value: "publish"' in content
     assert (
-        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "usage: /inter-agent <connect|disconnect|kick|rename|send|broadcast|"
         "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
     assert 'case "publish":' in content
@@ -330,7 +330,7 @@ def test_pi_extension_registers_read_only_channels_command() -> None:
 
     assert 'value: "channels"' in content
     assert (
-        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "usage: /inter-agent <connect|disconnect|kick|rename|send|broadcast|"
         "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
     assert 'case "channels":' in content
@@ -354,7 +354,7 @@ def test_pi_extension_registers_read_only_list_command() -> None:
 
     assert 'value: "list"' in content
     assert (
-        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "usage: /inter-agent <connect|disconnect|kick|rename|send|broadcast|"
         "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
     assert 'case "list":' in content
@@ -402,7 +402,7 @@ def test_pi_extension_registers_user_subscription_commands() -> None:
     assert 'value: "subscribe"' in content
     assert 'value: "unsubscribe"' in content
     assert (
-        "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
+        "usage: /inter-agent <connect|disconnect|kick|rename|send|broadcast|"
         "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
 
@@ -458,6 +458,34 @@ def test_pi_extension_distinguishes_inbound_channel_delivery() -> None:
     # Existing direct/broadcast guidance is preserved.
     assert "Peer message. Reply to" in content
     assert "Peer broadcast. Reply directly to" in content
+
+
+def test_pi_extension_registers_user_only_kick_command() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # Kick is exposed only as a user command, autocompleted and dispatched.
+    assert 'value: "kick"' in content
+    assert 'label: "kick"' in content
+    assert 'case "kick":' in content
+    assert "async function handleKick" in content
+    assert "usage: /inter-agent kick <name>" in content
+
+    # Updated grouped usage advertises kick alongside disconnect.
+    assert (
+        "usage: /inter-agent <connect|disconnect|kick|rename|send|broadcast|"
+        "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
+    ) in content
+
+    # Kick does not require the local Pi listener (short-lived control path).
+    kick_body = content.split("async function handleKick", 1)[1]
+    kick_body = kick_body.split("async function handleRename", 1)[0]
+    assert '["kick", name]' in kick_body
+    assert "listenerReady" not in kick_body
+    assert "currentConnection" not in kick_body
+    assert "startListener" not in kick_body
+
+    # No model-callable kick tool is registered.
+    assert 'name: "inter_agent_kick"' not in content
 
 
 def test_pi_extension_resolves_relative_paths_from_settings_file() -> None:

@@ -1371,6 +1371,11 @@ export default function (pi: ExtensionAPI) {
       description: "Disconnect from the bus",
     },
     {
+      value: "kick",
+      label: "kick",
+      description: "Force-disconnect a named agent (user-only)",
+    },
+    {
       value: "rename",
       label: "rename",
       description: "Reconnect with a new name",
@@ -1453,6 +1458,35 @@ export default function (pi: ExtensionAPI) {
         "listener did not terminate",
         "error",
       );
+    }
+  }
+
+  async function handleKick(args: string, _ctx: ExtensionContext) {
+    const name = args.trim();
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length !== 1) {
+      notify("[inter-agent] kick failed", "usage: /inter-agent kick <name>", "error");
+      return;
+    }
+    // Kick is user-only and uses a short-lived authenticated control
+    // connection; it does not require this Pi listener to be connected.
+    const result = await execPiScript(currentScripts(), ["kick", name]);
+    if (result.code !== 0) {
+      notify("[inter-agent] kick failed", scriptFailureMessage(result, "kick"), "error");
+      return;
+    }
+    try {
+      const payload = JSON.parse(result.stdout);
+      if (payload.op !== "kick_ok") {
+        notify("[inter-agent] kick failed", "invalid response", "error");
+        return;
+      }
+      notify(
+        "[inter-agent] kicked",
+        `removed ${payload.name} (session ${payload.session_id})`,
+      );
+    } catch {
+      notify("[inter-agent] kick failed", "invalid response", "error");
     }
   }
 
@@ -1804,7 +1838,7 @@ export default function (pi: ExtensionAPI) {
   function showInterAgentUsage() {
     notify(
       "[inter-agent] usage",
-      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|publish|channels|subscribe|unsubscribe|list|status|delivery> [args]",
+      "usage: /inter-agent <connect|disconnect|kick|rename|send|broadcast|publish|channels|subscribe|unsubscribe|list|status|delivery> [args]",
       "warning",
     );
   }
@@ -1844,6 +1878,9 @@ export default function (pi: ExtensionAPI) {
           break;
         case "disconnect":
           await handleDisconnect(rest, ctx);
+          break;
+        case "kick":
+          await handleKick(rest, ctx);
           break;
         case "rename":
           await handleRename(rest, ctx);

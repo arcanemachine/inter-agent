@@ -55,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("shutdown")
     sub.add_parser("disconnect")
 
+    kick = sub.add_parser("kick")
+    kick.add_argument("name")
+
     return parser
 
 
@@ -120,6 +123,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return commands.shutdown()
     if args.command == "disconnect":
         return commands.disconnect()
+    if args.command == "kick":
+        return commands.kick(args.name)
 
     parser.print_help()
     return 2

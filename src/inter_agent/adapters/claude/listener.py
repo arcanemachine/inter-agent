@@ -35,6 +35,11 @@ RECEIVE_DEDUP_WINDOW_S = 60.0
 MAX_NAME_LEN = 40
 NAME_TAKEN_RETRY_SUFFIX = "-2"
 
+# Terminal kick signal: a KICKED error ends this listener process without
+# reconnecting. It is intentionally not part of _PERMANENT_ERROR_CODES; the
+# runtime checks for it alongside that set so the shared set stays unchanged.
+KICKED_ERROR_CODE = "KICKED"
+
 # Server error codes that won't resolve by reconnecting with the same name.
 # NAME_TAKEN gets one adapter-level retry under a suffixed name in run().
 _PERMANENT_ERROR_CODES = frozenset(
@@ -381,7 +386,12 @@ class Listener:
                             f"[inter-agent] connection error: {code}: {message}",
                             self.output,
                         )
-                        if isinstance(code, str) and code in _PERMANENT_ERROR_CODES:
+                        if isinstance(code, str) and (
+                            code in _PERMANENT_ERROR_CODES or code == KICKED_ERROR_CODE
+                        ):
+                            # KICKED is terminal: stop reconnecting for this
+                            # listener process. The routing name stays free for
+                            # an explicit later reconnect/reload.
                             raise PermanentError(code, message)
                         continue
 

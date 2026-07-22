@@ -7,6 +7,7 @@ import pytest
 
 import inter_agent.adapters.control as control
 import inter_agent.core.channels as core_channels
+import inter_agent.core.kick as core_kick
 import inter_agent.core.list as core_list
 import inter_agent.core.publish as core_publish
 import inter_agent.core.send as core_send
@@ -14,6 +15,7 @@ import inter_agent.core.shutdown as core_shutdown
 from inter_agent.adapters.pi import commands, listener
 from inter_agent.adapters.pi.cli import main
 from inter_agent.core.channels import ChannelsResult
+from inter_agent.core.kick import KickResult
 from inter_agent.core.list import ListResult, SessionInfo
 from inter_agent.core.send import ProtocolErrorResult, SendResult
 from inter_agent.core.shutdown import ShutdownResult
@@ -566,3 +568,127 @@ def test_unsubscribe_data_dir_oserror_is_adapter_prefixed_and_traceback_free(
     assert "Traceback" not in captured.err
     assert captured.err.startswith("inter-agent-pi: ")
     assert "disk full" in captured.err
+
+
+def test_kick_uses_core_api(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[tuple[str, int, str | None, str | None]] = []
+
+    async def fake_kick(
+        host: str,
+        port: int,
+        *,
+        name: str | None = None,
+        session_id: str | None = None,
+        **kwargs: object,
+    ) -> KickResult:
+        del kwargs
+        calls.append((host, port, name, session_id))
+        return KickResult(
+            response='{"op": "kick_ok", "name": "agent-b", "session_id": "b"}',
+            response_payload={"op": "kick_ok", "name": "agent-b", "session_id": "b"},
+        )
+
+    monkeypatch.setattr(core_kick, "kick_session", fake_kick)
+
+    code = commands.kick("agent-b")
+
+    assert code == 0
+    assert calls == [("127.0.0.1", 16837, "agent-b", None)]
+    assert json.loads(capsys.readouterr().out) == {
+        "op": "kick_ok",
+        "name": "agent-b",
+        "session_id": "b",
+    }
+
+
+def test_kick_cli_dispatches_to_command(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_kick(
+        host: str,
+        port: int,
+        *,
+        name: str | None = None,
+        session_id: str | None = None,
+        **kwargs: object,
+    ) -> KickResult:
+        del kwargs
+        return KickResult(
+            response='{"op": "kick_ok", "name": "agent-b", "session_id": "b"}',
+            response_payload={"op": "kick_ok", "name": "agent-b", "session_id": "b"},
+        )
+
+    monkeypatch.setattr(core_kick, "kick_session", fake_kick)
+
+    assert main(["kick", "agent-b"]) == 0
+    assert json.loads(capsys.readouterr().out)["op"] == "kick_ok"
+
+
+def test_kick_protocol_error_returns_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def fake_kick(
+        host: str,
+        port: int,
+        *,
+        name: str | None = None,
+        session_id: str | None = None,
+        **kwargs: object,
+    ) -> KickResult:
+        del kwargs, name, session_id
+        return KickResult(
+            response='{"op": "error", "code": "UNKNOWN_TARGET", "message": "unknown target"}',
+            response_payload={
+                "op": "error",
+                "code": "UNKNOWN_TARGET",
+                "message": "unknown target",
+            },
+        )
+
+    monkeypatch.setattr(core_kick, "kick_session", fake_kick)
+
+    code = commands.kick("ghost")
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines() == [
+        "inter-agent-pi: (UNKNOWN_TARGET): unknown target",
+    ]
+
+
+def test_kick_does_not_require_listener(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """kick uses a short-lived control connection and must not start a listener
+    or touch the control bridge."""
+
+    async def fake_kick(
+        host: str,
+        port: int,
+        *,
+        name: str | None = None,
+        session_id: str | None = None,
+        **kwargs: object,
+    ) -> KickResult:
+        del kwargs
+        return KickResult(
+            response='{"op": "kick_ok", "name": "x", "session_id": "x"}',
+            response_payload={"op": "kick_ok", "name": "x", "session_id": "x"},
+        )
+
+    monkeypatch.setattr(core_kick, "kick_session", fake_kick)
+
+    async def fail_listener(*args: object, **kwargs: object) -> int:
+        raise AssertionError("kick must not start the listener")
+
+    async def fail_request(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("kick must not use the control bridge")
+
+    monkeypatch.setattr(listener, "run_listener", fail_listener)
+    monkeypatch.setattr(control, "request", fail_request)
+
+    assert commands.kick("x") == 0
+    assert json.loads(capsys.readouterr().out)["op"] == "kick_ok"

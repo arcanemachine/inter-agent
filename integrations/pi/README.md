@@ -8,7 +8,7 @@ Connect each Pi session once, then Pi can use the extension tools to send messag
 
 - **Background listener** — Stay connected to the bus and receive messages as Pi notifications, with automatic reconnection if the server restarts
 - **Queued mailbox** — Inbound direct, broadcast, and channel bodies queue by default in a bounded 128-entry in-memory mailbox; the agent reads them on demand with `inter_agent_read_messages`, or switch to immediate delivery with `/inter-agent delivery immediate`
-- **Commands** — Connect, disconnect, rename, send, broadcast, publish, channels, subscribe, unsubscribe, list, status, and session-only delivery mode
+- **Commands** — Connect, disconnect, kick, rename, send, broadcast, publish, channels, subscribe, unsubscribe, list, status, and session-only delivery mode
 - **Channels** — User-controlled pub/sub: subscribe, unsubscribe, and publish through explicit slash commands; channel deliveries are shown as channel messages, not direct or broadcast
 - **Tools** — LLM-callable tools for queued-message reads, send, broadcast, list, status, and local identity
 - **State persistence** — Connection state survives Pi session reloads
@@ -170,6 +170,7 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | ------------- | ----------------------------------------------- | ------------------------------------------------------------------------- |
 | `connect`     | `/inter-agent connect <name> [--label <label>]` | Connect to the bus as `name`                                              |
 | `disconnect`  | `/inter-agent disconnect`                       | Disconnect from the bus and wait for the listener to exit                 |
+| `kick`        | `/inter-agent kick <name>`                      | Force-disconnect a named agent session (user-only; no listener required)   |
 | `rename`      | `/inter-agent rename <name> [--label <label>]`  | Reconnect with a new routing name                                         |
 | `send`        | `/inter-agent send <to> <text>`                 | Send a direct message (requires connection)                               |
 | `broadcast`   | `/inter-agent broadcast <text>`                 | Broadcast to all agents only when messaging everyone is explicitly needed |
@@ -182,6 +183,8 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | `delivery`    | `/inter-agent delivery <queued\|immediate>`     | Toggle queued (default) or immediate delivery for the current session     |
 
 `send`, `broadcast`, and `publish` automatically use the current Pi connection name as the sender. `subscribe` and `unsubscribe` operate on the current Pi listener's live session and pass its routing name internally; you never provide or manage the listener name. `channels` is read-only and does not require an active Pi listener; it uses a short-lived authenticated connection to the configured server.
+
+`kick <name>` is a user-only command that force-disconnects a named agent-role session. It does not require the current Pi listener to be connected; the helper opens a short-lived authenticated control connection. Only an authenticated control role may kick, and only a registered agent-role session may be kicked; targeting a control-role session is rejected without closing it. On success the command reports a bounded `kicked` notification with the removed name and session id; on failure it reports the bounded helper diagnostic (for example `UNKNOWN_TARGET` for a name that is not connected, or `BAD_ROLE` for a control-role target). A kicked listener receives a terminal `KICKED` error and stops reconnecting for its process; the removed name is immediately free and may register again through an explicit later `/inter-agent connect` or a host/session reload. There is no ban, blocklist, timeout, or tombstone, and there is no LLM-callable kick tool.
 
 ## Channels
 

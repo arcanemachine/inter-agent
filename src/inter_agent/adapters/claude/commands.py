@@ -14,6 +14,7 @@ from websockets.exceptions import WebSocketException
 from inter_agent.adapters import control
 from inter_agent.adapters.claude import dedup, state
 from inter_agent.core import channels as core_channels
+from inter_agent.core import kick as core_kick
 from inter_agent.core import list as core_list
 from inter_agent.core import publish as core_publish
 from inter_agent.core import send as core_send
@@ -312,6 +313,37 @@ def message(msg_id: str, as_json: bool = False) -> int:
             return 1
         print(text)
     return 0
+
+
+def kick(name: str) -> int:
+    """Force-disconnect a named agent role session via a control connection.
+
+    User-only: the installed skill invokes this only on an explicit user
+    request. It does not require this Claude Code session's active listener.
+    """
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(
+            core_kick.kick_session(
+                endpoint.host,
+                endpoint.port,
+                name=name,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    if result.response_payload.get("op") == "kick_ok":
+        print(result.response)
+        return 0
+    code = result.response_payload.get("code", "PROTOCOL_ERROR")
+    message = result.response_payload.get("message", "kick failed")
+    print(f"inter-agent-claude: ({code}): {message}", file=sys.stderr)
+    return 1
 
 
 def shutdown() -> int:

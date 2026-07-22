@@ -31,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     unsubscribe.add_argument("channel")
     unsubscribe.add_argument("--name", required=True)
 
+    kick = sub.add_parser("kick")
+    kick.add_argument("name")
+
     publish = sub.add_parser("publish")
     publish.add_argument("channel")
     publish.add_argument("text")
@@ -63,6 +66,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return commands.subscribe(args.channel, args.name)
     if args.command == "unsubscribe":
         return commands.unsubscribe(args.channel, args.name)
+    if args.command == "kick":
+        return commands.kick(args.name)
     if args.command == "publish":
         return commands.publish(args.channel, args.text, args.from_name)
     if args.command == "channels":

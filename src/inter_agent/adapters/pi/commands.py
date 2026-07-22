@@ -14,6 +14,7 @@ from websockets.exceptions import WebSocketException
 from inter_agent.adapters import control
 from inter_agent.adapters.pi import listener
 from inter_agent.core import channels as core_channels
+from inter_agent.core import kick as core_kick
 from inter_agent.core import list as core_list
 from inter_agent.core import publish as core_publish
 from inter_agent.core import send as core_send
@@ -262,6 +263,37 @@ def list_sessions() -> int:
         return _expected_error_code(exc)
     print(result.raw_response)
     return 0
+
+
+def kick(name: str) -> int:
+    """Force-disconnect a named agent role session through a control connection.
+
+    User-only: the host command surface invokes this; no model-callable tool
+    wraps it. It does not require the local Pi listener to be connected.
+    """
+    try:
+        endpoint = resolve_endpoint(allow_discovery=True)
+        result = asyncio.run(
+            core_kick.kick_session(
+                endpoint.host,
+                endpoint.port,
+                name=name,
+                tls=endpoint.tls,
+                data_dir=endpoint.data_dir,
+                tls_cert_path=endpoint.tls_cert_path,
+            )
+        )
+    except SystemExit as exc:
+        return _system_exit_code(exc)
+    except (OSError, TimeoutError, ValueError, WebSocketException) as exc:
+        return _expected_error_code(exc)
+    if result.response_payload.get("op") == "kick_ok":
+        print(result.response)
+        return 0
+    code = result.response_payload.get("code", "PROTOCOL_ERROR")
+    message = result.response_payload.get("message", "kick failed")
+    print(f"inter-agent-pi: ({code}): {message}", file=sys.stderr)
+    return 1
 
 
 def shutdown() -> int:

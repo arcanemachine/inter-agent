@@ -37,6 +37,11 @@ RECONNECT_JITTER_FRAC = 0.2
 RECONNECT_DEADLINE_S = 60.0
 AUTO_STARTED_SERVER_IDLE_TIMEOUT_S = 300
 
+# Terminal kick signal: a post-welcome KICKED error ends this listener process
+# without reconnecting. It is intentionally not part of _PERMANENT_ERROR_CODES
+# (which classify the first welcome-time frame); KICKED arrives after welcome.
+KICKED_ERROR_CODE = "KICKED"
+
 # Server error codes that won't resolve by reconnecting.
 _PERMANENT_ERROR_CODES = frozenset(
     {
@@ -227,6 +232,14 @@ async def _connect_and_stream(
                             raise PermanentError(f"{code}: {payload.get('message', '')}")
                         return
                     continue
+                if (
+                    op == "error"
+                    and payload is not None
+                    and payload.get("code") == KICKED_ERROR_CODE
+                ):
+                    # Terminal kick: stop reconnecting for this listener process.
+                    # The routing name stays free for an explicit later reconnect.
+                    raise PermanentError(f"{KICKED_ERROR_CODE}: {payload.get('message', '')}")
                 if (
                     op == "msg"
                     and isinstance(payload.get("channel"), str)

@@ -316,8 +316,18 @@ class BusServer:
                 await self.send_error(sender.ws, ErrorCode.UNKNOWN_TARGET, "unknown target")
                 return
 
+            # Kick targets only registered agent-role sessions. A control-role
+            # connection is rejected without being closed.
+            if target.role != "agent":
+                await self.send_error(
+                    sender.ws, ErrorCode.BAD_ROLE, "kick targets agent sessions only"
+                )
+                return
+
             # Remove before closing so the target's own handler finally block
-            # sees the session already gone and does not double-remove.
+            # sees the session already gone and does not double-remove. Late
+            # cleanup by session_id cannot clobber a newer same-name connection
+            # claimed under a different session_id.
             self.registry.pop(target.session_id, None)
             for channel in list(self.subscriptions.pop(target.session_id, [])):
                 self.channels[channel].discard(target.session_id)
@@ -333,7 +343,18 @@ class BusServer:
                 )
             )
 
-        await target.ws.close(code=1000, reason="kicked")
+        # Signal the target that it was removed, then close. Both are best
+        # effort: a target that raced closed first must not unwind the control
+        # request. The KICKED message carries no controller identity, secret, or
+        # private session metadata.
+        try:
+            await self.send_error(target.ws, ErrorCode.KICKED, "removed by kick")
+        except websockets.ConnectionClosed:
+            pass
+        try:
+            await target.ws.close(code=1000, reason="kicked")
+        except websockets.ConnectionClosed:
+            pass
         if not self.registry:
             self._schedule_idle_timer()
 

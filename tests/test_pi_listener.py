@@ -531,3 +531,84 @@ class TestControlFailurePaths:
         with pytest.raises(asyncio.CancelledError):
             await run_listener(host="127.0.0.1", port=12345, name="test")
         assert captured["control_path"] is None
+
+
+class TestKickedTerminal:
+    @pytest.mark.asyncio
+    async def test_kicked_after_welcome_is_terminal(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A post-welcome KICKED error ends _connect_and_stream via PermanentError."""
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        session = FakeSession(
+            [
+                json.dumps({"op": "welcome", "assigned_name": "test"}),
+                json.dumps({"op": "error", "code": "KICKED", "message": "removed by kick"}),
+            ]
+        )
+        monkeypatch.setattr(
+            "inter_agent.adapters.pi.listener.AgentSession",
+            lambda *args, **kwargs: session,
+        )
+
+        out = io.StringIO()
+        from inter_agent.adapters.pi.listener import _connect_and_stream
+
+        with pytest.raises(PermanentError, match="KICKED"):
+            await _connect_and_stream("127.0.0.1", 12345, "test", None, out)
+
+    @pytest.mark.asyncio
+    async def test_kicked_is_terminal_no_reconnect(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """run_listener exits non-zero on KICKED and does not reconnect."""
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr(listener, "endpoint_available", lambda host, port: True)
+
+        call_count = 0
+
+        async def fake_connect_and_stream(
+            host: str,
+            port: int,
+            name: str,
+            label: str | None,
+            output: io.TextIOBase,
+            **kwargs: object,
+        ) -> None:
+            del kwargs
+            nonlocal call_count
+            call_count += 1
+            output.write(json.dumps({"op": "welcome", "assigned_name": name}) + "\n")
+            raise PermanentError("KICKED: removed by kick")
+
+        monkeypatch.setattr(listener, "_connect_and_stream", fake_connect_and_stream)
+
+        result = await run_listener(host="127.0.0.1", port=12345, name="test")
+        assert result == 1
+        assert call_count == 1  # no reconnect after terminal kick
+
+    @pytest.mark.asyncio
+    async def test_non_kicked_error_after_welcome_is_not_terminal(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A non-KICKED post-welcome error is printed and does not raise."""
+        monkeypatch.setenv("INTER_AGENT_DATA_DIR", str(tmp_path))
+        session = FakeSession(
+            [
+                json.dumps({"op": "welcome"}),
+                json.dumps({"op": "error", "code": "UNKNOWN_OP", "message": "bad op"}),
+            ]
+        )
+        monkeypatch.setattr(
+            "inter_agent.adapters.pi.listener.AgentSession",
+            lambda *args, **kwargs: session,
+        )
+
+        out = io.StringIO()
+        from inter_agent.adapters.pi.listener import _connect_and_stream
+
+        await _connect_and_stream("127.0.0.1", 12345, "test", None, out)
+        printed = [line for line in out.getvalue().splitlines() if line.strip()]
+        # welcome + the non-terminal error frame are both printed.
+        assert json.loads(printed[0])["op"] == "welcome"
+        assert json.loads(printed[1])["code"] == "UNKNOWN_OP"

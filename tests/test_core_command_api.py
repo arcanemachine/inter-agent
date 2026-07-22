@@ -201,6 +201,10 @@ async def test_kick_session_by_name_disconnects_target(
 
             result = await kick_session(context.host, context.port, name="agent-b")
 
+            # The target receives a terminal KICKED error before the close.
+            kicked = json.loads(await target.recv())
+            assert kicked["op"] == "error"
+            assert kicked["code"] == "KICKED"
             with pytest.raises(websockets.ConnectionClosed):
                 await target.recv()
 

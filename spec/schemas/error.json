@@ -27,7 +27,8 @@
         "BAD_CHANNEL",
         "CHANNEL_LIMIT_REACHED",
         "NOT_SUBSCRIBED",
-        "UNKNOWN_CHANNEL"
+        "UNKNOWN_CHANNEL",
+        "KICKED"
       ]
     },
     "message": { "type": "string" }

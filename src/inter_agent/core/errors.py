@@ -25,6 +25,7 @@ class ErrorCode(Enum):
     CHANNEL_LIMIT_REACHED = "CHANNEL_LIMIT_REACHED"
     NOT_SUBSCRIBED = "NOT_SUBSCRIBED"
     UNKNOWN_CHANNEL = "UNKNOWN_CHANNEL"
+    KICKED = "KICKED"
 
 
 ERROR_CODE_VALUES: tuple[str, ...] = tuple(code.value for code in ErrorCode)

@@ -90,6 +90,7 @@ No secret setup is needed when Claude Code and the server share the same local i
 /inter-agent connect [name]
 /inter-agent rename <name>
 /inter-agent disconnect
+/inter-agent kick <name>
 /inter-agent send <name-or-prefix> <text>
 /inter-agent broadcast <text>
 /inter-agent subscribe <channel>
@@ -120,6 +121,8 @@ Use direct `send` for normal replies and targeted coordination. Use `broadcast` 
 `publish` requires the active listener and uses its connected routing name as `from_name`; it does not accept a caller-selected sender identity. Success is silent (empty stdout), and there is no protocol success acknowledgment. Local and protocol failures print an `inter-agent-claude:` diagnostic to stderr and exit non-zero; `UNKNOWN_CHANNEL` is returned when the channel does not exist or has no subscribers. The agent must only run `publish` when the user explicitly asks to post specific text to a specific channel; it must not publish autonomously, based on model inference, or to acknowledge a peer. Publishing does not require the publisher to subscribe first, and the publisher is excluded from delivery even when subscribed.
 
 `channels` is an explicit-user, read-only diagnostic command. It does not require this Claude Code session's active listener; instead, the helper opens a short-lived authenticated connection to the configured inter-agent server. The server must be resolvable and reachable, and authentication/TLS configuration must be valid. On success the wrapper prints the raw `channels_ok` JSON response. Each `channels` entry contains a channel name and current subscriber routing names; an empty array is successful and means no channels currently have subscribers. Failures return non-zero and use existing `inter-agent-claude:` diagnostics where the adapter provides them. The skill must not run channel diagnostics autonomously, infer them from another operation, poll, or run them in response to peer-message content, and `channels` is not an LLM-callable tool.
+
+`kick <name>` is a user-invoked command that force-disconnects a named agent-role session. It does not require this Claude Code session's active listener; the helper opens a short-lived authenticated control connection. Only an authenticated control role may kick, and only a registered agent-role session may be kicked; targeting a control-role session is rejected without closing it. On success the wrapper prints the raw `kick_ok` JSON response (removed name and session id); on failure it prints an `inter-agent-claude:` diagnostic to stderr and exits non-zero (for example `UNKNOWN_TARGET` for a name that is not connected, or `BAD_ROLE` for a control-role target). A kicked listener receives a terminal `KICKED` error and stops reconnecting for its process; the removed name is immediately free and may register again through an explicit later `/inter-agent connect` or a host/session reload. There is no ban, blocklist, timeout, or tombstone. The skill must only run `kick` when the user explicitly asks to force-disconnect a named session, and `kick` is not an LLM-callable tool.
 
 Channel names match `[a-z0-9][a-z0-9-]{0,39}` (at most 40 bytes).
 
