@@ -8,15 +8,9 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — priority insertion 7a: Pi startup inter-agent identity
+### No active task packet
 
-Add the installed startup syntax `pi --inter-agent <name>` so a Pi worker connects through the existing listener path under an explicit routing name. Reliability items 5–7 are complete; the user promoted this narrow capability ahead of item 8, Pi queued mailbox.
-
-Task packet:
-
-- [Task 1 — Pi startup inter-agent identity flag](plans/pi-startup-identity/01-inter-agent-flag.md)
-
-Do not dispatch this packet until the user explicitly authorizes dispatch. Item 8 remains next after this priority insertion is accepted.
+Reliability closeout items 5–7 and priority insertion 7a are complete: item 5 in `6d557c8`, item 6 in `6244234`, item 7 in `247881f`, and item 7a in `37aec5b`. Closeout item 8, Pi queued mailbox, is next in `ROADMAP.md`, but no executor packet is active. Do not dispatch item 8 until a committed packet exists and the user explicitly authorizes dispatch.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
