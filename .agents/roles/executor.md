@@ -29,6 +29,13 @@ When the leader dispatches a task through the inter-agent bus:
 - Stop and report to the leader if requirements conflict, an unlisted file is needed, a check exposes a material decision, or scope must expand.
 - Do not broaden the task, perform adjacent cleanup, or start the next roadmap item.
 
+## Leader messages during execution
+
+- A targeted message from the dispatching leader is priority task-control input. At the next safe boundary, pause the current implementation, read the queued body immediately, and process it before continuing.
+- Never leave a leader message unread until task completion, defer it merely because work is in progress, or continue under superseded instructions. Rework, stop, status, boundary, and handoff directions take precedence over the executor's current implementation sequence.
+- Respond promptly with the requested information or a concise substantive confirmation of the changed direction before resuming. Do not substitute a canned receipt for acting on the message.
+- If a leader message conflicts with repository instructions or appears to expand the committed packet without the required approval, remain paused and report that exact conflict to the leader.
+
 ## Checks and reporting
 
 - Run every check required by the packet and record exact results.
