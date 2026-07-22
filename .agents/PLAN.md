@@ -8,15 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 8: Pi queued mailbox
+### Project closeout — item 8a: Pi current-release compatibility baseline
 
-Queue inbound direct, broadcast, and channel bodies by default; add explicit immediate delivery, metadata-only notices, bounded in-memory storage, and selected/all reads. Priority insertion 7a was accepted in `37aec5b`.
+Align the Pi integration's development, type, package, and installed acceptance targets with the current stable Pi distribution, resolving the deprecated package lineage without changing inter-agent product behavior. Item 8 was accepted in `7c208d2`.
 
 Task packet:
 
-- [Task 1 — Pi queued mailbox and explicit immediate delivery](plans/pi-queued-mailbox/01-queued-delivery-and-read-tool.md)
+- [Task 1 — Align the Pi integration with the current stable release](plans/pi-current-release-compatibility/01-align-current-pi-target.md)
 
-The user has authorized redispatch of this same task after executor reset and compaction. Pi current-release compatibility baseline is the next roadmap item after item 8 is accepted.
+Do not dispatch this packet until the user explicitly authorizes dispatch. User-invoked effective kick is the next roadmap item after item 8a is accepted.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 

@@ -1,6 +1,6 @@
 # Pi queued mailbox
 
-Status: active as closeout queue item 8
+Status: completed in `7c208d2`
 
 ## Goal
 

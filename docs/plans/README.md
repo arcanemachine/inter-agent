@@ -29,7 +29,7 @@ Plan files should use one of these statuses near the top:
 ## Upcoming action queue
 
 1. Complete the active reliability sequence recorded in `ROADMAP.md` and summarized by `important-closeout/03-reliability-closeout.md`.
-2. `important-closeout/01-pi-queued-mailbox.md` — implement queued-by-default Pi delivery for direct, broadcast, and channel messages.
+2. `important-closeout/01a-user-invoked-kick.md` through `important-closeout/01c-pi-compaction-continuity.md` — complete the accepted kick, reload, and compaction reliability follow-ons after the active current-Pi compatibility baseline.
 3. `important-closeout/02-installed-tls-acceptance.md` — prove installed Pi/Claude interoperability over TLS.
 4. `important-closeout/04-migration-checkpoint-and-meta.md` through `important-closeout/11-released-ecosystem-acceptance.md` — split clean repositories before publication, publish stable packages through explicit gates, and verify released artifacts.
 5. `opencode-support/00-execution-guide.md` — first deferred promotion candidate after important-action closeout and a new user activation decision.
