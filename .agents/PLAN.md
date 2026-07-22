@@ -8,15 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 8b: User-invoked effective kick
+### Project closeout — item 8c: Pi mailbox continuity across extension reload
 
-Expose the existing `kick` operation as an explicit Pi and Claude Code user command, and make a kicked listener stop automatic reconnecting until explicit reconnect or host reload/restart. Item 8a was accepted in `6a8ad43`.
+Preserve the exact bounded unread Pi mailbox through same-process extension `/reload` with a one-use memory-only handoff, while terminated-session resume and replacement boundaries remain empty. Item 8b was accepted in `6210ed6`.
 
 Task packet:
 
-- [Task 1 — Make user-invoked kick effective](plans/user-invoked-effective-kick/01-terminal-kick.md)
+- [Task 1 — Preserve Pi unread mailbox through same-process reload](plans/pi-mailbox-reload-continuity/01-one-use-reload-handoff.md)
 
-Do not dispatch this packet until the user explicitly authorizes dispatch. Pi mailbox continuity across extension reload is the next roadmap item after item 8b is accepted.
+Do not dispatch this packet until the user explicitly authorizes dispatch. Pi compaction connection and mailbox continuity is the next roadmap item after item 8c is accepted.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
