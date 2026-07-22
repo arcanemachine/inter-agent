@@ -28,6 +28,7 @@ The accepted design is authoritative in `docs/plans/important-closeout/01a-user-
 - `tests/conformance/test_channels.py`
 - `tests/test_pi_listener.py`
 - `tests/test_claude_listener.py`
+- `tests/test_core_command_api.py` — only `test_kick_session_by_name_disconnects_target`, to assert the required terminal `KICKED` frame before closure
 - `tests/test_pi_adapter_cli.py`
 - `tests/test_claude_adapter_cli.py`
 - `tests/test_pi_extension_static.py`
