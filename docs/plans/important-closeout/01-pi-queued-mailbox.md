@@ -1,6 +1,6 @@
 # Pi queued mailbox
 
-Status: concrete; accepted direction; queued after reliability items 5–7
+Status: active as closeout queue item 8
 
 ## Goal
 
