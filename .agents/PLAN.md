@@ -8,9 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### No active task packet
+### Project closeout — item 8: Pi queued mailbox
 
-Reliability closeout items 5–7 and priority insertion 7a are complete: item 5 in `6d557c8`, item 6 in `6244234`, item 7 in `247881f`, and item 7a in `37aec5b`. Closeout item 8, Pi queued mailbox, is next in `ROADMAP.md`, but no executor packet is active. Do not dispatch item 8 until a committed packet exists and the user explicitly authorizes dispatch.
+Queue inbound direct, broadcast, and channel bodies by default; add explicit immediate delivery, metadata-only notices, bounded in-memory storage, and selected/all reads. Priority insertion 7a was accepted in `37aec5b`.
+
+Task packet:
+
+- [Task 1 — Pi queued mailbox and explicit immediate delivery](plans/pi-queued-mailbox/01-queued-delivery-and-read-tool.md)
+
+Do not dispatch this packet until the user explicitly authorizes dispatch. Installed cross-adapter TLS acceptance remains next after item 8 is accepted.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 

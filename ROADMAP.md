@@ -50,7 +50,7 @@ This queue preserves continuity between active slices. Complete items in order u
 6. **Pi pre-connect list behavior** — make `/inter-agent list` return an intentional result instead of erroring before connection. **Status: implemented in `6244234`.**
 7. **Claude Code sandbox connect failure** — reproduce and resolve the installed `/inter-agent connect` exit-127 failure recorded for the interline sandbox, or document a verified environment constraint. **Status: implemented in `247881f` (documented setup-needed signal plus bounded wrapper diagnostics for unrunnable helpers).**
 7a. **Pi startup inter-agent identity** — add `pi --inter-agent <name>` so an installed Pi worker connects under an explicit routing name through the existing listener path, including session replacement/reload and bounded nonfatal failures. **Status: implemented in `37aec5b`.**
-8. **Pi queued mailbox** — queue direct, broadcast, and channel message bodies by default; add explicit immediate mode, metadata-only notices, bounded in-memory storage, and selected/all message reads. **Status: next; no active packet prepared.**
+8. **Pi queued mailbox** — queue direct, broadcast, and channel message bodies by default; add explicit immediate mode, metadata-only notices, bounded in-memory storage, and selected/all message reads. **Status: active; packet prepared in `.agents/plans/pi-queued-mailbox/01-queued-delivery-and-read-tool.md`.**
 9. **Installed cross-adapter TLS acceptance** — prove Pi and Claude helper/listener paths interoperate over `wss://`, including pub/sub, reconnect, certificate failures, and config propagation. **Status: queued after item 8.**
 10. **Migration checkpoint and private meta repository** — freeze a tested source state, confirm remote/registry ownership and authorization, establish private `inter-agent-meta`, and approve the extraction mapping. **Status: user-gated after item 9.**
 11. **Pi repository extraction** — create independent `inter-agent-pi` npm/Pi and Python-helper package boundaries with package-local tests and no monorepo runtime dependency. **Status: queued after item 10 if migration is authorized.**
@@ -92,7 +92,7 @@ Phase 3 (implemented) adds subscribe, unsubscribe, publish, channel diagnostics,
 
 Phase 4 (implemented) provides user-invoked subscribe, unsubscribe, publish, and read-only channel diagnostics through both installed Pi and Claude Code integrations, plus channel-aware notifications/context. These operations are intentionally not LLM-callable; there are no automatic subscriptions, publications, or diagnostics. Short-lived publishers use the active listener routing name, and each adapter listener suppresses its own routing name's channel delivery so publisher exclusion remains consistent at the installed UX boundary. Cross-adapter live acceptance proves Pi and Claude publication, subscription, diagnostics, and delivery interoperate on one server.
 
-Next activation step: prepare the closeout queue item 8 packet, then obtain explicit dispatch authorization.
+Next activation step: execute the active closeout queue item 8 packet after explicit dispatch authorization.
 
 Reference material:
 
