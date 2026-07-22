@@ -1,6 +1,6 @@
 # Pi compaction connection and mailbox continuity
 
-Status: concrete; accepted direction; queued immediately after closeout item 8b
+Status: concrete; accepted direction; queued immediately after closeout item 8c
 
 ## Goal
 
@@ -24,8 +24,8 @@ These findings mean the observed loss must not be described as an expected conse
 3. A Pi session that is intentionally disconnected before compaction remains disconnected. Compaction is not implicit connect.
 4. Preserve unread mailbox entries, IDs, arrival order, overflow state, delivery mode, and pending metadata-only notice state across native compaction and a compaction-related listener restart within the same live extension process.
 5. Messages arriving during compaction remain bounded and are neither lost nor delivered twice. Queued bodies remain hidden until explicit read; immediate-mode behavior retains its existing active-turn bounds.
-6. Explicit quit, process termination, new session, resume of a terminated session, and fork retain mailbox-clearing behavior. Same-process extension reload follows the accepted in-memory preservation semantics from closeout item 8b. Do not make mailbox storage durable merely to survive compaction or reload.
-7. If investigation proves that a host-specific compaction path replaces the extension runtime, reuse or coordinate with item 8b's bounded same-process handoff and distinguish compaction/reload continuity from true session replacement. Clear stale handoff state on quit, new, resume, fork, timeout, failed/aborted compaction, and process exit.
+6. Explicit quit, process termination, new session, resume of a terminated session, and fork retain mailbox-clearing behavior. Same-process extension reload follows the accepted in-memory preservation semantics from closeout item 8c. Do not make mailbox storage durable merely to survive compaction or reload.
+7. If investigation proves that a host-specific compaction path replaces the extension runtime, reuse or coordinate with item 8c's bounded same-process handoff and distinguish compaction/reload continuity from true session replacement. Clear stale handoff state on quit, new, resume, fork, timeout, failed/aborted compaction, and process exit.
 8. Never persist mailbox bodies in Pi transcript entries, custom-message details, settings, filesystem state, server history, logs, errors, status text, or notifications.
 9. Retain a session-local desired connection descriptor while connected so post-compaction health reconciliation does not depend on old transcript entries remaining in rebuilt model context. Clear intent on explicit disconnect and lifecycle termination.
 10. After successful compaction, reconcile listener health once:
@@ -89,7 +89,7 @@ Behavior-level TypeScript coverage must include:
 8. arrivals during compaction are retained exactly once and remain within the 128-message bound;
 9. delivery-mode state and pending notice coalescing remain valid across compaction;
 10. failed or aborted compaction leaves the existing connection and mailbox usable;
-11. same-process reload preserves the mailbox through item 8b's one-use handoff, while new, resume, fork, shutdown, and process replacement clear mailbox and stale handoff state;
+11. same-process reload preserves the mailbox through item 8c's one-use handoff, while new, resume, fork, shutdown, and process replacement clear mailbox and stale handoff state;
 12. an old displayed ID after terminated-session resume is missing/not unread;
 13. no body persistence to transcript, settings, disk, diagnostics, or cross-session state;
 14. native compaction and `pi-supercompact` event order are represented faithfully in the integration harness.
@@ -107,7 +107,7 @@ Use a real installed Pi, an isolated inter-agent server, and controlled unique m
 5. Send a message during a controlled compaction window when practical; otherwise rely on behavior-level timing coverage and record the limitation.
 6. Exercise immediate mode across compaction and confirm it neither becomes queued nor triggers duplicate turns.
 7. Explicitly disconnect, compact, and verify no reconnect occurs.
-8. Reconnect, then perform ordinary reload and terminated-session resume controls. Verify ordinary reload preserves identity and unread mailbox per item 8b, but unread bodies are not restored after the terminated/replaced session boundary.
+8. Reconnect, then perform ordinary reload and terminated-session resume controls. Verify ordinary reload preserves identity and unread mailbox per item 8c, but unread bodies are not restored after the terminated/replaced session boundary.
 9. Confirm final shutdown removes the listener and leaves no process-local handoff capable of restoring old bodies.
 
 ## Acceptance criteria

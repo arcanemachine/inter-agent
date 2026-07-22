@@ -10,7 +10,7 @@ Make inbound Pi direct, broadcast, and channel message bodies queue by default s
 
 The accepted product behavior is defined in `docs/plans/important-closeout/01-pi-queued-mailbox.md`. The Pi extension currently delivers inbound bodies immediately as `inter-agent-message` custom messages. This task changes only the Pi host extension: mailbox state remains bounded in TypeScript memory, notices contain metadata only, and one model-callable read tool reveals and removes selected unread bodies.
 
-Closeout priority insertion 7a is implemented in `37aec5b`. This packet is closeout queue item 8; user-invoked effective kick remains next.
+Closeout priority insertion 7a is implemented in `37aec5b`. This packet is closeout queue item 8; Pi current-release compatibility baseline remains next.
 
 ## Allowed files to modify
 

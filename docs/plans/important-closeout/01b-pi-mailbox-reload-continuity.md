@@ -1,6 +1,6 @@
 # Pi mailbox continuity across extension reload
 
-Status: concrete; accepted direction; queued immediately after closeout item 8a
+Status: concrete; accepted direction; queued immediately after closeout item 8b
 
 ## Goal
 
