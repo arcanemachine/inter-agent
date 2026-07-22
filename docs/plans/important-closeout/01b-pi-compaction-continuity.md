@@ -1,6 +1,6 @@
 # Pi compaction connection and mailbox continuity
 
-Status: concrete; accepted direction; queued immediately after closeout item 8
+Status: concrete; accepted direction; queued immediately after closeout item 8a
 
 ## Goal
 

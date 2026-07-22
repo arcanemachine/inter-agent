@@ -2,10 +2,14 @@
 title: Kick reconnect block
 description: Make the kick operation effective against auto-reconnecting listeners by adding a temporary server-side blocklist.
 area: protocol
-priority: deferred
+priority: superseded by accepted effective-kick direction
 trigger: Stale sessions need to be reaped before auto-reconnecting listeners reclaim their names.
 source: Root IDEAS.md protocol extensions
 ---
+
+## Status
+
+Superseded by `docs/plans/important-closeout/01a-user-invoked-kick.md`. The accepted direction sends a terminal `KICKED` signal to the current listener and does not add a temporary blocklist or ban.
 
 ## Notes
 
