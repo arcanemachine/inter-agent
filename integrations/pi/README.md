@@ -125,6 +125,24 @@ Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/se
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
 
+## Startup identity
+
+You can assign a Pi worker's inter-agent routing name at process startup with the `--inter-agent` flag:
+
+```bash
+pi --inter-agent worker-a
+```
+
+When the flag is present and non-empty, the extension connects automatically during `session_start` using the existing listener path, endpoint, auth, and TLS configuration. The flag name takes precedence over any transcript-restored connection name, so reloading Pi or replacing the extension session reconnects as `worker-a`.
+
+The flag is reapplied on every `session_start` reason (`startup`, `reload`, `new`, `resume`, `fork`). If connection setup fails — bad name, duplicate name, missing runtime, auth failure, or server-start failure — Pi shows the existing bounded actionable notification and remains usable; it does not abort, throw, or trigger a model turn.
+
+An explicitly blank flag (`--inter-agent ""`) is not the same as omitting the flag: it produces a bounded `connect failed` notification and prevents falling through to transcript-restored reconnect.
+
+When the flag is omitted, existing behavior is unchanged: Pi reconnects only if transcript-restored connection state says it was connected.
+
+After startup, `/inter-agent connect`, `/inter-agent rename`, and `/inter-agent disconnect` continue to work as usual. An in-session command changes the current connection; the startup flag is reapplied only on the next `session_start`.
+
 ## Commands
 
 All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` and Pi will autocomplete the subcommand.

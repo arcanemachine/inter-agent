@@ -1134,10 +1134,56 @@ export default function (pi: ExtensionAPI) {
     return box as unknown as Component;
   });
 
+  // Register the startup routing-name flag during extension factory so Pi
+  // exposes `pi --inter-agent <name>`. The value is only available later, at
+  // `session_start`.
+  pi.registerFlag("inter-agent", {
+    type: "string",
+    description:
+      "Set this Pi worker's inter-agent routing name at process startup",
+  });
+
   // ── Session Lifecycle ─────────────────────────────────────────────────────
 
   pi.on("session_start", async (_event, ctx) => {
     currentCtx = ctx;
+
+    // Prefer an explicit --inter-agent flag over any transcript-restored
+    // connection state. The flag is reapplied on every session_start reason
+    // (startup, reload, new, resume, fork) so the worker identity stays
+    // effective after Pi replaces or reloads the extension session.
+    const flagValue = pi.getFlag("inter-agent");
+    const flagPresent = typeof flagValue === "string";
+
+    if (flagPresent) {
+      const explicitName = flagValue.trim();
+      if (!explicitName) {
+        notify(
+          "[inter-agent] connect failed",
+          "inter-agent routing name cannot be blank; use --inter-agent <name> or omit the flag",
+          "error",
+        );
+        return;
+      }
+
+      const ready = await ensureServerAvailable(currentScripts());
+      if (!ready) {
+        const state = getConnectionState(ctx);
+        if (state) {
+          persistState(pi, { ...state, connected: false });
+          updateStatus(ctx, { ...state, connected: false });
+        }
+        return;
+      }
+      const started = await startListener(pi, ctx, config, explicitName, null, {
+        notifyOnReady: true,
+      });
+      if (started) {
+        notify("[inter-agent] connecting", `as ${explicitName}`);
+      }
+      return;
+    }
+
     const state = getConnectionState(ctx);
     if (state?.connected) {
       const ready = await ensureServerAvailable(currentScripts());

@@ -478,6 +478,7 @@ const fakeCtx = {
 const handlers = {};
 const tools = {};
 const eventHandlers = {};
+const flags = new Map();
 
 const fakeApi = {
   registerCommand: (name, opts) => {
@@ -487,6 +488,12 @@ const fakeApi = {
     tools[tool.name] = tool;
   },
   registerMessageRenderer: () => {},
+  registerFlag: (name, options) => {
+    flags.set(name, options);
+  },
+  getFlag: (name) => {
+    return flags.get(name)?.default;
+  },
   on: (event, fn) => {
     if (!eventHandlers[event]) eventHandlers[event] = [];
     eventHandlers[event].push(fn);

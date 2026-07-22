@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -504,3 +505,109 @@ def test_bundled_pi_package_declares_runtime_dependencies() -> None:
     assert "@sinclair/typebox" not in manifest["devDependencies"]
     assert "@mariozechner/pi-coding-agent" in manifest["peerDependencies"]
     assert "@mariozechner/pi-tui" in manifest["peerDependencies"]
+
+
+def test_pi_extension_registers_startup_identity_flag() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'pi.registerFlag("inter-agent"' in content
+    assert 'type: "string"' in content
+    assert "Set this Pi worker's inter-agent routing name at process startup" in content
+
+
+def test_pi_extension_reads_startup_flag_only_at_session_start() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    factory_body = content.split("export default function", 1)[1]
+    factory_body = factory_body.split('pi.on("session_start"', 1)[0]
+    assert 'pi.getFlag("inter-agent")' not in factory_body
+
+    session_start_body = content.split('pi.on("session_start"', 1)[1]
+    session_start_body = session_start_body.split('pi.on("session_shutdown"', 1)[0]
+    assert 'pi.getFlag("inter-agent")' in session_start_body
+    assert "flagValue.trim()" in session_start_body
+    assert "explicitName" in session_start_body
+
+
+def test_pi_extension_startup_flag_takes_precedence_over_restored_state() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    session_start_body = content.split('pi.on("session_start"', 1)[1]
+    session_start_body = session_start_body.split('pi.on("session_shutdown"', 1)[0]
+
+    # The flag branch is evaluated before transcript-restored state is consulted.
+    assert 'const flagPresent = typeof flagValue === "string";' in session_start_body
+    assert "if (flagPresent)" in session_start_body
+    assert re.search(
+        r"startListener\(\s*pi,\s*ctx,\s*config,\s*explicitName,\s*null,",
+        session_start_body,
+    )
+    assert 'notify("[inter-agent] connecting", `as ${explicitName}`)' in session_start_body
+
+    # The restored-state branch is only reached when the flag is absent.
+    assert "if (state?.connected)" in session_start_body
+    assert 'notify("[inter-agent] reconnecting", `as ${state.name}`)' in session_start_body
+
+
+def test_pi_extension_startup_flag_reuses_existing_connect_path() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    session_start_body = content.split('pi.on("session_start"', 1)[1]
+    session_start_body = session_start_body.split('pi.on("session_shutdown"', 1)[0]
+
+    # The flag path reuses the existing server-discovery and listener launch.
+    assert "ensureServerAvailable(currentScripts())" in session_start_body
+    assert re.search(
+        r"startListener\(\s*pi,\s*ctx,\s*config,\s*explicitName,\s*null,",
+        session_start_body,
+    )
+    assert "notifyOnReady: true" in session_start_body
+
+    # The flag must not introduce a separate launch path or duplicate listener.
+    flag_branch = session_start_body.split("if (flagPresent)", 1)[1]
+    flag_branch = flag_branch.split("\n    const state = getConnectionState(ctx);", 1)[0]
+    assert flag_branch.count("startListener(") == 1
+    assert flag_branch.count("spawn(") == 0
+
+
+def test_pi_extension_startup_flag_blank_receives_bounded_failure() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    session_start_body = content.split('pi.on("session_start"', 1)[1]
+    session_start_body = session_start_body.split('pi.on("session_shutdown"', 1)[0]
+
+    flag_branch = session_start_body.split("if (flagPresent)", 1)[1]
+    flag_branch = flag_branch.split("\n    const state = getConnectionState(ctx);", 1)[0]
+
+    # A blank explicit flag is treated as an invalid explicit identity, not omission.
+    assert "const explicitName = flagValue.trim()" in flag_branch
+    assert "if (!explicitName)" in flag_branch
+    assert '"[inter-agent] connect failed"' in flag_branch
+    assert "inter-agent routing name cannot be blank" in flag_branch
+    assert '"error"' in flag_branch
+
+    blank_branch = flag_branch.split("if (!explicitName)", 1)[1]
+    blank_branch = blank_branch.split("const ready = await ensureServerAvailable", 1)[0]
+    assert "return;" in blank_branch
+    assert "getConnectionState" not in blank_branch
+    assert "startListener" not in blank_branch
+
+
+def test_pi_extension_omitted_flag_preserves_existing_reconnect_behavior() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    session_start_body = content.split('pi.on("session_start"', 1)[1]
+    session_start_body = session_start_body.split('pi.on("session_shutdown"', 1)[0]
+
+    # The no-flag path is unchanged: reconnect only when restored state is connected.
+    assert "if (state?.connected)" in session_start_body
+    assert re.search(
+        r"startListener\(\s*pi,\s*ctx,\s*config,\s*state\.name,\s*state\.label,",
+        session_start_body,
+    )
+    assert 'notify("[inter-agent] reconnecting", `as ${state.name}`)' in session_start_body
+
+    # The flag branch returns early, so the restored-state branch is skipped.
+    flag_branch = session_start_body.split("if (flagPresent)", 1)[1]
+    flag_branch = flag_branch.split("\n    const state = getConnectionState(ctx);", 1)[0]
+    assert "return;" in flag_branch
