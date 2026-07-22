@@ -45,7 +45,7 @@ Use this loop for every active item and after every handoff. Do not rely on chat
 4. Commit accepted in-scope work atomically using Conventional Commits without requesting ceremonial approval. Executors do not commit.
 5. Update the completed item in `ROADMAP.md`, name the next dependency-ready item, remove the completed packet directory, and either activate the next item in `.agents/PLAN.md` or state the exact blocker or decision preventing activation.
 6. Commit plan cleanup or advancement separately when it is a distinct logical step.
-7. Notify the executor of acceptance when useful, report verification and commits concisely, and continue the roadmap loop unless an important user decision, authorization boundary, or blocker requires stopping.
+7. Do not send acceptance, thanks, or other courtesy completion messages to the executor. Once accepted work is committed, the executor's task is done and the user controls reset or reuse. Contact the executor after its completion report only for substantive rework, a necessary question, or another explicitly authorized assignment. Report verification and commits to the user concisely, and continue the roadmap loop unless an important user decision, authorization boundary, or blocker requires stopping.
 
 ### Preserve continuity
 

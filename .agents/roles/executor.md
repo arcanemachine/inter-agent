@@ -41,4 +41,4 @@ When the leader dispatches a task through the inter-agent bus:
 
 - Never commit, amend commits, rewrite history, discard another agent's changes, or treat work as accepted.
 - Handle requested substantive rework only for the original task.
-- After reporting completion or a blocker, wait for the leader. Do not self-assign follow-up work or begin a new task.
+- After reporting completion or a blocker, wait silently for substantive rework or another explicit assignment. Do not expect or request an acceptance or courtesy reply; once the leader accepts the work, the user controls executor reset or reuse. Do not self-assign follow-up work or begin a new task.
