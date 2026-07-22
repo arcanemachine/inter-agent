@@ -34,7 +34,7 @@ Closeout priority insertion 7a is implemented in `37aec5b`. This packet is close
 - `src/inter_agent/adapters/pi/listener.py`
 - `src/inter_agent/adapters/pi/commands.py`
 - `docs/plans/important-closeout/01-pi-queued-mailbox.md`
-- the installed Pi extension API type declarations and documentation needed to verify `sendMessage`, `registerMessageRenderer`, `registerTool`, `session_start`, `session_shutdown`, `agent_settled`, `isIdle`, and pending-message semantics
+- the installed Pi extension API type declarations and documentation needed to verify `sendMessage`, `registerMessageRenderer`, `registerTool`, `session_start`, `session_shutdown`, `agent_end`, `isIdle`, `hasPendingMessages`, and pending-message semantics
 
 Do not read or modify other files without reporting why this packet is insufficient. Do not expose shared secrets, private environment values, or test marker bodies outside the explicitly selected read-tool result and controlled acceptance assertions.
 
@@ -68,7 +68,7 @@ Do not read or modify other files without reporting why this packet is insuffici
 11. Register a custom `inter-agent-mailbox` message and renderer distinct from body-bearing `inter-agent-message`.
 12. Every emitted notice is a full metadata-only snapshot of the current unread set. Model-visible content includes total unread count and every unread ID and sender; kind plus channel may be included. Grouped sender counts may supplement but never replace complete selection metadata. Include neutral guidance that the read tool is available and the agent should decide whether reading advances current authorized work; never prescribe acknowledgment, reply, or another outbound action.
 13. Compact human rendering shows unread count grouped by sender. Expanded rendering lists every unread ID, sender, kind, and channel when present. Renderer details must contain metadata only, never bodies.
-14. Deliver notices with `deliverAs: "followUp"` and `triggerTurn: true`, never `steer` and never `ctx.abort()`. A notice provokes a metadata-only mailbox-awareness turn when Pi is idle. While Pi is active it waits until the current run and queued continuations settle. A burst waiting behind active work triggers at most one new turn; later complete snapshot metadata becomes non-triggering follow-up context rather than a separate turn trigger.
+14. Deliver notices with `deliverAs: "followUp"` and `triggerTurn: true`, never `steer` and never `ctx.abort()`. A notice provokes a metadata-only mailbox-awareness turn when Pi is idle. While Pi is active it waits until the current run and queued continuations settle. Coalesce a burst waiting behind active work to the latest complete mailbox snapshot and trigger exactly one later awareness turn; never enqueue stale intermediate snapshots.
 15. Configuration `interAgent.mailboxNoticeDebounceMs` accepts integers from 0 through 5000 inclusive; default is 0 and documented recommended opt-in is 200. It affects notice coalescing only, never storage.
 16. Debounce cancels/replaces the pending timer and retains only the latest complete mailbox snapshot. A burst awaiting notice delivery must not enqueue stale intermediate snapshots.
 17. Every timer and asynchronous delivery captures the current extension runtime generation and no-ops if stale after reload, session replacement, or shutdown. Clear all pending notice timers/work on `session_shutdown`.
@@ -118,6 +118,32 @@ Do not read or modify other files without reporting why this packet is insuffici
 36. Retain focused static assertions only for security and public tool/command surfaces where they add value. Do not replace behavior tests with large brittle source-string assertions.
 37. Add a package `test` command and ensure new test/config files are included in typechecking/format checks as appropriate. Keep new dependencies dev-only and update the lockfile if the manifest changes.
 38. Keep all changes inside the allowed-file boundary.
+
+## Reset continuation after leader review
+
+The original executor was intentionally stopped for a context reset. Its uncommitted work remains in the shared worktree. Resume it; do not replace, discard, or independently reimplement the existing mailbox architecture.
+
+### Current worktree state
+
+- Modified: `integrations/pi/.gitignore`, `integrations/pi/README.md`, `integrations/pi/package.json`, `integrations/pi/src/index.ts`, and `tests/test_pi_extension_static.py`.
+- New: `integrations/pi/src/mailbox.ts`, `integrations/pi/tsconfig.test.json`, and `integrations/pi/tests/mailbox.test.ts`.
+- `mailbox.ts` now partially exports `parseIncoming()` and `deriveInboundMetadata()` and requires `MailboxHost.hasPendingMessages()`, but `index.ts` and the test `FakeHost` do not implement that method yet. The current tree therefore does not typecheck.
+- The existing active-burst test encodes the rejected stale snapshots `[a]`, `[a,b]`, `[a,b,c]` and must be rewritten.
+- The previous 27 package tests, 75 focused tests, and 477-test full gate passed before these partial edits and are not verification of the current worktree.
+- Generated `dist/` and `dist-tests/` output was removed. No implementation commit exists.
+
+### Required continuation order
+
+1. Restore compilability first by wiring `hasPendingMessages()` in the real mailbox host and `FakeHost`. Run package typecheck before broader edits.
+2. Replace `pendingNotices: MailboxSnapshot[]` with one generation-scoped pending-notice state. On flush, rebuild from the current mailbox and emit at most one latest complete snapshot with one trigger. If reads emptied the mailbox before flush, emit nothing. Test three active arrivals and read/removal before flush.
+3. Wire the exported inbound parser/metadata helper into `index.ts` and remove duplicate inline parsing. A malformed ID must `continue` the per-line loop so a later valid frame in the same stdout chunk is still handled.
+4. Derive inbound kind in this order: channel, direct target, otherwise broadcast. Preserve exact existing body/guidance formatting: broadcast `toInfo` is `via broadcast`, not `broadcast`, so broadcast guidance remains distinct and no `to undefined` appears.
+5. Restore the existing bounded body notification in immediate mode. Queued notifications remain metadata-only. Test both sides of that boundary.
+6. The declared Pi development API is `@mariozechner/pi-coding-agent` 0.72.1 and has no `agent_settled` event. Do not invent that event or change package dependencies solely for it. Use supported `agent_end`, `ctx.isIdle()`, and `ctx.hasPendingMessages()` semantics: schedule one generation-safe deferred settlement check after `agent_end`; flush only when idle with no queued messages. If work remains, do not poll indefinitely—let the final later `agent_end` schedule the next check. Test multiple queued continuations, exactly one final flush, and shutdown before the deferred check.
+7. Do not add a mailbox `reconnect()` method merely to prove preservation. Listener stop/start within the same extension runtime preserves mailbox state because neither operation clears the dispatcher; behavior-test that invariant without changing transport reconnect behavior.
+8. Add package-local behavior coverage for global-then-project config precedence, exactly-once invalid-key warnings after UI context, session command override, and listener disconnect/reconnect preservation. Use `integrations/pi/tests/extension-mailbox.test.ts` if real extension wiring needs a separate fake-Pi harness.
+9. Update README wording and static assertions to match the corrected latest-snapshot, immediate-notification, broadcast, and settlement behavior. The future item-8b reload task will preserve unread state across `/reload`; this item retains its currently locked clear-on-shutdown behavior and must not implement the future handoff early.
+10. Run every packet check against the final worktree, remove generated output, and report exact results. Do not commit.
 
 ## Acceptance criteria
 
