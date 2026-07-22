@@ -7,6 +7,7 @@ Connect each Pi session once, then Pi can use the extension tools to send messag
 ## Features
 
 - **Background listener** — Stay connected to the bus and receive messages as Pi notifications, with automatic reconnection if the server restarts
+- **Queued mailbox** — Inbound direct, broadcast, and channel bodies queue by default in a bounded 128-entry in-memory mailbox; the agent reads them on demand with `inter_agent_read_messages`, or switch to immediate delivery with `/inter-agent delivery immediate`
 - **Commands** — Connect, disconnect, rename, send, broadcast, publish, channels, subscribe, unsubscribe, list, and status
 - **Channels** — User-controlled pub/sub: subscribe, unsubscribe, and publish through explicit slash commands; channel deliveries are shown as channel messages, not direct or broadcast
 - **Tools** — LLM-callable tools for send, broadcast, list, status, and local identity
@@ -110,7 +111,9 @@ You can override the inter-agent project path, endpoint, and TLS settings in you
     "secret": "high-entropy-shared-secret",
     "tls": false,
     "tlsCert": "/path/to/tls-cert.pem",
-    "tlsKey": "/path/to/tls-key.pem"
+    "tlsKey": "/path/to/tls-key.pem",
+    "deliveryMode": "queued",
+    "mailboxNoticeDebounceMs": 0
   }
 }
 ```
@@ -124,6 +127,22 @@ Project settings (`.pi/settings.json`) override global settings (`~/.pi/agent/se
 `tls` enables (`true`) or disables (`false`) WebSocket TLS. Loopback hosts default to plaintext unless TLS is explicitly enabled; non-loopback hosts default to TLS unless explicitly disabled. `tlsCert` and `tlsKey` override the generated default certificate and key in `dataDir`. If TLS is enabled and no certificate/key is configured, the server generates `tls-cert.pem` and `tls-key.pem` in `dataDir` with restrictive permissions, and clients trust that generated certificate or the configured `tlsCert`. These settings are passed to helpers as `INTER_AGENT_TLS`, `INTER_AGENT_TLS_CERT`, and `INTER_AGENT_TLS_KEY` when set.
 
 `projectPath` and `dataDir` may be absolute or relative. Relative paths are resolved relative to the settings file that declares them. For example, from `/workspace/.pi/settings.json`, use `../projects/inter-agent` for `/workspace/projects/inter-agent`. From `~/.pi/agent/settings.json`, relative paths are anchored at `~/.pi/agent/`. `~` is also supported.
+
+`deliveryMode` selects how inbound direct, broadcast, and channel bodies reach the model. `"queued"` (the default) stores bodies in a bounded in-memory mailbox for the current Pi extension session and emits metadata-only notices so the agent can keep working and read them on demand. `"immediate"` delivers bodies as follow-up context and shows the bounded body in the ordinary Pi notification. An invalid value falls back to `"queued"` and shows one bounded warning after UI context is available.
+
+`mailboxNoticeDebounceMs` coalesces mailbox notices when several messages arrive close together. It accepts integers from `0` through `5000` inclusive; the default is `0`, and the recommended opt-in is `200`. Debounce affects notice coalescing only, never storage, and only applies to queued mode. An invalid value falls back to `0` and shows one bounded warning.
+
+## Queued mailbox and delivery
+
+Inbound inter-agent bodies are queued by default so a receiving agent can continue its own reasoning and decide when to read peer messages. Mailbox state lives only in TypeScript extension memory for the current Pi extension session: it survives listener disconnect/reconnect within the same session, and clears on Pi session/process replacement, extension reload, or shutdown.
+
+The mailbox holds at most 128 unread messages in arrival order. On the 129th unread arrival the oldest unread message is evicted and one bounded, body-free warning is shown. Messages are selected by the server-issued `msg_id`; inbound frames without a non-empty `msg_id` are dropped with a warning, and a duplicate live `msg_id` keeps the first body and warns rather than overwriting it.
+
+Queued notices are metadata-only: they include the total unread count and every unread message ID, sender, and kind (plus channel when present), but never the body. A notice provokes one non-steering mailbox-awareness turn (delivered as `followUp` context, never `steer` and never aborting the active run) so the agent can decide whether reading advances the current work; the guidance does not prescribe a reply, acknowledgment, or outbound action. While Pi is active, a burst holds one pending notice. After `agent_end`, a deferred check flushes only when Pi is idle with no queued continuations; it then emits one latest complete snapshot with one trigger. If reads empty the mailbox before that flush, it emits no notice; if work remains, the final later `agent_end` performs the next check.
+
+Read queued bodies with the `inter_agent_read_messages` tool. With no `ids` it reads and removes all unread messages; with `ids` it returns the valid requested messages in arrival order and reports any missing or already-read IDs without failing the call. An explicitly empty `ids` array selects nothing. Reading never sends, replies, subscribes, publishes, or triggers any peer action; tool results remain in ordinary Pi history as the durable record of explicitly read bodies.
+
+Use `/inter-agent delivery <queued|immediate>` to change delivery for the current session only; it does not rewrite settings and affects future arrivals only, leaving existing unread messages queued. Immediate mode preserves direct `to <name>`, broadcast `via broadcast`, and channel `on <channel>` formatting plus reply-decision guidance, shows a bounded body notification, and delivers bodies with non-steering follow-up delivery. While Pi is active, immediate bodies wait for the same idle, no-pending-continuation settlement check; a burst waiting behind one active run triggers at most one new turn, and remaining bodies become follow-up context rather than separate turn triggers. Switching back to queued routes future arrivals to the mailbox again.
 
 ## Startup identity
 
@@ -160,6 +179,7 @@ All inter-agent commands are grouped under `/inter-agent`. Type `/inter-agent ` 
 | `unsubscribe` | `/inter-agent unsubscribe <channel>`            | Unsubscribe from a channel (requires connection; user-only)               |
 | `list`        | `/inter-agent list`                             | List connected sessions (read-only; works before Pi connects)             |
 | `status`      | `/inter-agent status`                           | Check server status                                                       |
+| `delivery`    | `/inter-agent delivery <queued\|immediate>`     | Toggle queued (default) or immediate delivery for the current session     |
 
 `send`, `broadcast`, and `publish` automatically use the current Pi connection name as the sender. `subscribe` and `unsubscribe` operate on the current Pi listener's live session and pass its routing name internally; you never provide or manage the listener name. `channels` is read-only and does not require an active Pi listener; it uses a short-lived authenticated connection to the configured server.
 
@@ -179,13 +199,14 @@ Channels are user-controlled pub/sub. Subscribe to a named channel to receive me
 
 Tools are agent-callable; they are not user-facing slash commands.
 
-| Tool                    | Description                                                      |
-| ----------------------- | ---------------------------------------------------------------- |
-| `inter_agent_send`      | Send a direct message to a routing name                          |
-| `inter_agent_broadcast` | Broadcast only when the user explicitly asks to message everyone |
-| `inter_agent_list`      | List connected agent sessions                                    |
-| `inter_agent_whoami`    | Report this Pi session's local identity                          |
-| `inter_agent_status`    | Check server availability                                        |
+| Tool                        | Description                                                      |
+| --------------------------- | ---------------------------------------------------------------- |
+| `inter_agent_send`          | Send a direct message to a routing name                          |
+| `inter_agent_read_messages` | Read and remove queued inter-agent messages from the mailbox     |
+| `inter_agent_broadcast`     | Broadcast only when the user explicitly asks to message everyone |
+| `inter_agent_list`          | List connected agent sessions                                    |
+| `inter_agent_whoami`        | Report this Pi session's local identity                          |
+| `inter_agent_status`        | Check server availability                                        |
 
 ## Troubleshooting
 
@@ -329,7 +350,13 @@ To verify the extension works end-to-end:
    - `/inter-agent rename test-agent-2` → should reconnect under the new name
    - `/inter-agent disconnect` → should show "disconnected"
 
-4. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a Pi notification.
+   Then verify queued mailbox behavior:
+   - With the receiver in default queued mode, send a direct, broadcast, and channel message from another session. Confirmed queued notices show IDs/senders/kinds but not the bodies.
+   - `/inter-agent delivery immediate` → future bodies arrive immediately as follow-up; existing unread messages stay queued.
+   - `/inter-agent delivery queued` → future bodies queue again.
+   - Disconnect and reconnect the listener; unread mailbox state survives within the session. Reload or replace the Pi session and mailbox state clears; previously shown IDs read as missing.
+
+4. **Verify incoming messages**: In another terminal, connect a second agent and send a message to `test-agent`. You should see a metadata-only Pi notification (count, sender, and message ID), not the body. Use `inter_agent_read_messages` (no arguments) to read and remove the queued body.
 
 5. **Verify channel delivery**: Subscribe a second session to `updates`, then run `/inter-agent publish updates "hello channel"` in Pi. The second subscriber should receive a channel-specific notification labeled `on updates`; Pi should show publication success and an `on updates` outbound-history entry, while the publisher receives no copy. Run `/inter-agent unsubscribe updates`, publish again after all subscribers leave, and confirm `UNKNOWN_CHANNEL`. Confirm `/inter-agent channels` reports `updates` and the subscriber routing name, then reports no channels after the last unsubscribe. Confirm the tool list does not contain publish, channels, subscribe, or unsubscribe tools. Subscriptions do not persist across `/inter-agent disconnect` or a listener restart; re-subscribe after these.
 

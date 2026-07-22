@@ -6,8 +6,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PI_EXTENSION = ROOT / "integrations" / "pi" / "src" / "index.ts"
+MAILBOX_SOURCE = ROOT / "integrations" / "pi" / "src" / "mailbox.ts"
 ROOT_PACKAGE = ROOT / "package.json"
 PI_PACKAGE = ROOT / "integrations" / "pi" / "package.json"
+PI_TSCONFIG_TEST = ROOT / "integrations" / "pi" / "tsconfig.test.json"
 
 
 def test_pi_extension_auto_starts_server_with_bounded_idle_timeout() -> None:
@@ -30,7 +32,7 @@ def test_pi_extension_listener_uses_adapter_connect_entry_point() -> None:
     # with "not connected; start the listener first".
     listener_body = content.split("function startListener", 1)[1]
     listener_body = listener_body.split("function stopListener", 1)[0]
-    assert "spawn(scripts.pi, args" in listener_body
+    assert "spawnChildProcess(scripts.pi, args" in listener_body
     assert 'const args = ["connect", name];' in listener_body
     assert "scripts.connect" not in listener_body
 
@@ -304,7 +306,7 @@ def test_pi_extension_registers_user_publish_command() -> None:
     assert 'value: "publish"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "publish|channels|subscribe|unsubscribe|list|status> [args]"
+        "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
     assert 'case "publish":' in content
     assert "async function handlePublish" in content
@@ -329,7 +331,7 @@ def test_pi_extension_registers_read_only_channels_command() -> None:
     assert 'value: "channels"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "publish|channels|subscribe|unsubscribe|list|status> [args]"
+        "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
     assert 'case "channels":' in content
     assert "async function handleChannels" in content
@@ -353,7 +355,7 @@ def test_pi_extension_registers_read_only_list_command() -> None:
     assert 'value: "list"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "publish|channels|subscribe|unsubscribe|list|status> [args]"
+        "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
     assert 'case "list":' in content
     assert "async function handleList" in content
@@ -401,7 +403,7 @@ def test_pi_extension_registers_user_subscription_commands() -> None:
     assert 'value: "unsubscribe"' in content
     assert (
         "usage: /inter-agent <connect|disconnect|rename|send|broadcast|"
-        "publish|channels|subscribe|unsubscribe|list|status> [args]"
+        "publish|channels|subscribe|unsubscribe|list|status|delivery> [args]"
     ) in content
 
     # Both subcommands are dispatched from the grouped command handler.
@@ -436,12 +438,13 @@ def test_pi_extension_registers_user_subscription_commands() -> None:
 
 def test_pi_extension_distinguishes_inbound_channel_delivery() -> None:
     content = PI_EXTENSION.read_text(encoding="utf-8")
+    mailbox_src = MAILBOX_SOURCE.read_text(encoding="utf-8")
 
-    # A channel delivery is identified by its `channel` field and rendered with
-    # an `on <channel>` label, distinct from direct (`to <name>`) and broadcast
-    # notifications.
-    assert "msg.channel" in content
-    assert "`on ${msg.channel}`" in content
+    # Shared inbound metadata identifies a channel delivery and labels it
+    # `on <channel>`, distinct from direct (`to <name>`) and broadcast frames.
+    assert "deriveInboundMetadata(msg)" in content
+    assert 'typeof msg.channel === "string"' in mailbox_src
+    assert "`on ${channel}`" in mailbox_src
 
     # Channel messages get distinct reply guidance that does not reuse the
     # direct or broadcast instructions, while preserving untrusted-peer and
@@ -611,3 +614,152 @@ def test_pi_extension_omitted_flag_preserves_existing_reconnect_behavior() -> No
     flag_branch = session_start_body.split("if (flagPresent)", 1)[1]
     flag_branch = flag_branch.split("\n    const state = getConnectionState(ctx);", 1)[0]
     assert "return;" in flag_branch
+
+
+def test_pi_extension_queues_direct_broadcast_channel_bodies_by_default() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # Queued is the default delivery mode and direct/broadcast/channel frames
+    # are routed through the mailbox dispatcher instead of immediate delivery.
+    assert 'export type DeliveryMode = "queued" | "immediate";' in MAILBOX_SOURCE.read_text(
+        encoding="utf-8"
+    )
+    assert 'export type MessageKind = "direct" | "broadcast" | "channel";' in (
+        MAILBOX_SOURCE.read_text(encoding="utf-8")
+    )
+    assert "mailboxController?.deliverInbound(" in content
+    assert "const initialMode = effectiveDeliveryMode(" in content
+    # Immediate delivery is opt-in; the default is metadata-only queueing.
+    assert 'mailboxController?.getDeliveryMode() ?? "queued"' in content
+
+
+def test_pi_extension_registers_delivery_mode_command() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'value: "delivery"' in content
+    assert 'case "delivery":' in content
+    assert "async function handleDelivery" in content
+    assert "usage: /inter-agent delivery <queued|immediate>" in content
+    assert "mailbox.setDeliveryMode(mode)" in content
+    # Changing mode does not rewrite settings and affects future arrivals only.
+    assert "already queued are left unchanged" in content
+
+    # Delivery-mode autocomplete offers the two modes.
+    completion_body = content.split('prefix.startsWith("delivery ")', 1)[1]
+    completion_body = completion_body.split("INTER_AGENT_SUBCOMMANDS.filter", 1)[0]
+    assert '"queued"' in completion_body
+    assert '"immediate"' in completion_body
+
+
+def test_pi_extension_registers_inter_agent_read_messages_tool() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    assert 'name: "inter_agent_read_messages"' in content
+    assert "Read and remove queued inter-agent messages" in content
+    # The read tool never sends, replies, publishes, or triggers a peer action.
+    assert "Reading never sends, replies," in content
+    assert "subscribes, publishes, or triggers any peer action." in content
+
+    tool_body = content.split('name: "inter_agent_read_messages"', 1)[1]
+    tool_body = tool_body.split("pi.registerTool", 1)[0]
+    # ids is an optional array of non-empty strings, bounded by mailbox size.
+    assert "Type.Optional(" in tool_body
+    assert "Type.Array(Type.String({ minLength: 1 })" in tool_body
+    assert "maxItems: MAILBOX_MAX_UNREAD" in tool_body
+    assert "uniqueItems: true" in tool_body
+    assert "const result = mailbox.read(ids)" in tool_body
+    # The read tool performs no outbound action.
+    assert "inter_agent_send" not in tool_body
+    assert "showOutgoingInContext" not in tool_body
+
+
+def test_pi_extension_registers_metadata_only_mailbox_notice() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+
+    # The mailbox notice is a distinct custom message/renderer from bodies.
+    assert 'pi.registerMessageRenderer<MailboxSnapshot>(\n    "inter-agent-mailbox"' in content
+    assert '"inter-agent-mailbox"' in content
+
+    # Queued notices provoke a metadata-only mailbox-awareness turn using
+    # non-steering follow-up delivery; steer/abort are gone entirely.
+    notice_body = content.split("sendNotice: (message, triggerTurn)", 1)[1]
+    notice_body = notice_body.split("notifyWarning", 1)[0]
+    assert 'deliverAs: "followUp"' in notice_body
+    assert 'deliverAs: "nextTurn"' not in content
+    assert 'deliverAs: "steer"' not in content
+    assert "ctx.abort()" not in content
+
+    # Immediate bodies use the same non-steering follow-up delivery.
+    immediate_body = content.split("sendImmediate: (message, triggerTurn)", 1)[1]
+    immediate_body = immediate_body.split("notifyWarning", 1)[0]
+    assert 'deliverAs: "followUp"' in immediate_body
+
+    # Notice guidance neutrally leaves the read decision to the agent without
+    # prescribing acknowledgment, reply, or outbound action.
+    mailbox_src = MAILBOX_SOURCE.read_text(encoding="utf-8")
+    assert "Decide for yourself whether reading" in mailbox_src
+    assert "does not require a reply, acknowledgment, or any outbound action" in mailbox_src
+
+    # Queued notifications remain metadata-only, while immediate mode restores
+    # the bounded body notification. Shared parsing continues after malformed
+    # frames so later lines in the same chunk still reach the mailbox.
+    msg_body = content.split('if (msg.op === "msg")', 1)[1]
+    msg_body = msg_body.split("} catch", 1)[0]
+    assert "const meta = deriveInboundMetadata(msg)" in msg_body
+    assert "dropped an inbound message without a valid msg_id" in msg_body
+    assert "continue;" in msg_body
+    assert 'mode === "immediate" ? meta.body : "queued in mailbox"' in msg_body
+
+    # Inbound broadcast formatting remains distinct from direct delivery.
+    assert 'if (toInfo === "via broadcast")' in content
+    assert ': "via broadcast"' in mailbox_src
+
+
+def test_pi_extension_supports_mailbox_configuration_keys() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+    mailbox_src = MAILBOX_SOURCE.read_text(encoding="utf-8")
+
+    assert "deliveryMode?: string;" in content
+    assert "mailboxNoticeDebounceMs?: number;" in content
+    assert "initialMode = effectiveDeliveryMode(config.deliveryMode)" in content
+    assert "initialDebounce = effectiveDebounceMs(config.mailboxNoticeDebounceMs)" in content
+    # Invalid configured keys warn exactly once after UI context exists.
+    assert "modeConfiguredInvalid" in content
+    assert "debounceConfiguredInvalid" in content
+    assert "warnedInvalidMode" in content
+    assert "warnedInvalidDebounce" in content
+
+    # Debounce bounds are 0 through 5000 inclusive with default 0.
+    assert "MAILBOX_NOTICE_DEBOUNCE_MS_DEFAULT = 0" in mailbox_src
+    assert "MAILBOX_NOTICE_DEBOUNCE_MS_MAX = 5000" in mailbox_src
+    assert "MAILBOX_MAX_UNREAD = 128" in mailbox_src
+
+
+def test_pi_extension_defers_mailbox_settlement_until_idle_without_pending_messages() -> None:
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+    mailbox_src = MAILBOX_SOURCE.read_text(encoding="utf-8")
+
+    # Pi 0.72.1 supplies agent_end, isIdle(), and hasPendingMessages(), not an
+    # invented agent_settled event. agent_end schedules one deferred check.
+    assert 'pi.on("agent_end", async ()' in content
+    assert "mailbox.scheduleSettlement()" in content
+    assert "agent_settled" not in content
+    assert "hasPendingMessages: () => currentCtx?.hasPendingMessages() ?? false" in content
+    assert "scheduleSettlement(): void" in mailbox_src
+    assert "this.host.hasPendingMessages()" in mailbox_src
+    assert "this.flushImmediate()" in mailbox_src
+    assert "this.flushNotices()" in mailbox_src
+    # Shutdown clears mailbox state and pending work.
+    assert "mailbox.shutdown()" in content
+
+
+def test_pi_package_has_test_script_and_test_tsconfig() -> None:
+    manifest = json.loads(PI_PACKAGE.read_text(encoding="utf-8"))
+
+    assert "test" in manifest["scripts"]
+    assert "tsc -p tsconfig.test.json" in manifest["scripts"]["test"]
+    assert "node --test --test-concurrency=1" in manifest["scripts"]["test"]
+    assert PI_TSCONFIG_TEST.exists()
+    cfg = json.loads(PI_TSCONFIG_TEST.read_text(encoding="utf-8"))
+    assert "src/**/*.ts" in cfg["include"]
+    assert "tests/**/*.ts" in cfg["include"]

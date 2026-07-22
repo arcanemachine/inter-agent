@@ -24,9 +24,33 @@ import type { AutocompleteItem, Component } from "@mariozechner/pi-tui";
 import { Box, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { spawn, ChildProcess } from "node:child_process";
+
+// Test seam: production uses Node's `spawn`; behavior tests inject a fake
+// factory to drive listener stdout without a real bus. Keep the default so the
+// real runtime is unchanged.
+let spawnChildProcess: typeof spawn = spawn;
+
+/** @internal Replace the child process factory for behavior tests. */
+export function _setSpawnForTest(impl: typeof spawn | null): void {
+  spawnChildProcess = impl ?? spawn;
+}
 import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
+
+import {
+  MAILBOX_MAX_UNREAD,
+  MAILBOX_NOTICE_DEBOUNCE_MS_DEFAULT,
+  MailboxDispatcher,
+  buildNoticeCompact,
+  buildNoticeExpanded,
+  deriveInboundMetadata,
+  effectiveDeliveryMode,
+  effectiveDebounceMs,
+  isValidDebounceMs,
+  isValidDeliveryMode,
+} from "./mailbox.js";
+import type { InboundImmediateMessage, MailboxSnapshot } from "./mailbox.js";
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
@@ -40,6 +64,8 @@ interface InterAgentConfig {
   tls?: boolean | string;
   tlsCert?: string;
   tlsKey?: string;
+  deliveryMode?: string;
+  mailboxNoticeDebounceMs?: number;
 }
 
 interface Settings {
@@ -257,7 +283,6 @@ const SERVER_START_WAIT_ATTEMPTS = 30;
 const SERVER_START_WAIT_MS = 500;
 const LISTENER_STOP_SIGTERM_TIMEOUT_MS = 2000;
 const LISTENER_STOP_SIGKILL_TIMEOUT_MS = 2000;
-
 // ── State ───────────────────────────────────────────────────────────────────
 
 interface ConnectionState {
@@ -282,6 +307,7 @@ let messageBuffer = "";
 let listenerReady = false;
 let currentConnection: ConnectionState | null = null;
 let activeStop: Promise<boolean> | null = null;
+let mailboxController: MailboxDispatcher | null = null;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -349,16 +375,6 @@ function messageSummary(details: {
   return null;
 }
 
-const FROM_PREFIX_RE = /^\[from: ([^\]]+)\] ?/;
-
-function parseIncoming(text: string): { from: string | null; text: string } {
-  const match = text.match(FROM_PREFIX_RE);
-  if (match) {
-    return { from: match[1], text: text.slice(match[0].length) };
-  }
-  return { from: null, text };
-}
-
 function getConnectionState(ctx: ExtensionContext): ConnectionState | null {
   const branch = ctx.sessionManager.getBranch();
   for (let i = branch.length - 1; i >= 0; i--) {
@@ -382,43 +398,40 @@ function notify(
   currentCtx?.ui.notify(truncate(`${title}: ${body}`, NOTIFY_MAX_LEN), type);
 }
 
-function sendToContext(
-  pi: ExtensionAPI,
+// Build an inbound peer body as a custom `inter-agent-message` payload. The
+// content carries the body plus bounded reply-decision guidance; the display
+// content is the clean body shown in the TUI. Immediate delivery reuses this
+// builder so direct/broadcast/channel formatting and guidance stay identical.
+function buildInboundMessage(
   from: string,
   text: string,
   toInfo: string,
-) {
+): InboundImmediateMessage {
   const noReplyGuidance =
     "If no peer reply or user-facing action is needed, do not send a courtesy reply or discuss the message solely to acknowledge it.";
   const isChannel = toInfo.startsWith("on ");
   let replyInstruction: string;
-  if (toInfo === "broadcast") {
+  if (toInfo === "via broadcast") {
     replyInstruction = `Peer broadcast. Reply directly to ${from} only with inter_agent_send if it advances work or coordination, or to satisfy a request from the user; do not broadcast unless the user asks. ${noReplyGuidance}`;
   } else if (isChannel) {
     replyInstruction = `Peer channel message ${toInfo}. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination; there is no publish tool, so reply directly rather than reposting to the channel. ${noReplyGuidance}`;
   } else {
     replyInstruction = `Peer message. Reply to ${from} only with inter_agent_send, and only if it advances work or coordination. ${noReplyGuidance}`;
   }
-  pi.sendMessage(
-    {
-      customType: "inter-agent-message",
-      content: `[inter-agent message from agent ${from} ${toInfo}]
+  const content = `[inter-agent message from agent ${from} ${toInfo}]
 
 ${text}
 
-${replyInstruction}`,
-      display: true,
-      details: {
-        from,
-        text,
-        toInfo,
-        displayContent: `[inter-agent message from agent ${from} ${toInfo}]
+${replyInstruction}`;
+  const displayContent = `[inter-agent message from agent ${from} ${toInfo}]
 
-${text}`,
-      },
-    },
-    { triggerTurn: true, deliverAs: "steer" },
-  );
+${text}`;
+  return {
+    customType: "inter-agent-message",
+    content,
+    display: true,
+    details: { from, text, toInfo, displayContent },
+  };
 }
 
 function showOutgoingInContext(
@@ -455,7 +468,7 @@ ${text}`,
 function execScript(script: string, args: string[]): Promise<ScriptResult> {
   return new Promise((resolve) => {
     const env = interAgentEnv();
-    const proc = spawn(script, args, {
+    const proc = spawnChildProcess(script, args, {
       stdio: ["ignore", "pipe", "pipe"],
       shell: false,
       env,
@@ -584,7 +597,7 @@ function startServerProcess(
       }
     };
 
-    const proc = spawn(
+    const proc = spawnChildProcess(
       scripts.server,
       ["--idle-timeout", String(AUTO_STARTED_SERVER_IDLE_TIMEOUT_S)],
       {
@@ -808,7 +821,7 @@ async function startListener(
   const args = ["connect", name];
   if (label) args.push("--label", label);
 
-  const proc = spawn(scripts.pi, args, {
+  const proc = spawnChildProcess(scripts.pi, args, {
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
     env: interAgentEnv(config),
@@ -870,18 +883,38 @@ async function startListener(
           continue;
         }
         if (msg.op === "msg") {
-          const fromRaw = msg.from_name || msg.from || "unknown";
-          const textRaw = msg.text || "";
-          const toInfo = msg.channel
-            ? `on ${msg.channel}`
-            : msg.to
-              ? `to ${msg.to}`
-              : "broadcast";
-          const parsed = parseIncoming(textRaw);
-          const from = parsed.from || fromRaw;
-          const text = parsed.text;
-          notify(`[inter-agent] ${from} ${toInfo}`, text);
-          sendToContext(pi, from, text, toInfo);
+          // Use the shared inbound parser so kind/toInfo derivation and the
+          // `[from: name]` prefix handling stay consistent with the mailbox.
+          // A malformed frame continues the per-line loop so a later valid
+          // frame in the same stdout chunk is still handled.
+          const meta = deriveInboundMetadata(msg);
+          if (!meta) {
+            notify(
+              "[inter-agent] mailbox",
+              "dropped an inbound message without a valid msg_id",
+              "warning",
+            );
+            continue;
+          }
+          const mode = mailboxController?.getDeliveryMode() ?? "queued";
+          // Queued notifications are metadata only; immediate mode restores the
+          // existing bounded body notification (truncated inside `notify`).
+          notify(
+            `[inter-agent] ${meta.sender} ${meta.toInfo}`,
+            mode === "immediate" ? meta.body : "queued in mailbox",
+          );
+          mailboxController?.deliverInbound({
+            msgId: meta.msgId,
+            sender: meta.sender,
+            body: meta.body,
+            kind: meta.kind,
+            channel: meta.channel,
+            target: meta.target,
+            immediateMessage:
+              mode === "immediate"
+                ? buildInboundMessage(meta.sender, meta.body, meta.toInfo)
+                : undefined,
+          });
         }
       } catch {
         // Ignore non-JSON lines
@@ -1089,6 +1122,37 @@ export default function (pi: ExtensionAPI) {
   const config = loadConfig();
   const currentScripts = () => getScripts(config);
 
+  // ── Mailbox state and delivery ───────────────────────────────
+  const initialMode = effectiveDeliveryMode(config.deliveryMode);
+  const initialDebounce = effectiveDebounceMs(config.mailboxNoticeDebounceMs);
+  const modeConfiguredInvalid =
+    config.deliveryMode !== undefined &&
+    !isValidDeliveryMode(config.deliveryMode);
+  const debounceConfiguredInvalid =
+    config.mailboxNoticeDebounceMs !== undefined &&
+    !isValidDebounceMs(config.mailboxNoticeDebounceMs);
+  let warnedInvalidMode = false;
+  let warnedInvalidDebounce = false;
+
+  const mailbox = new MailboxDispatcher(
+    {
+      isIdle: () => currentCtx?.isIdle() ?? true,
+      hasPendingMessages: () => currentCtx?.hasPendingMessages() ?? false,
+      sendNotice: (message, triggerTurn) =>
+        pi.sendMessage(message, { triggerTurn, deliverAs: "followUp" }),
+      sendImmediate: (message, triggerTurn) =>
+        pi.sendMessage(message, { triggerTurn, deliverAs: "followUp" }),
+      notifyWarning: (body) => notify("[inter-agent] mailbox", body, "warning"),
+      schedule: (fn, ms) => {
+        const handle = setTimeout(fn, ms);
+        return () => clearTimeout(handle);
+      },
+    },
+    initialMode,
+    initialDebounce,
+  );
+  mailboxController = mailbox;
+
   // ── Custom message renderer ──────────────────────────────────────────────
   // Show a clean, user-facing summary in the TUI (from details.displayContent)
   // while the full `content` (with internal agent instructions) goes to the LLM.
@@ -1134,6 +1198,45 @@ export default function (pi: ExtensionAPI) {
     return box as unknown as Component;
   });
 
+  // Metadata-only mailbox notice renderer. Compact rendering shows unread
+  // counts grouped by sender; expanded rendering lists every unread ID, sender,
+  // kind, and channel. Details never contain bodies.
+  pi.registerMessageRenderer<MailboxSnapshot>(
+    "inter-agent-mailbox",
+    (message, { expanded }, theme) => {
+      const snap =
+        typeof message.details === "object" && message.details !== null
+          ? (message.details as MailboxSnapshot)
+          : { unread: 0, messages: [], bySender: [] };
+      const box = new Box(1, 1, (t) => theme.bg("customMessageBg", t));
+      box.addChild(
+        new Text(
+          theme.fg(
+            "customMessageLabel",
+            `\x1b[1m[inter-agent-mailbox]\x1b[22m`,
+          ),
+          0,
+          0,
+        ),
+      );
+      box.addChild(new Spacer(1));
+      if (expanded) {
+        box.addChild(
+          new Text(
+            theme.fg("customMessageText", buildNoticeExpanded(snap).join("\n")),
+            0,
+            0,
+          ),
+        );
+      } else {
+        box.addChild(
+          new Text(theme.fg("muted", buildNoticeCompact(snap)), 0, 0),
+        );
+      }
+      return box as unknown as Component;
+    },
+  );
+
   // Register the startup routing-name flag during extension factory so Pi
   // exposes `pi --inter-agent <name>`. The value is only available later, at
   // `session_start`.
@@ -1148,6 +1251,23 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
     currentCtx = ctx;
 
+    // Warn exactly once per invalid configured key once UI context exists.
+    if (modeConfiguredInvalid && !warnedInvalidMode) {
+      warnedInvalidMode = true;
+      notify(
+        "[inter-agent] config",
+        `interAgent.deliveryMode ${JSON.stringify(config.deliveryMode)} is invalid; using "queued"`,
+        "warning",
+      );
+    }
+    if (debounceConfiguredInvalid && !warnedInvalidDebounce) {
+      warnedInvalidDebounce = true;
+      notify(
+        "[inter-agent] config",
+        `interAgent.mailboxNoticeDebounceMs is invalid; using ${MAILBOX_NOTICE_DEBOUNCE_MS_DEFAULT} ms`,
+        "warning",
+      );
+    }
     // Prefer an explicit --inter-agent flag over any transcript-restored
     // connection state. The flag is reapplied on every session_start reason
     // (startup, reload, new, resume, fork) so the worker identity stays
@@ -1214,6 +1334,7 @@ export default function (pi: ExtensionAPI) {
     } else {
       await stopListener();
     }
+    mailbox.shutdown();
     currentCtx = null;
   });
 
@@ -1231,6 +1352,14 @@ export default function (pi: ExtensionAPI) {
     return {
       systemPrompt: event.systemPrompt + instruction,
     };
+  });
+
+  // When the agent run ends, schedule one deferred settlement check. It flushes
+  // waiting immediate bodies and at most one latest mailbox notice only once Pi
+  // is idle with no queued continuation messages; otherwise the final later
+  // `agent_end` schedules the next check. Never steers or aborts the run.
+  pi.on("agent_end", async () => {
+    mailbox.scheduleSettlement();
   });
 
   // ── Commands ──────────────────────────────────────────────────────────────
@@ -1279,6 +1408,11 @@ export default function (pi: ExtensionAPI) {
       value: "status",
       label: "status",
       description: "Check server status",
+    },
+    {
+      value: "delivery",
+      label: "delivery",
+      description: "Set queued or immediate message delivery",
     },
   ];
 
@@ -1600,6 +1734,25 @@ export default function (pi: ExtensionAPI) {
     notify("[inter-agent] unsubscribed", channel);
   }
 
+  async function handleDelivery(args: string, _ctx: ExtensionContext) {
+    const mode = args.trim();
+    if (mode !== "queued" && mode !== "immediate") {
+      notify(
+        "[inter-agent] delivery failed",
+        "usage: /inter-agent delivery <queued|immediate>",
+        "error",
+      );
+      return;
+    }
+    mailbox.setDeliveryMode(mode);
+    notify(
+      "[inter-agent] delivery",
+      `future arrivals will be delivered ${
+        mode === "immediate" ? "immediately" : "into the mailbox queue"
+      }; ${mailbox.size} unread message(s) already queued are left unchanged`,
+    );
+  }
+
   async function handleList(_args: string, _ctx: ExtensionContext) {
     const result = await execPiScript(currentScripts(), ["list", "--json"]);
     if (result.code !== 0) {
@@ -1652,7 +1805,7 @@ export default function (pi: ExtensionAPI) {
   function showInterAgentUsage() {
     notify(
       "[inter-agent] usage",
-      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|publish|channels|subscribe|unsubscribe|list|status> [args]",
+      "usage: /inter-agent <connect|disconnect|rename|send|broadcast|publish|channels|subscribe|unsubscribe|list|status|delivery> [args]",
       "warning",
     );
   }
@@ -1660,6 +1813,19 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("inter-agent", {
     description: "Inter-agent bus commands",
     getArgumentCompletions: (prefix: string): AutocompleteItem[] | null => {
+      if (prefix.startsWith("delivery ")) {
+        const valuePrefix = prefix.slice("delivery ".length);
+        return ["queued", "immediate"]
+          .filter((v) => v.startsWith(valuePrefix))
+          .map((v) => ({
+            value: v,
+            label: v,
+            description:
+              v === "queued"
+                ? "Queue new bodies into the mailbox (default)"
+                : "Deliver new bodies immediately",
+          }));
+      }
       const filtered = INTER_AGENT_SUBCOMMANDS.filter((s) =>
         s.value.startsWith(prefix),
       );
@@ -1706,6 +1872,9 @@ export default function (pi: ExtensionAPI) {
           break;
         case "status":
           await handleStatus(rest, ctx);
+          break;
+        case "delivery":
+          await handleDelivery(rest, ctx);
           break;
         default:
           showInterAgentUsage();
@@ -1880,6 +2049,64 @@ export default function (pi: ExtensionAPI) {
       } catch {
         throw new Error("Invalid status response");
       }
+    },
+  });
+
+  pi.registerTool({
+    name: "inter_agent_read_messages",
+    label: "Read queued inter-agent messages",
+    description:
+      "Read and remove queued inter-agent messages from the Pi mailbox. Only " +
+      "messages you have not read yet are returned. Reading never sends, replies, " +
+      "subscribes, publishes, or triggers any peer action.",
+    parameters: Type.Object({
+      ids: Type.Optional(
+        Type.Array(Type.String({ minLength: 1 }), {
+          maxItems: MAILBOX_MAX_UNREAD,
+          uniqueItems: true,
+        }),
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+      const { ids } = params as { ids?: string[] };
+      const result = mailbox.read(ids);
+      const readLines = result.read.map((m) => {
+        const where = m.channel
+          ? ` on ${m.channel}`
+          : m.target
+            ? ` to ${m.target}`
+            : "";
+        return `## ${m.msgId}\nfrom ${m.sender}${where} (${m.kind})\n\n${m.body}`;
+      });
+      let text: string;
+      if (result.read.length === 0) {
+        text =
+          result.missing.length > 0
+            ? `0 messages read. Not unread or missing: ${result.missing.join(", ")}`
+            : "0 messages read; mailbox is empty";
+      } else {
+        text = `${result.read.length} message(s) read\n\n${readLines.join(
+          "\n\n",
+        )}`;
+        if (result.missing.length > 0) {
+          text += `\n\nNot unread or missing: ${result.missing.join(", ")}`;
+        }
+      }
+      return {
+        content: [{ type: "text" as const, text }],
+        details: {
+          read: result.read.map((m) => ({
+            id: m.msgId,
+            sender: m.sender,
+            kind: m.kind,
+            channel: m.channel,
+            target: m.target,
+            body: m.body,
+          })),
+          missing: result.missing,
+          remaining: result.remaining,
+        },
+      };
     },
   });
 }
