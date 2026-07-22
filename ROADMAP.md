@@ -188,4 +188,4 @@ Other follow-up ideas remain in `docs/IDEAS.md` until accepted into this roadmap
 - policy middleware examples;
 - remote transport mode with a separate threat model.
 
-Extension publishing, stable runtime sources, and the Pi queued mailbox are accepted queue items rather than exploratory ideas.
+Extension publishing and stable runtime sources are accepted queue items rather than exploratory ideas. The Pi queued mailbox is implemented product behavior.

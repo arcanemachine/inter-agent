@@ -8,9 +8,9 @@ Connect each Pi session once, then Pi can use the extension tools to send messag
 
 - **Background listener** — Stay connected to the bus and receive messages as Pi notifications, with automatic reconnection if the server restarts
 - **Queued mailbox** — Inbound direct, broadcast, and channel bodies queue by default in a bounded 128-entry in-memory mailbox; the agent reads them on demand with `inter_agent_read_messages`, or switch to immediate delivery with `/inter-agent delivery immediate`
-- **Commands** — Connect, disconnect, rename, send, broadcast, publish, channels, subscribe, unsubscribe, list, and status
+- **Commands** — Connect, disconnect, rename, send, broadcast, publish, channels, subscribe, unsubscribe, list, status, and session-only delivery mode
 - **Channels** — User-controlled pub/sub: subscribe, unsubscribe, and publish through explicit slash commands; channel deliveries are shown as channel messages, not direct or broadcast
-- **Tools** — LLM-callable tools for send, broadcast, list, status, and local identity
+- **Tools** — LLM-callable tools for queued-message reads, send, broadcast, list, status, and local identity
 - **State persistence** — Connection state survives Pi session reloads
 - **Collapsible messages** — Inter-agent message rows show a compact metadata line (recipient/direction and char count) when collapsed and the full message when expanded
 - **Safe truncation** — Long messages are truncated to 1000 characters in notifications

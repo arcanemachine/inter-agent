@@ -128,6 +128,8 @@ Host extension config may pass a configured secret to helper subprocesses as `IN
 
 The Pi and Claude Code installed integrations expose channel membership changes, publication, and read-only diagnostics only as explicit user-invoked slash commands. Neither registers LLM-callable subscribe, unsubscribe, publish, or channels tools, and neither subscribes, publishes, or polls automatically. Membership and publication use the active listener's connected routing name. Adapter listeners suppress channel messages carrying their own routing name because short-lived control publishers are separate protocol connections; this preserves publisher exclusion in host UX without changing the server trust model. Channel diagnostics use a short-lived authenticated server connection, do not require or change the active listener, and retain the same endpoint, authentication, and TLS requirements as other control operations. Channel memberships live in listener memory, survive transient WebSocket reconnects, and are cleared by listener stop, process restart, host reload, or resumed sessions.
 
+Pi queues at most 128 unread direct, broadcast, and channel bodies in TypeScript extension memory by default. Mailbox notices, notifications, rendering metadata, diagnostics, and settings contain selection metadata only, never queued bodies. A body enters ordinary Pi history only after an explicit `inter_agent_read_messages` result or through session-only immediate delivery. Listener disconnect/reconnect retains unread memory in the same extension runtime; extension reload, session/process replacement, and shutdown clear it. Peer bodies remain untrusted collaboration input after reading.
+
 ## Secret rotation
 
 For `INTER_AGENT_SECRET` or config `secret`:

@@ -9,7 +9,7 @@ Complete and release the existing inter-agent product before any OpenCode or Cod
 ## Locked decisions
 
 - Finish current Pi and Claude Code reliability work before migration.
-- Implement the Pi queued mailbox for direct, broadcast, and channel deliveries.
+- Preserve the implemented Pi queued mailbox for direct, broadcast, and channel deliveries through the remaining reliability and packaging work.
 - Verify installed Pi and Claude adapters together over TLS; do not treat core-only TLS tests as the final acceptance.
 - Split into clean repositories before initial publication.
 - Use a private `inter-agent-meta` maintainer superproject.
@@ -46,18 +46,17 @@ Submodules pin commits through Git metadata. Public READMEs must use stable rela
 
 ## Ordered program
 
-1. Complete closeout queue items 5–7: Pi disconnect, Pi pre-connect list, Claude sandbox connect.
-2. Implement the Pi queued mailbox.
-3. Add installed cross-adapter TLS acceptance and fix only defects it exposes.
-4. Pass the migration checkpoint and establish the private meta repository.
-5. Extract Pi, including its TypeScript package and Python helper package.
-6. Extract Claude Code, including plugin assets and Python helper package.
-7. Extract the core and rename its Python distribution.
-8. Build the public submodule superproject and run pre-publication interoperability checks.
-9. Publish and clean-install `inter-agent-core` from PyPI.
-10. Publish extension helper distributions and host-native packages/channels; replace floating bootstrap sources.
-11. Run released-artifact, recursive-superproject, TLS, pub/sub, mailbox, and reliability acceptance.
-12. Perform final closeout, then promote OpenCode; leave Codex sequenced after OpenCode.
+1. Complete the remaining Pi reliability sequence: current-release compatibility, effective user kick, same-process mailbox reload continuity, and native/supercompaction continuity.
+2. Add installed cross-adapter TLS acceptance and fix only defects it exposes.
+3. Pass the migration checkpoint and establish the private meta repository.
+4. Extract Pi, including its TypeScript package and Python helper package.
+5. Extract Claude Code, including plugin assets and Python helper package.
+6. Extract the core and rename its Python distribution.
+7. Build the public submodule superproject and run pre-publication interoperability checks.
+8. Publish and clean-install `inter-agent-core` from PyPI.
+9. Publish extension helper distributions and host-native packages/channels; replace floating bootstrap sources.
+10. Run released-artifact, recursive-superproject, TLS, pub/sub, mailbox, and reliability acceptance.
+11. Perform final closeout, then promote OpenCode; leave Codex sequenced after OpenCode.
 
 Detailed plans are numbered in this directory in that order.
 

@@ -74,7 +74,7 @@ Now tell an agent what to coordinate, for example:
 Ask reviewer to inspect the test changes.
 ```
 
-The agent can send that message through inter-agent, and replies arrive in the host session as notifications.
+The agent can send that message through inter-agent, and replies arrive through the receiving host integration. Pi queues inbound bodies by default and shows body-free mailbox metadata until the agent explicitly reads them.
 
 ## Common commands
 
@@ -95,6 +95,8 @@ Pi and Claude Code expose the same basic slash commands:
 ```
 
 Both integrations expose user-controlled channel membership, publication, and read-only diagnostics as explicit user-invoked slash commands. Nothing is subscribed, published, or polled automatically, and neither integration exposes subscribe, unsubscribe, publish, or channels as LLM-callable tools. The installed `channels` command uses a short-lived authenticated server connection, does not require or change the active listener, and runs only when the user explicitly requests diagnostics.
+
+Pi stores at most 128 unread direct, broadcast, and channel bodies in its extension-process mailbox. Body-free notices include the unread IDs and senders; `inter_agent_read_messages` reads and removes selected messages or all unread messages. `/inter-agent delivery immediate` changes only the current Pi session for future arrivals, while `/inter-agent delivery queued` restores the default.
 
 Use direct `send` for normal coordination. Use `broadcast` only when all connected sessions need the message.
 
