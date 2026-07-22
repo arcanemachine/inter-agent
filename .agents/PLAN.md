@@ -8,15 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 8a: Pi current-release compatibility baseline
+### Project closeout — item 8b: User-invoked effective kick
 
-Align the Pi integration's development, type, package, and installed acceptance targets with the current stable Pi distribution, resolving the deprecated package lineage without changing inter-agent product behavior. Item 8 was accepted in `7c208d2`.
+Expose the existing `kick` operation as an explicit Pi and Claude Code user command, and make a kicked listener stop automatic reconnecting until explicit reconnect or host reload/restart. Item 8a was accepted in `6a8ad43`.
 
 Task packet:
 
-- [Task 1 — Align the Pi integration with the current stable release](plans/pi-current-release-compatibility/01-align-current-pi-target.md)
+- [Task 1 — Make user-invoked kick effective](plans/user-invoked-effective-kick/01-terminal-kick.md)
 
-Do not dispatch this packet until the user explicitly authorizes dispatch. User-invoked effective kick is the next roadmap item after item 8a is accepted.
+Do not dispatch this packet until the user explicitly authorizes dispatch. Pi mailbox continuity across extension reload is the next roadmap item after item 8b is accepted.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
