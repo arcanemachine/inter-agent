@@ -22,7 +22,8 @@ Make inbound Pi inter-agent bodies queued by default so a receiving agent can co
 - With no IDs, the tool reads all unread messages. With IDs, it returns all valid requested messages and reports missing/already-read IDs without failing valid selections.
 - Reading removes the selected messages. Tool results remain in ordinary Pi history.
 - Configuration `interAgent.mailboxNoticeDebounceMs` controls notice coalescing; integer range 0–5000, default 0, recommended opt-in 200. It affects notices only, never storage.
-- Queued-mode mailbox notices enter model context with Pi's `deliverAs: "nextTurn"` behavior. They wait for the next user prompt and never trigger, steer, abort, or otherwise start an agent turn.
+- Queued-mode mailbox notices use non-steering follow-up delivery and trigger a mailbox-awareness turn without exposing bodies. While Pi is active they wait until the current run and queued continuations settle; a burst waiting behind active work triggers at most one new turn.
+- Notice guidance tells the agent that unread metadata is available and to decide whether an explicit read advances current authorized work. It must not prescribe acknowledgment, reply, or any other outbound action.
 - Immediate-mode bodies use non-steering follow-up delivery. They may trigger a turn when Pi is idle, but while Pi is active they wait until the current run and queued continuations settle.
 - Every timer and asynchronous delivery captures the current extension runtime generation and must no-op after reload, session replacement, or shutdown.
 
@@ -48,7 +49,7 @@ Each emitted mailbox notice describes the complete current unread set using meta
 
 Use an `inter-agent-mailbox` custom message/renderer distinct from normal `inter-agent-message` bodies. Compact rendering shows unread count grouped by sender. Expanded rendering lists every ID, sender, kind, and channel when present. The model-visible notice must contain the complete selection metadata even if compact human rendering is shorter.
 
-A notice must use Pi's `nextTurn` delivery mode without `triggerTurn`, so it becomes context for the next user-initiated turn without causing an automatic agent response. Debounce must cancel/replace the pending timer safely and retain only the latest full mailbox snapshot. If more messages arrive before that snapshot is delivered, replace it rather than enqueueing stale intermediate notices. Clear timers and pending notice work on `session_shutdown`, and reject callbacks whose captured runtime generation is stale.
+A notice must use Pi's `followUp` delivery mode with `triggerTurn: true`, never steering or aborting. It starts a mailbox-awareness turn when Pi is idle; while Pi is active it waits until the current run and queued continuations settle. A burst waiting behind active work triggers at most one new turn, with later metadata delivered as non-triggering follow-up context. Debounce must cancel/replace the pending timer safely and retain only the latest full mailbox snapshot. If more messages arrive before that snapshot is delivered, replace it rather than enqueueing stale intermediate notices. Clear timers and pending notice work on `session_shutdown`, and reject callbacks whose captured runtime generation is stale.
 
 Persisted transcript notices are snapshots, not mailbox storage. On reload/restart the in-memory mailbox is empty; the read tool must report that previously shown IDs are no longer unread rather than reconstructing bodies from session history.
 
@@ -121,7 +122,7 @@ Cover at minimum:
 12. debounce 0, burst coalescing, range validation, and timer cleanup;
 13. malformed/duplicate IDs do not silently lose unread bodies;
 14. no autonomous send/read/reply behavior;
-15. queued notices use `nextTurn` without triggering, steering, or aborting an active turn;
+15. queued notices use follow-up delivery, provoke a metadata-only mailbox-awareness turn, wait behind active work, trigger at most once per waiting burst, and never steer or abort;
 16. immediate delivery waits behind active work, triggers at most once per waiting burst, and never steers or aborts;
 17. stale timer/async callbacks after reload, session replacement, or shutdown cannot emit notices or bodies.
 
@@ -146,8 +147,8 @@ With two Pi sessions and one channel subscriber:
 
 1. Start receiver in default queued mode.
 2. Send direct, broadcast, and channel messages containing unique secret-marker text.
-3. Confirm receiver gets IDs/senders/count/kinds but none of the marker bodies enters model context.
-4. Let receiver continue a turn without calling the read tool.
+3. Confirm receiver gets IDs/senders/count/kinds and begins one mailbox-awareness turn without another user prompt, but none of the marker bodies enters model context before read.
+4. Confirm the awareness guidance leaves the read decision to the agent and does not prescribe acknowledgment or outbound action.
 5. Read one selected ID; confirm only that body appears and is removed.
 6. Read all; confirm remaining bodies appear in arrival order and mailbox becomes empty.
 7. Queue one message, switch to immediate, receive another; confirm old stays queued and new arrives immediately.

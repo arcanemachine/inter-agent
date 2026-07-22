@@ -16,6 +16,7 @@ Closeout priority insertion 7a is implemented in `37aec5b`. This packet is close
 
 - `integrations/pi/src/index.ts`
 - `integrations/pi/src/mailbox.ts` (new, only if used to isolate cohesive testable mailbox behavior)
+- `integrations/pi/.gitignore` (only to ignore package-local generated test output)
 - `integrations/pi/README.md`
 - `integrations/pi/package.json`
 - `integrations/pi/package-lock.json`
@@ -65,9 +66,9 @@ Do not read or modify other files without reporting why this packet is insuffici
 ## Queued notices
 
 11. Register a custom `inter-agent-mailbox` message and renderer distinct from body-bearing `inter-agent-message`.
-12. Every emitted notice is a full metadata-only snapshot of the current unread set. Model-visible content includes total unread count and every unread ID and sender; kind plus channel may be included. Grouped sender counts may supplement but never replace complete selection metadata.
+12. Every emitted notice is a full metadata-only snapshot of the current unread set. Model-visible content includes total unread count and every unread ID and sender; kind plus channel may be included. Grouped sender counts may supplement but never replace complete selection metadata. Include neutral guidance that the read tool is available and the agent should decide whether reading advances current authorized work; never prescribe acknowledgment, reply, or another outbound action.
 13. Compact human rendering shows unread count grouped by sender. Expanded rendering lists every unread ID, sender, kind, and channel when present. Renderer details must contain metadata only, never bodies.
-14. Deliver notices with `deliverAs: "nextTurn"` and without `triggerTurn`. Notices wait for the next user prompt and never start, steer, abort, or otherwise cause an agent turn.
+14. Deliver notices with `deliverAs: "followUp"` and `triggerTurn: true`, never `steer` and never `ctx.abort()`. A notice provokes a metadata-only mailbox-awareness turn when Pi is idle. While Pi is active it waits until the current run and queued continuations settle. A burst waiting behind active work triggers at most one new turn; later complete snapshot metadata becomes non-triggering follow-up context rather than a separate turn trigger.
 15. Configuration `interAgent.mailboxNoticeDebounceMs` accepts integers from 0 through 5000 inclusive; default is 0 and documented recommended opt-in is 200. It affects notice coalescing only, never storage.
 16. Debounce cancels/replaces the pending timer and retains only the latest complete mailbox snapshot. A burst awaiting notice delivery must not enqueue stale intermediate snapshots.
 17. Every timer and asynchronous delivery captures the current extension runtime generation and no-ops if stale after reload, session replacement, or shutdown. Clear all pending notice timers/work on `session_shutdown`.
@@ -111,7 +112,7 @@ Do not read or modify other files without reporting why this packet is insuffici
    - debounce 0, burst coalescing, bounds, timer replacement, and shutdown cleanup;
    - malformed and duplicate IDs;
    - no autonomous send/read/reply behavior;
-   - queued `nextTurn` without trigger/steer/abort;
+   - queued follow-up notices provoke a metadata-only awareness turn, wait behind active work, trigger at most once per waiting burst, and never steer/abort;
    - immediate waiting/follow-up behavior with at most one trigger per waiting burst and no steer/abort;
    - stale timer/async callbacks after reload, replacement, or shutdown.
 36. Retain focused static assertions only for security and public tool/command surfaces where they add value. Do not replace behavior tests with large brittle source-string assertions.
@@ -122,7 +123,7 @@ Do not read or modify other files without reporting why this packet is insuffici
 
 - Queued is the verified default and no queued body reaches model-visible notice content or notice rendering/details before explicit read.
 - Direct, broadcast, and channel messages share one bounded 128-entry mailbox with stable IDs/order, safe malformed/duplicate handling, and explicit oldest eviction.
-- Metadata notices are complete, coalesced, `nextTurn`, non-triggering, body-free, and generation-safe.
+- Metadata notices are complete, coalesced, body-free, generation-safe, and provoke one non-steering mailbox-awareness turn per idle arrival/coalesced active burst.
 - The read tool correctly handles all/selected/mixed/missing/empty reads, reveals only selected bodies, removes them, and performs no outbound action.
 - Immediate mode preserves current body/guidance formatting, uses non-steering follow-up delivery, waits behind active work, triggers at most once per waiting burst, and does not enter the mailbox.
 - Mode switching, reconnect, session replacement, reload, shutdown, config validation, and stale callbacks match the locked lifecycle.
@@ -152,8 +153,8 @@ Use two real Pi sessions and one channel subscriber on an isolated real server. 
 
 1. Start the receiver in default queued mode and confirm its identity on the bus.
 2. Send unique direct, broadcast, and subscribed-channel messages from another session/helper.
-3. Confirm the receiver receives IDs, senders, count, and kinds, but none of the marker bodies appears in notice content/details, notifications, or model context before read.
-4. Let the receiver continue one user turn without invoking `inter_agent_read_messages`; confirm bodies remain absent and unread.
+3. Confirm the receiver receives IDs, senders, count, and kinds and begins one mailbox-awareness turn without another user prompt, but none of the marker bodies appears in notice content/details, notifications, or model context before read.
+4. Confirm the notice leaves the read decision to the agent and does not prescribe acknowledgment or outbound action; an active-work burst waits and provokes at most one later turn.
 5. Read one selected ID; confirm only that body appears and is removed. Read all; confirm remaining bodies appear in arrival order and mailbox becomes empty.
 6. Queue one message, switch to immediate, then receive another. Confirm the old message stays unread while the new body arrives through follow-up delivery.
 7. While Pi is active, send an immediate burst. Confirm it waits, triggers at most one later turn, and never steers or aborts.
