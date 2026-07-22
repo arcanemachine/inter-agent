@@ -498,16 +498,16 @@ def test_root_pi_package_installs_nested_extension() -> None:
     assert manifest["private"] is True
     assert "pi-package" in manifest["keywords"]
     assert manifest["pi"]["extensions"] == ["./integrations/pi/src/index.ts"]
-    assert manifest["dependencies"]["@sinclair/typebox"] == "^0.34.49"
+    assert manifest["dependencies"]["typebox"] == "^1.1.38"
 
 
 def test_bundled_pi_package_declares_runtime_dependencies() -> None:
     manifest = json.loads(PI_PACKAGE.read_text(encoding="utf-8"))
 
-    assert manifest["dependencies"]["@sinclair/typebox"] == "^0.34.49"
-    assert "@sinclair/typebox" not in manifest["devDependencies"]
-    assert "@mariozechner/pi-coding-agent" in manifest["peerDependencies"]
-    assert "@mariozechner/pi-tui" in manifest["peerDependencies"]
+    assert manifest["dependencies"]["typebox"] == "^1.1.38"
+    assert "typebox" not in manifest["devDependencies"]
+    assert "@earendil-works/pi-coding-agent" in manifest["peerDependencies"]
+    assert "@earendil-works/pi-tui" in manifest["peerDependencies"]
 
 
 def test_pi_extension_registers_startup_identity_flag() -> None:
@@ -739,13 +739,15 @@ def test_pi_extension_defers_mailbox_settlement_until_idle_without_pending_messa
     content = PI_EXTENSION.read_text(encoding="utf-8")
     mailbox_src = MAILBOX_SOURCE.read_text(encoding="utf-8")
 
-    # Pi 0.72.1 supplies agent_end, isIdle(), and hasPendingMessages(), not an
-    # invented agent_settled event. agent_end schedules one deferred check.
-    assert 'pi.on("agent_end", async ()' in content
-    assert "mailbox.scheduleSettlement()" in content
-    assert "agent_settled" not in content
+    # Pi 0.81.1 supplies agent_settled, which fires after retries, compaction, and
+    # queued continuations finish. The handler flushes only when idle and has no
+    # pending continuation messages.
+    assert 'pi.on("agent_settled", async ()' in content
+    assert "mailbox.settle()" in content
+    assert "agent_end" not in content
     assert "hasPendingMessages: () => currentCtx?.hasPendingMessages() ?? false" in content
-    assert "scheduleSettlement(): void" in mailbox_src
+    assert "scheduleSettlement" not in mailbox_src
+    assert "settle(): void" in mailbox_src
     assert "this.host.hasPendingMessages()" in mailbox_src
     assert "this.flushImmediate()" in mailbox_src
     assert "this.flushNotices()" in mailbox_src

@@ -512,20 +512,6 @@ export class MailboxDispatcher {
     this.host.sendNotice(this.buildNotice(snap), true);
   }
 
-  /**
-   * Schedule one generation-safe deferred settlement check after `agent_end`.
-   * Flush only once the agent is idle with no queued continuation messages; if
-   * work remains, do nothing here and let the final later `agent_end` schedule
-   * the next check.
-   */
-  scheduleSettlement(): void {
-    const gen = this.generation;
-    this.host.schedule(() => {
-      if (gen !== this.generation) return;
-      this.settle();
-    }, 0);
-  }
-
   /** Flush waiting immediate bodies and notices only when truly settled. */
   settle(): void {
     if (!this.host.isIdle() || this.host.hasPendingMessages()) return;

@@ -86,16 +86,6 @@ class FakeHost implements MailboxHost {
     }
   }
 
-  /** Fire every non-cancelled timer in insertion order (settlement checks). */
-  fireAll(): void {
-    for (const timer of this.timers) {
-      if (!timer.cancelled) {
-        timer.cancelled = true;
-        timer.fn();
-      }
-    }
-  }
-
   pendingCount(): number {
     return this.timers.filter((t) => !t.cancelled).length;
   }
@@ -346,8 +336,7 @@ test("immediate burst waiting behind active work triggers at most one new turn",
   assert.equal(host.immediates.length, 0);
 
   host.idle = true;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   const triggered = host.immediates.filter((i) => i.triggerTurn).length;
   const followups = host.immediates.filter((i) => !i.triggerTurn).length;
   assert.equal(triggered, 1);
@@ -370,8 +359,7 @@ test("immediate burst waiting behind active work triggers at most one new turn",
     immediateMessage: immediateMessage("e"),
   });
   host.idle = true;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.immediates.filter((i) => i.triggerTurn).length, 1);
 });
 
@@ -388,13 +376,11 @@ test("immediate arrival waits while idle with a queued continuation", () => {
   // isIdle() alone is insufficient: a queued continuation must settle first.
   assert.equal(host.immediates.length, 0);
 
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.immediates.length, 0);
 
   host.pendingMessages = false;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.immediates.length, 1);
   assert.equal(host.immediates[0].triggerTurn, true);
   assert.equal(host.immediates[0].message.details.text, "body-a");
@@ -657,8 +643,7 @@ test("queued active burst holds one pending notice and flushes the latest snapsh
   assert.equal(host.notices.length, 0);
 
   host.idle = true;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 1);
   assert.equal(host.notices[0].triggerTurn, true);
   // The single flushed notice is rebuilt from the current mailbox, so it is
@@ -691,8 +676,7 @@ test("reads that empty the mailbox before a pending notice flush emit nothing", 
   // The agent reads and removes everything before the settlement check.
   mailbox.read();
   host.idle = true;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 0);
   assert.equal(mailbox.size, 0);
 });
@@ -709,13 +693,11 @@ test("queued arrival waits while idle with a queued continuation", () => {
   // momentarily idle between runs.
   assert.equal(host.notices.length, 0);
 
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 0);
 
   host.pendingMessages = false;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 1);
   assert.equal(host.notices[0].triggerTurn, true);
   assert.deepEqual(
@@ -740,31 +722,28 @@ test("queued notice never steers or aborts, and is body-free", () => {
   assert.equal(host.immediates.length, 0);
 });
 
-test("settlement flushes once after the final agent_end with no pending continuations", () => {
+test("settlement flushes once after the final agent_settled with no pending continuations", () => {
   const host = new FakeHost();
   const mailbox = makeDispatcher(host, "queued", 0);
 
-  // Active run with queued continuations: the deferred settlement check finds
-  // pending messages and flushes nothing, leaving the next agent_end to retry.
+  // Active run with queued continuations: the settled handler finds pending
+  // messages and flushes nothing, leaving the next agent_settled to retry.
   host.idle = false;
   host.pendingMessages = true;
   mailbox.deliverInbound(queuedDispatch("a", "body-a", "alice"));
   host.firePending();
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 0);
 
   // A queued continuation runs and ends; still pending, so still no flush.
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 0);
 
   // The final continuation ends with the agent idle and nothing pending: the
-  // single deferred settlement check flushes exactly one latest notice.
+  // settled event flushes exactly one latest notice.
   host.idle = true;
   host.pendingMessages = false;
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 1);
   assert.equal(host.notices[0].triggerTurn, true);
   assert.deepEqual(
@@ -774,17 +753,16 @@ test("settlement flushes once after the final agent_end with no pending continua
   assert.equal(host.pendingCount(), 0);
 });
 
-test("settlement before shutdown drops a deferred check without flushing", () => {
+test("shutdown drops a pending settlement without flushing", () => {
   const host = new FakeHost();
   const mailbox = makeDispatcher(host, "queued", 0);
   host.idle = false;
   host.pendingMessages = true;
   mailbox.deliverInbound(queuedDispatch("a", "body-a", "alice"));
   host.firePending();
-  mailbox.scheduleSettlement();
-  // Shutdown arrives before the deferred settlement timer fires.
+  mailbox.settle();
+  // Shutdown clears the pending notice before terminal settlement.
   mailbox.shutdown();
-  host.fireAll();
   assert.equal(host.notices.length, 0);
   assert.equal(mailbox.size, 0);
 });
@@ -800,11 +778,10 @@ test("settlement does not poll indefinitely while pending messages remain", () =
   assert.equal(host.notices.length, 0);
   // The agent ends but continuations remain; settlement flushes nothing and
   // does not reschedule itself.
-  mailbox.scheduleSettlement();
-  host.fireAll();
+  mailbox.settle();
   assert.equal(host.notices.length, 0);
   assert.equal(host.pendingCount(), 0);
-  // The mailbox still holds the message for the next agent_end to settle.
+  // The mailbox still holds the message for the next agent_settled to settle.
   assert.equal(mailbox.size, 1);
 });
 

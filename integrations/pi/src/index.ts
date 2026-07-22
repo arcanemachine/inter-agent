@@ -19,10 +19,10 @@
 import type {
   ExtensionAPI,
   ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
-import type { AutocompleteItem, Component } from "@mariozechner/pi-tui";
-import { Box, Spacer, Text } from "@mariozechner/pi-tui";
-import { Type } from "@sinclair/typebox";
+} from "@earendil-works/pi-coding-agent";
+import type { AutocompleteItem, Component } from "@earendil-works/pi-tui";
+import { Box, Spacer, Text } from "@earendil-works/pi-tui";
+import { Type } from "typebox";
 import { spawn, ChildProcess } from "node:child_process";
 
 // Test seam: production uses Node's `spawn`; behavior tests inject a fake
@@ -1354,12 +1354,11 @@ export default function (pi: ExtensionAPI) {
     };
   });
 
-  // When the agent run ends, schedule one deferred settlement check. It flushes
-  // waiting immediate bodies and at most one latest mailbox notice only once Pi
-  // is idle with no queued continuation messages; otherwise the final later
-  // `agent_end` schedules the next check. Never steers or aborts the run.
-  pi.on("agent_end", async () => {
-    mailbox.scheduleSettlement();
+  // When the agent run has fully settled (after retries, compaction, and queued
+  // continuations), flush waiting immediate bodies and at most one latest mailbox
+  // notice. Never steers or aborts the run.
+  pi.on("agent_settled", async () => {
+    mailbox.settle();
   });
 
   // ── Commands ──────────────────────────────────────────────────────────────

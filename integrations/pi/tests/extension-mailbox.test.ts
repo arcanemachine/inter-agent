@@ -570,7 +570,7 @@ test("malformed frame followed by a valid frame both handle correctly", async ()
   );
 });
 
-test("stale deferred settlement after shutdown never flushes", async () => {
+test("pending settlement before shutdown never flushes", async () => {
   await withEnv(
     { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
     async ({ pi, listeners }) => {
@@ -578,8 +578,8 @@ test("stale deferred settlement after shutdown never flushes", async () => {
       await cmd.handler("connect rx", pi.ctx);
       const listener = listeners[listeners.length - 1];
       listener.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
-      // Hold a notice pending while "active", then fire agent_end to schedule a
-      // deferred settlement, but shut down before the macrotask fires.
+      // Hold a notice pending while active, then shut down before terminal
+      // settlement can flush it.
       pi.ctx.idle = false;
       pi.ctx.pendingMessages = true;
       listener.emitStdout(
@@ -591,7 +591,7 @@ test("stale deferred settlement after shutdown never flushes", async () => {
         }) + "\n",
       );
       await tick();
-      await runHandler(pi, "agent_end");
+      await runHandler(pi, "agent_settled");
       // session_shutdown (in finally) runs after this; flush must not happen.
       await runHandler(pi, "session_shutdown");
       await tick(50);
@@ -600,6 +600,47 @@ test("stale deferred settlement after shutdown never flushes", async () => {
           (m) => m.message.customType === "inter-agent-mailbox",
         ),
       );
+    },
+  );
+});
+
+test("agent_settled flushes a pending queued notice at most once", async () => {
+  await withEnv(
+    { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+    async ({ pi, listeners }) => {
+      const cmd = interAgentCommand(pi);
+      await cmd.handler("connect rx", pi.ctx);
+      const listener = listeners[listeners.length - 1];
+      listener.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+      // Hold a notice pending while the agent is active.
+      pi.ctx.idle = false;
+      pi.ctx.pendingMessages = true;
+      listener.emitStdout(
+        JSON.stringify({
+          op: "msg",
+          msg_id: "m1",
+          from_name: "alice",
+          text: MARKER,
+        }) + "\n",
+      );
+      await tick();
+      assert.ok(
+        !pi.messages.some(
+          (m) => m.message.customType === "inter-agent-mailbox",
+        ),
+      );
+
+      // Once fully settled, the handler flushes exactly one notice.
+      pi.ctx.idle = true;
+      pi.ctx.pendingMessages = false;
+      await runHandler(pi, "agent_settled");
+      await tick();
+      const notices = pi.messages.filter(
+        (m) => m.message.customType === "inter-agent-mailbox",
+      );
+      assert.equal(notices.length, 1);
+      assert.ok(!JSON.stringify(notices[0].message.details).includes(MARKER));
+      assert.equal(notices[0].options.triggerTurn, true);
     },
   );
 });
