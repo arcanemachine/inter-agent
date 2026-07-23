@@ -8,9 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-No item is active. Closeout item 9, installed cross-adapter TLS acceptance, completed in `d77579f` after the automated matrix, installed Pi/Claude UAT, focused checks, Pi and Claude integration checks, and full repository gate passed without a product defect.
+### Closeout item 10A — local freeze preflight
 
-The next dependency-ready queue item is item 10, **Migration checkpoint and private meta repository**. It remains separately user-gated. Do not prepare or dispatch a packet, create repositories, use credentials, publish, change remotes, or begin extraction work until the user explicitly authorizes that migration checkpoint.
+Record the current local Git/package baseline and rerun the monorepo, Pi, and Claude validation gates without selecting a final freeze ref or taking external, credentialed, destructive, or migration actions.
+
+Task packet:
+
+- [Task 1 — Local freeze preflight](plans/migration-checkpoint/01-local-freeze-preflight.md)
+
+The packet is prepared but not dispatched. Dispatch requires separate explicit user authorization. Item 10's later maintainer-decision, extraction-mapping, and private-meta/recovery slices remain inactive and will be planned just in time. Do not create refs, repositories, remotes, or submodules; use credentials; contact registries; rewrite history; move files; publish; or begin extraction under this slice.
 
 Continuity is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue).
 
