@@ -8,17 +8,11 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 9: installed cross-adapter TLS acceptance
+No item is active. Closeout item 9, installed cross-adapter TLS acceptance, completed in `d77579f` after the automated matrix, installed Pi/Claude UAT, focused checks, Pi and Claude integration checks, and full repository gate passed without a product defect.
 
-Prove that installed Pi and Claude Code helper/listener paths interoperate through one authenticated loopback `wss://` server, including direct/broadcast delivery, pub/sub and control helpers, reconnect with stable certificate material, configuration propagation, and bounded plaintext/untrusted-certificate rejection. Fix only defects first reproduced by this acceptance.
+The next dependency-ready queue item is item 10, **Migration checkpoint and private meta repository**. It remains separately user-gated. Do not prepare or dispatch a packet, create repositories, use credentials, publish, change remotes, or begin extraction work until the user explicitly authorizes that migration checkpoint.
 
-Task packet:
-
-- [Task 1 — Prove installed Pi/Claude interoperability over TLS](plans/installed-cross-adapter-tls-acceptance/01-installed-wss-matrix.md)
-
-Do not dispatch this packet until the user explicitly authorizes dispatch. The migration checkpoint and private meta repository is the next roadmap item, and remains separately user-gated after item 9.
-
-Continuity is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
+Continuity is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue).
 
 ## Planning workflow
 
