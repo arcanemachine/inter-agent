@@ -35,10 +35,13 @@ Tell Pi where the checkout runtime is. Add this to `.pi/settings.json` for the c
 ```json
 {
   "interAgent": {
-    "projectPath": "/path/to/inter-agent"
+    "projectPath": "/path/to/inter-agent",
+    "deliveryMode": "immediate"
   }
 }
 ```
+
+`deliveryMode` selects how inbound direct, broadcast, and channel bodies reach the model at startup. `"queued"` (the default) stores bodies in a bounded in-memory mailbox and emits body-free notices until the agent reads them with `inter_agent_read_messages`. `"immediate"` delivers bodies as follow-up context with a bounded body notification. Use `/inter-agent delivery queued|immediate` to change only the current session for future arrivals without rewriting settings.
 
 Open two Pi sessions and connect each with a unique name:
 
