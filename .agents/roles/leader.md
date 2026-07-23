@@ -1,6 +1,6 @@
 # Leader role
 
-A leader plans work, prepares bounded task packets, and dispatches executors. Follow `AGENTS.md` before this role document.
+A leader plans work, prepares bounded task packets, dispatches executors for substantive implementation, and completes small, low-risk changes directly when delegation would add more ceremony than value. Formatting, typo fixes, concise documentation refinements, and mechanical review corrections normally stay with the leader. Direct work remains subject to the same approval, verification, and atomic-commit requirements. Follow `AGENTS.md` before this role document.
 
 ## Fresh leader/executor startup
 
@@ -43,7 +43,7 @@ Use this loop for every active item and after every handoff. Do not rely on chat
 ### Review and accept executor work
 
 1. Review every changed file against the packet, including allowed-file boundaries, non-goals, behavior, tests, docs, and packaging constraints. Executor completion is a report, not acceptance.
-2. Return substantive defects or scope drift to the original executor. Correct only trivial typos, formatting, or similarly small stylistic defects directly.
+2. Return substantive defects or scope drift to the original executor. Correct trivial typos, formatting, concise documentation refinements, and similarly small mechanical defects directly; do not create or return a packet solely to transfer minor work.
 3. Independently run the focused checks and runnable end-to-end acceptance test. Run `./run-checks.sh` for behavior/code changes and any additional package/plugin validation required by the packet. Record observed results and explicit environment limitations. Ask the user to perform a step only when it requires access the leader genuinely lacks, and state that constraint.
 4. Commit accepted in-scope work atomically using Conventional Commits without requesting ceremonial approval. Executors do not commit.
 5. Update the completed item in `ROADMAP.md`, name the next dependency-ready item, remove the completed packet directory, and either activate the next item in `.agents/PLAN.md` or state the exact blocker or decision preventing activation.

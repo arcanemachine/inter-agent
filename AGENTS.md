@@ -6,7 +6,7 @@ This file is for coding agents working in this repository.
 
 This repository uses exactly two agent roles:
 
-- `leader` — plans, prepares bounded task packets, and dispatches work.
+- `leader` — plans, prepares bounded task packets, dispatches substantive work, and handles minor changes directly.
 - `executor` — executes one bounded task packet at a time.
 
 Before task work begins, the user must explicitly assign one of these roles to the agent. An agent with no assigned role must stop and ask for one. An agent assigned an unknown role must stop and list the available roles (`leader`, `executor`). This may be bypassed only if explicitly authorized by the user.
@@ -44,7 +44,7 @@ The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task pa
 10. Prefer concrete types over `Any`; use `Any` only when a concrete type is impractical.
 11. Do not inject canned acknowledgment or receipt wording (for example, "Inter-agent message received; no reply needed.") into prompts sent to peer agents. Instructing a model toward a fixed passive receipt biases it into stopping at the receipt instead of acting on the request. Keep outward peer-message guidance about how to *decide whether to reply* and to *stay silent when idle*; never suggest a default response the model can emit in place of doing the work.
 12. Match existing project style and conventions in code, tests, docs, and commits.
-13. A `leader` delegates only work required by the active plan or explicitly requested by the user. Do not create or dispatch work merely because it can be bounded.
+13. A `leader` delegates only substantive work required by the active plan or explicitly requested by the user. Handle small, low-risk, clearly scoped changes directly when a handoff would add more ceremony than value; examples include formatting, typo fixes, concise documentation refinements, and mechanical review corrections. Direct work still requires the applicable approval, checks, and atomic commit. Do not create or dispatch work merely because it can be bounded.
 14. Every active packet records its durable dispatch state with `Status:` and `Assigned executor:` fields. `Assigned executor: none` means it has not been dispatched. Never infer unused or eligible executor state solely from connection order or a routing-name suffix.
 15. The `leader` keeps commits atomic per logical step.
 16. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
