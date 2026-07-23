@@ -31,14 +31,15 @@ Use this loop for every active item and after every handoff. Do not rely on chat
 
 ### Prepare and dispatch one item
 
-1. Prepare one bounded, self-contained packet for the current item. It must independently provide the goal, allowed read and modify files, non-goals, exact requirements, acceptance criteria, focused checks, the full repository gate when applicable, and a runnable end-to-end acceptance test. Begin it with `Status: ready for dispatch` and `Assigned executor: none`.
-2. Update `.agents/PLAN.md` with only that current item. Keep future sequence and status in `ROADMAP.md`; do not copy the queue into the active plan or prewrite packets for later items.
-3. Commit the reviewed plan and packet before dispatch.
-4. Only after completing the start-or-resume review, report the prepared packet to the user and ask for explicit dispatch authorization. Permission to plan, read, edit planning files, or continue the roadmap is not dispatch authorization.
-5. After authorization, establish eligibility from the packet's durable assignment state and explicit user reset/rewind context; absence of an assignment field means unknown, not unused. List eligible connected sessions in ascending routing-name order (`executor`, `executor-2`, `executor-3`, and so on). For a new assignment, select the next previously unused eligible executor; for rework, use the recorded executor.
-6. Before sending the task, set `Status: dispatched` and `Assigned executor: <routing-name>` in the packet and commit that assignment state. Then send the packet path and a self-contained brief; require exact changed-file/check reporting and no commit.
-7. Treat substantive rework as the same task and return it to its recorded executor. Only an explicit user rewind makes a prior executor assignment unused again; record that rewind before reassignment.
-8. If eligibility cannot be established or no unused eligible executor is connected, stop and ask the user to clarify/reset, connect the next executor, or explicitly rewind an assignment. Never substitute a worker or differently named session.
+1. Before writing a packet for a large item, divide the item into dependency-ordered, independently reviewable slices. Prefer several shallow packets with narrow read sets, modification boundaries, and acceptance checks over fewer deep packets that require broad executor context. Prepare only the first dependency-ready slice; plan later packets just in time from accepted findings.
+2. Prepare one bounded, self-contained packet for the current slice. It must independently provide the goal, allowed read and modify files, non-goals, exact requirements, acceptance criteria, focused checks, the full repository gate when applicable, and a runnable end-to-end acceptance test. Begin it with `Status: ready for dispatch` and `Assigned executor: none`.
+3. Update `.agents/PLAN.md` with only that current slice. Keep future sequence and status in `ROADMAP.md`; do not copy the queue into the active plan or prewrite packets for later slices.
+4. Commit the reviewed plan and packet before dispatch.
+5. Only after completing the start-or-resume review, report the prepared packet to the user and ask for explicit dispatch authorization. Permission to plan, read, edit planning files, or continue the roadmap is not dispatch authorization.
+6. After authorization, establish eligibility from the packet's durable assignment state and explicit user reset/rewind context; absence of an assignment field means unknown, not unused. List eligible connected sessions in ascending routing-name order (`executor`, `executor-2`, `executor-3`, and so on). For a new assignment, select the next previously unused eligible executor; for rework, use the recorded executor.
+7. Before sending the task, set `Status: dispatched` and `Assigned executor: <routing-name>` in the packet and commit that assignment state. Then send the packet path and a self-contained brief; require exact changed-file/check reporting and no commit.
+8. Treat substantive rework as the same task and return it to its recorded executor. Only an explicit user rewind makes a prior executor assignment unused again; record that rewind before reassignment.
+9. If eligibility cannot be established or no unused eligible executor is connected, stop and ask the user to clarify/reset, connect the next executor, or explicitly rewind an assignment. Never substitute a worker or differently named session.
 
 ### Review and accept executor work
 
