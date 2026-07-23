@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -8,6 +9,61 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL_BIN = ROOT / "integrations" / "claude-code" / "skills" / "inter-agent" / "bin"
 WRAPPER = SKILL_BIN / "inter-agent-claude"
 BOOTSTRAP = SKILL_BIN / "bootstrap-runtime"
+
+#: Each entry maps a presence field name to the INTER_AGENT_* variable the
+#: fake helper inspects. The helper emits only fixed boolean eq/presence
+#: fields; no raw or hash-derived values are ever written to stdout.
+PRESENCE_FIELDS = [
+    ("DATA_DIR", "INTER_AGENT_DATA_DIR"),
+    ("TLS", "INTER_AGENT_TLS"),
+    ("TLS_CERT", "INTER_AGENT_TLS_CERT"),
+    ("TLS_KEY", "INTER_AGENT_TLS_KEY"),
+    ("SECRET", "INTER_AGENT_SECRET"),
+]
+
+
+def make_presence_helper(path: Path, expected: dict[str, str]) -> None:
+    """Write a helper that emits fixed boolean equality/presence fields only.
+
+    Each field reports whether the received ``INTER_AGENT_*`` value equals an
+    embedded expected sentinel (``NAME_eq=true/false``) and whether it is set
+    (``NAME_present=true/false``). No raw or hash-derived values are emitted.
+    """
+    lines = [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        'emit() { local name="$1" actual="$2" expected="$3"; '
+        'if [[ "$actual" == "$expected" ]]; then printf "%s_eq=true\\n" "$name"; '
+        'else printf "%s_eq=false\\n" "$name"; fi; '
+        'if [[ -n "$actual" ]]; then printf "%s_present=true\\n" "$name"; '
+        'else printf "%s_present=false\\n" "$name"; fi; }',
+    ]
+    for name, var in PRESENCE_FIELDS:
+        lines.append(f'emit {name} "${{{var}:-}}" {shlex.quote(expected.get(name, ""))}')
+    lines.append("printf 'ARGS_BEGIN\\n'")
+    lines.append('printf "%s\\n" "$@"')
+    lines.append("printf 'ARGS_END\\n'")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _parse_presence(stdout: str) -> dict[str, str]:
+    summary: dict[str, str] = {}
+    for line in stdout.splitlines():
+        if line.startswith("ARGS_BEGIN") or line.startswith("ARGS_END"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            summary[key] = value
+    return summary
+
+
+def _parse_args(stdout: str) -> list[str]:
+    lines = stdout.splitlines()
+    start = lines.index("ARGS_BEGIN") + 1
+    end = lines.index("ARGS_END")
+    return lines[start:end]
 
 
 def make_helper(path: Path, label: str) -> None:
@@ -326,3 +382,82 @@ def test_claude_wrapper_skips_path_helper_equal_to_self(tmp_path: Path) -> None:
     assert result.returncode == 127
     assert result.stdout == ""
     assert "[inter-agent] setup needed: run /inter-agent bootstrap" in result.stderr
+
+
+def test_claude_wrapper_forwards_tls_data_and_secret_to_helper_unchanged(
+    tmp_path: Path,
+) -> None:
+    """The bundled wrapper forwards core TLS/data env and maps the plugin
+    secret to INTER_AGENT_SECRET without altering values or leaking them."""
+    project_path = tmp_path / "checkout"
+    helper = project_path / ".venv" / "bin" / "inter-agent-claude"
+    data_dir = str(tmp_path / "state")
+    tls_cert = str(tmp_path / "certs" / "tls-cert.pem")
+    tls_key = str(tmp_path / "certs" / "tls-key.pem")
+    secret_value = "claude-wrapper-tls-test-secret"
+    expected = {
+        "DATA_DIR": data_dir,
+        "TLS": "true",
+        "TLS_CERT": tls_cert,
+        "TLS_KEY": tls_key,
+        "SECRET": secret_value,
+    }
+    make_presence_helper(helper, expected)
+
+    result = run_wrapper(
+        tmp_path,
+        "status",
+        "--json",
+        env={
+            "CLAUDE_PLUGIN_OPTION_PROJECT_PATH": str(project_path),
+            "CLAUDE_PLUGIN_OPTION_SECRET": secret_value,
+            "INTER_AGENT_DATA_DIR": data_dir,
+            "INTER_AGENT_TLS": "true",
+            "INTER_AGENT_TLS_CERT": tls_cert,
+            "INTER_AGENT_TLS_KEY": tls_key,
+        },
+    )
+
+    assert result.returncode == 0
+    summary = _parse_presence(result.stdout)
+    # Each value passed through unchanged (eq=true) and is present.
+    for name in ("DATA_DIR", "TLS", "TLS_CERT", "TLS_KEY", "SECRET"):
+        assert summary[f"{name}_eq"] == "true", name
+        assert summary[f"{name}_present"] == "true", name
+
+    # Helper arguments pass through unchanged.
+    assert _parse_args(result.stdout) == ["status", "--json"]
+
+    # The raw secret and private-key/cert paths never enter argv, stdout, or
+    # stderr; only fixed boolean fields are emitted.
+    for stream in (result.stdout, result.stderr):
+        assert secret_value not in stream
+        assert tls_cert not in stream
+        assert tls_key not in stream
+        assert data_dir not in stream
+    assert secret_value not in result.args
+
+
+def test_claude_wrapper_adds_no_claude_specific_tls_defaults(tmp_path: Path) -> None:
+    """With no TLS env or plugin secret configured, the wrapper injects none."""
+    project_path = tmp_path / "checkout"
+    helper = project_path / ".venv" / "bin" / "inter-agent-claude"
+    # Non-empty sentinels so eq=false would also flag an injection; the
+    # presence check is the primary no-default proof.
+    make_presence_helper(
+        helper,
+        {"TLS": "true", "TLS_CERT": "/x", "TLS_KEY": "/y", "SECRET": "s"},
+    )
+
+    result = run_wrapper(
+        tmp_path,
+        "channels",
+        env={"CLAUDE_PLUGIN_OPTION_PROJECT_PATH": str(project_path)},
+    )
+
+    assert result.returncode == 0
+    summary = _parse_presence(result.stdout)
+    # The wrapper injected no Claude-specific TLS defaults and no secret.
+    for name in ("TLS", "TLS_CERT", "TLS_KEY", "SECRET"):
+        assert summary[f"{name}_present"] == "false", name
+    assert _parse_args(result.stdout) == ["channels"]

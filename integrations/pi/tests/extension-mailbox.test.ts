@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, isAbsolute } from "node:path";
 
 import ext, {
   _setSpawnForTest,
@@ -237,12 +237,22 @@ function withEnv(
     // the connect/status flow proceeds without a real inter-agent install.
     const listeners: FakeChildProcess[] = [];
     _setSpawnForTest(((
-      _cmd: string,
+      cmd: string,
       args: string[],
-      _options: unknown,
+      options: unknown,
     ): FakeChildProcess => {
+      // Record the invocation so propagation tests can inspect the resolved
+      // child environment and arguments without spawning a real process.
+      const record = (proc: FakeChildProcess): FakeChildProcess => {
+        proc.spawnCmd = cmd;
+        proc.spawnArgs = args;
+        proc.spawnEnv = (
+          options as { env?: Record<string, string | undefined> } | undefined
+        )?.env;
+        return proc;
+      };
       if (args[0] === "status") {
-        const proc = new FakeChildProcess();
+        const proc = record(new FakeChildProcess());
         queueMicrotask(() => {
           proc.emitStdout(
             JSON.stringify({
@@ -256,11 +266,11 @@ function withEnv(
         return proc;
       }
       if (args[0] === "connect") {
-        const proc = new FakeChildProcess();
+        const proc = record(new FakeChildProcess());
         listeners.push(proc);
         return proc;
       }
-      const proc = new FakeChildProcess();
+      const proc = record(new FakeChildProcess());
       queueMicrotask(() => proc.exit(0));
       return proc;
     }) as never);
@@ -1127,4 +1137,77 @@ test("reload fails closed when stopListener cannot stop the old listener (hung c
     _setReloadCarrierForTest(null);
     _setStopTimeoutsForTest(null, null);
   }
+});
+
+test("project TLS/data config overrides conflicting globals and propagates to listener env only", async () => {
+  const secretValue = "pi-tls-propagation-test-secret";
+  // Global settings carry conflicting values for every TLS/data field; the
+  // project settings must override all of them, and the listener env must
+  // carry exactly the project-resolved values.
+  await withEnv(
+    {
+      global: {
+        dataDir: "global-state",
+        tls: false,
+        tlsCert: "global-certs/cert.pem",
+        tlsKey: "global-certs/key.pem",
+        secret: "global-secret-must-not-appear",
+      },
+      project: {
+        dataDir: "state",
+        tls: true,
+        tlsCert: "certs/tls-cert.pem",
+        tlsKey: "certs/tls-key.pem",
+        secret: secretValue,
+      },
+    },
+    async ({ pi, listeners }) => {
+      const projectSettingsDir = join(process.cwd(), ".pi");
+      const cmd = interAgentCommand(pi);
+      await cmd.handler("connect rx", pi.ctx);
+      const listener = listeners[listeners.length - 1];
+      const env = listener.spawnEnv as Record<string, string | undefined>;
+
+      // Project values override the conflicting globals; paths resolve
+      // relative to the project settings file and are absolute.
+      assert.equal(env.INTER_AGENT_TLS, "true");
+      assert.equal(env.INTER_AGENT_DATA_DIR, join(projectSettingsDir, "state"));
+      assert.equal(
+        env.INTER_AGENT_TLS_CERT,
+        join(projectSettingsDir, "certs", "tls-cert.pem"),
+      );
+      assert.equal(
+        env.INTER_AGENT_TLS_KEY,
+        join(projectSettingsDir, "certs", "tls-key.pem"),
+      );
+      assert.ok(isAbsolute(env.INTER_AGENT_DATA_DIR!));
+      assert.ok(isAbsolute(env.INTER_AGENT_TLS_CERT!));
+      assert.ok(isAbsolute(env.INTER_AGENT_TLS_KEY!));
+      assert.equal(env.INTER_AGENT_SECRET, secretValue);
+      // The global values did not leak through.
+      assert.notEqual(env.INTER_AGENT_TLS, "false");
+      assert.notEqual(
+        env.INTER_AGENT_DATA_DIR,
+        join(projectSettingsDir, "global-state"),
+      );
+      assert.ok(!env.INTER_AGENT_TLS_CERT?.includes("global-certs"));
+      assert.ok(!env.INTER_AGENT_TLS_KEY?.includes("global-certs"));
+      assert.notEqual(env.INTER_AGENT_SECRET, "global-secret-must-not-appear");
+
+      // The listener command carries only the connect subcommand and name;
+      // TLS paths and the secret are environment-only, never argv.
+      assert.deepEqual(listener.spawnArgs, ["connect", "rx"]);
+      for (const arg of listener.spawnArgs as string[]) {
+        assert.ok(!arg.includes(secretValue));
+        assert.ok(!arg.includes("tls-cert.pem"));
+        assert.ok(!arg.includes("tls-key.pem"));
+        assert.ok(!arg.includes("global-secret-must-not-appear"));
+      }
+      // Secret absent from notifications/diagnostics emitted so far.
+      for (const n of pi.notifyLog) {
+        assert.ok(!n.message.includes(secretValue));
+        assert.ok(!n.message.includes("global-secret-must-not-appear"));
+      }
+    },
+  );
 });
