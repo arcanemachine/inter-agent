@@ -4,9 +4,12 @@ import assert from "node:assert/strict";
 import {
   MAILBOX_MAX_UNREAD,
   MAILBOX_NOTICE_DEBOUNCE_MS_DEFAULT,
+  RELOAD_HANDOFF_TTL_MS,
+  RELOAD_HANDOFF_VERSION,
   MailboxDispatcher,
   buildNoticeCompact,
   buildNoticeExpanded,
+  createProcessGlobalHandoffCarrier,
   deriveInboundMetadata,
   effectiveDeliveryMode,
   effectiveDebounceMs,
@@ -17,7 +20,10 @@ import {
   type InboundImmediateMessage,
   type MailboxHost,
   type MailboxNoticeMessage,
+  type MailboxMessage,
   type MessageKind,
+  type ReloadHandoff,
+  type ReloadHandoffCarrier,
 } from "../src/mailbox.js";
 
 interface ImmediateRecord {
@@ -127,6 +133,32 @@ function makeDispatcher(
 ): MailboxDispatcher {
   return new MailboxDispatcher(host, mode, debounceMs);
 }
+
+/** Mirrors the process-global carrier so reload cases stay hermetic. */
+class FakeCarrier implements ReloadHandoffCarrier {
+  gen = 0;
+  slot: ReloadHandoff | null = null;
+  getGeneration(): number {
+    return this.gen;
+  }
+  store(handoff: ReloadHandoff): void {
+    this.gen = handoff.gen;
+    this.slot = handoff;
+  }
+  take(): { handoff: ReloadHandoff | null; genBefore: number } {
+    const handoff = this.slot;
+    const genBefore = this.gen;
+    this.slot = null;
+    this.gen = this.gen + 1;
+    return { handoff, genBefore };
+  }
+  reset(): void {
+    this.slot = null;
+    this.gen = this.gen + 1;
+  }
+}
+
+const SESSION = "reload-session-1";
 
 test("queued is the default and bodies stay out of notices until read", () => {
   const host = new FakeHost();
@@ -888,4 +920,674 @@ test("immediate delivery carries the body while queued notices stay metadata-onl
   assert.equal(hostI.notices.length, 0);
   assert.equal(hostI.immediates[0].message.details.text, marker);
   assert.equal(hostI.immediates[0].triggerTurn, true);
+});
+
+// ── Same-process reload handoff ─────────────────────────────────────────────
+
+function reloadCycle(
+  hostA: FakeHost,
+  a: MailboxDispatcher,
+  carrier: ReloadHandoffCarrier,
+  session: string,
+  now = 1000,
+): {
+  hostB: FakeHost;
+  b: MailboxDispatcher;
+  result: ReturnType<MailboxDispatcher["restoreReloadHandoff"]>;
+} {
+  a.exportReloadHandoff(session, carrier, now);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  const result = b.restoreReloadHandoff(session, carrier, now + 1);
+  return { hostB, b, result };
+}
+
+test("reload preserves direct/broadcast/channel IDs, bodies, and arrival order", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(
+    queuedDispatch("d1", "BODY-d1", "alice", "direct", undefined, "me"),
+  );
+  a.deliverInbound(queuedDispatch("b1", "BODY-b1", "bob", "broadcast"));
+  a.deliverInbound(
+    queuedDispatch("c1", "BODY-c1", "cara", "channel", "updates"),
+  );
+  // Read d1 before reload; it must not resurrect.
+  const pre = a.read(["d1"]);
+  assert.equal(pre.read.length, 1);
+
+  const { b, result } = reloadCycle(hostA, a, carrier, SESSION);
+  assert.equal(result.reason, "ok");
+  assert.equal(result.restored, 2);
+  assert.equal(b.size, 2);
+
+  const one = b.read(["c1"]);
+  assert.equal(one.read.length, 1);
+  assert.equal(one.read[0].msgId, "c1");
+  assert.equal(one.read[0].body, "BODY-c1");
+  assert.equal(one.read[0].kind, "channel");
+  assert.equal(one.read[0].channel, "updates");
+
+  const rest = b.read();
+  assert.deepEqual(
+    rest.read.map((m) => m.msgId),
+    ["b1"],
+  );
+  assert.equal(rest.read[0].body, "BODY-b1");
+  // d1 was read pre-reload; it is missing/not unread after reload.
+  assert.deepEqual(b.read(["d1"]).missing, ["d1"]);
+  assert.equal(b.size, 0);
+});
+
+test("reload preserves 128-entry overflow state and the next eviction order", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  for (let i = 0; i <= MAILBOX_MAX_UNREAD; i++) {
+    a.deliverInbound(queuedDispatch(`m-${i}`, `body-${i}`, "peer"));
+  }
+  assert.equal(a.size, MAILBOX_MAX_UNREAD);
+
+  const { b, result } = reloadCycle(hostA, a, carrier, SESSION);
+  assert.equal(result.reason, "ok");
+  assert.equal(b.size, MAILBOX_MAX_UNREAD);
+  // The evicted m-0 does not resurrect after reload.
+  const snap = b.snapshot();
+  assert.ok(!snap.messages.some((m) => m.id === "m-0"));
+  assert.equal(snap.messages[0].id, "m-1");
+  assert.equal(snap.messages[127].id, `m-${MAILBOX_MAX_UNREAD}`);
+
+  // A post-reload arrival evicts the oldest remaining (m-1), not a resurrected one.
+  b.deliverInbound(queuedDispatch("new", "body-new", "peer"));
+  assert.equal(b.size, MAILBOX_MAX_UNREAD);
+  const all = b.read().read.map((m) => m.msgId);
+  assert.ok(!all.includes("m-1"));
+  assert.ok(all.includes("new"));
+  assert.equal(all[0], "m-2");
+  assert.equal(all[all.length - 1], "new");
+});
+
+test("reload export happens before clear; stale pre-reload timers cannot reach the new runtime", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 200);
+  a.deliverInbound(queuedDispatch("a1", "BODY-a1", "alice"));
+  // A pending debounce timer is queued but has not fired yet.
+  assert.equal(hostA.pendingCount(), 1);
+  a.exportReloadHandoff(SESSION, carrier);
+  // Export captures unread before shutdown clears/cancels.
+  assert.equal(carrier.slot?.messages.length, 1);
+  a.shutdown();
+  assert.equal(hostA.pendingCount(), 0);
+  // A stale timer firing against the discarded runtime no-ops via generation.
+  hostA.firePending();
+  assert.equal(hostA.notices.length, 0);
+
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  const result = b.restoreReloadHandoff(SESSION, carrier);
+  assert.equal(result.reason, "ok");
+  // Stale A callbacks/flushes cannot emit into hostB.
+  hostA.firePending();
+  a.settle();
+  assert.equal(hostB.notices.length, 0);
+  // The single restored unread is still readable.
+  assert.equal(b.read().read[0].body, "BODY-a1");
+});
+
+test("reload handoff is one-use and cannot duplicate on repeated restore", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(queuedDispatch("x1", "BODY-x1", "alice"));
+  const { b, result } = reloadCycle(hostA, a, carrier, SESSION);
+  assert.equal(result.reason, "ok");
+  assert.equal(b.size, 1);
+
+  // A second matching reload start finds the carrier empty (one-use).
+  const hostC = new FakeHost();
+  const c = makeDispatcher(hostC, "queued", 0);
+  const second = c.restoreReloadHandoff(SESSION, carrier);
+  assert.equal(second.reason, "missing");
+  assert.equal(c.size, 0);
+});
+
+test("reload carrier is the process-global survivor across a fresh module instance", () => {
+  // The real carrier backs a private globalThis symbol. Two dispatchers in the
+  // same process (a fresh module instance) share it without module-local state.
+  const carrier = createProcessGlobalHandoffCarrier();
+  try {
+    carrier.reset();
+    const hostA = new FakeHost();
+    const a = makeDispatcher(hostA, "queued", 0);
+    a.deliverInbound(queuedDispatch("g1", "BODY-g1", "alice"));
+    a.exportReloadHandoff(SESSION, carrier);
+    a.shutdown();
+    // A brand-new dispatcher (simulated reloaded module) restores via the same
+    // process-global carrier; no module-local variable is consulted.
+    const hostB = new FakeHost();
+    const b = makeDispatcher(hostB, "queued", 0);
+    const result = b.restoreReloadHandoff(SESSION, carrier);
+    assert.equal(result.reason, "ok");
+    assert.equal(b.read().read[0].body, "BODY-g1");
+    // The carrier is empty after one-use consumption.
+    assert.equal(carrier.take().handoff, null);
+  } finally {
+    carrier.reset();
+  }
+});
+
+test("reload restore fails closed for missing, malformed, incompatible, session, generation, and expired", () => {
+  const carrier = new FakeCarrier();
+  const host = new FakeHost();
+  const b = makeDispatcher(host, "queued", 0);
+
+  // Missing handoff.
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "missing");
+
+  // Malformed carrier (tampered shape).
+  const malformed = { v: "no" } as unknown as ReloadHandoff;
+  carrier.gen = 5;
+  carrier.store(malformed);
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "malformed");
+  assert.equal(b.size, 0);
+
+  // Incompatible version (and capacity).
+  carrier.gen = 0;
+  carrier.store({
+    v: 999,
+    gen: 1,
+    session: SESSION,
+    storedAt: 1000,
+    maxUnread: MAILBOX_MAX_UNREAD,
+    messages: [],
+    seq: 0,
+    noticeCurrent: false,
+  });
+  assert.equal(
+    b.restoreReloadHandoff(SESSION, carrier, 1001).reason,
+    "incompatible",
+  );
+  carrier.gen = 0;
+  carrier.store({
+    v: RELOAD_HANDOFF_VERSION,
+    gen: 1,
+    session: SESSION,
+    storedAt: 1000,
+    maxUnread: 50,
+    messages: [],
+    seq: 0,
+    noticeCurrent: false,
+  });
+  assert.equal(
+    b.restoreReloadHandoff(SESSION, carrier, 1001).reason,
+    "incompatible",
+  );
+
+  // Mismatched session (snapshot is otherwise well-formed so this is the
+  // session check that fails, not a malformed-shape check).
+  carrier.gen = 0;
+  carrier.store({
+    v: RELOAD_HANDOFF_VERSION,
+    gen: 1,
+    session: "other-session",
+    storedAt: 1000,
+    maxUnread: MAILBOX_MAX_UNREAD,
+    messages: [
+      {
+        msgId: "s1",
+        sender: "alice",
+        body: "SECRET-s",
+        kind: "direct",
+        arrival: 0,
+      },
+    ],
+    seq: 1,
+    noticeCurrent: false,
+  });
+  const sessionResult = b.restoreReloadHandoff(SESSION, carrier, 1001);
+  assert.equal(sessionResult.reason, "session");
+  assert.equal(b.size, 0);
+  // No body disclosed.
+  assert.equal(host.notices.length, 0);
+  assert.equal(host.immediates.length, 0);
+
+  // Mismatched generation (handoff gen != carrier generation at take).
+  carrier.gen = 0;
+  carrier.store({
+    v: RELOAD_HANDOFF_VERSION,
+    gen: 1,
+    session: SESSION,
+    storedAt: 1000,
+    maxUnread: MAILBOX_MAX_UNREAD,
+    messages: [],
+    seq: 0,
+    noticeCurrent: false,
+  });
+  carrier.gen = 99; // tamper after store
+  assert.equal(
+    b.restoreReloadHandoff(SESSION, carrier, 1001).reason,
+    "generation",
+  );
+
+  // Expired handoff.
+  carrier.gen = 0;
+  carrier.store({
+    v: RELOAD_HANDOFF_VERSION,
+    gen: 1,
+    session: SESSION,
+    storedAt: 1000,
+    maxUnread: MAILBOX_MAX_UNREAD,
+    messages: [],
+    seq: 0,
+    noticeCurrent: false,
+  });
+  assert.equal(
+    b.restoreReloadHandoff(SESSION, carrier, 1000 + RELOAD_HANDOFF_TTL_MS + 1)
+      .reason,
+    "expired",
+  );
+});
+
+test("non-reload lifecycle clears the handoff so a later reload starts empty", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(queuedDispatch("q1", "BODY-q1", "alice"));
+  a.exportReloadHandoff(SESSION, carrier);
+  // A quit/new/resume/fork shutdown clears the pending handoff (fail closed).
+  carrier.reset();
+  a.shutdown();
+
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  const result = b.restoreReloadHandoff(SESSION, carrier);
+  assert.equal(result.reason, "missing");
+  assert.equal(b.size, 0);
+  // The old unread id reports missing/not unread.
+  assert.deepEqual(b.read(["q1"]).missing, ["q1"]);
+});
+
+test("listener disconnect/reconnect inside one runtime never uses the reload carrier", () => {
+  const carrier = new FakeCarrier();
+  const host = new FakeHost();
+  const mailbox = makeDispatcher(host, "queued", 0);
+  mailbox.deliverInbound(queuedDispatch("a", "BODY-a", "alice"));
+  mailbox.deliverInbound(queuedDispatch("b", "BODY-b", "bob"));
+  // An in-runtime stop/start (no shutdown) does not export or clear the carrier.
+  assert.equal(carrier.slot, null);
+  assert.equal(carrier.getGeneration(), 0);
+  assert.equal(mailbox.size, 2);
+  const result = mailbox.read();
+  assert.deepEqual(
+    result.read.map((m) => m.msgId),
+    ["a", "b"],
+  );
+  assert.equal(carrier.slot, null);
+});
+
+test("config delivery mode reapplies after reload while restored unread stay queued", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(queuedDispatch("keep", "BODY-keep", "alice"));
+
+  // The reloaded module recomputes mode from current config -> immediate.
+  a.exportReloadHandoff(SESSION, carrier);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "immediate", 0);
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "ok");
+  assert.equal(b.size, 1); // restored unread remain queued and unread
+  assert.equal(b.getDeliveryMode(), "immediate");
+
+  // A new arrival in the reapplied immediate mode is delivered immediately, not queued.
+  hostB.idle = true;
+  b.deliverInbound({
+    ...queuedDispatch("fresh", "BODY-fresh", "bob"),
+    immediateMessage: immediateMessage("fresh", "BODY-fresh", "bob"),
+  });
+  assert.equal(hostB.immediates.length, 1);
+  assert.equal(b.size, 1); // the fresh body did not enter the unread mailbox
+  // Restored unread is still readable.
+  const rest = b.read();
+  assert.equal(rest.read[0].msgId, "keep");
+  assert.equal(rest.read[0].body, "BODY-keep");
+});
+
+test("pending immediate bodies are not preserved across reload", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "immediate", 0);
+  hostA.idle = false;
+  a.deliverInbound({
+    ...queuedDispatch("imm1", "SECRET-imm", "alice"),
+    immediateMessage: immediateMessage("imm1", "SECRET-imm", "alice"),
+  });
+  assert.equal(hostA.immediates.length, 0);
+
+  a.exportReloadHandoff(SESSION, carrier);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "immediate", 0);
+  const result = b.restoreReloadHandoff(SESSION, carrier);
+  assert.equal(result.reason, "ok");
+  assert.equal(result.restored, 0);
+  assert.equal(b.size, 0);
+  // The pending immediate body from the old runtime never reached the new one.
+  assert.equal(hostB.immediates.length, 0);
+});
+
+test("reload restores exactly one body-free notice when none had entered context", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 200);
+  a.deliverInbound(queuedDispatch("n1", "BODY-n1", "alice"));
+  a.deliverInbound(queuedDispatch("n2", "BODY-n2", "bob"));
+  // The debounce notice has not fired yet, so no awareness notice entered context.
+  assert.equal(hostA.notices.length, 0);
+
+  a.exportReloadHandoff(SESSION, carrier);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "ok");
+  hostB.idle = true;
+  b.settle();
+  // Exactly one latest complete body-free awareness turn is restored.
+  assert.equal(hostB.notices.length, 1);
+  assert.equal(hostB.notices[0].triggerTurn, true);
+  const notice = hostB.notices[0].message;
+  assert.equal(notice.details.unread, 2);
+  assert.deepEqual(
+    notice.details.messages.map((m: { id: string }) => m.id),
+    ["n1", "n2"],
+  );
+  assert.ok(!notice.content.includes("BODY-n1"));
+  assert.ok(!notice.content.includes("BODY-n2"));
+  assert.ok(!JSON.stringify(notice.details).includes("BODY"));
+  // A second settle does not duplicate the awareness turn.
+  b.settle();
+  assert.equal(hostB.notices.length, 1);
+
+  // The restored unread are still readable in arrival order.
+  const rest = b.read();
+  assert.deepEqual(
+    rest.read.map((m) => m.msgId),
+    ["n1", "n2"],
+  );
+});
+
+test("reload adds no notice when the latest complete snapshot already entered context and no later arrival pends", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(queuedDispatch("e1", "BODY-e1", "alice"));
+  hostA.firePending(); // idle -> awareness notice for [e1] delivered
+  assert.equal(hostA.notices.length, 1);
+  assert.equal(hostA.notices[0].message.details.unread, 1);
+
+  a.exportReloadHandoff(SESSION, carrier);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "ok");
+  assert.equal(b.size, 1);
+  hostB.idle = true;
+  b.settle();
+  // The latest complete unread snapshot already covered [e1]; reload adds none.
+  assert.equal(hostB.notices.length, 0);
+  const rest = b.read();
+  assert.deepEqual(
+    rest.read.map((m) => m.msgId),
+    ["e1"],
+  );
+});
+
+test("reload emits exactly one latest body-free notice after a notice entered context and a later arrival pends", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(queuedDispatch("e1", "BODY-e1", "alice"));
+  hostA.firePending(); // notice for [e1] delivered (current)
+  assert.equal(hostA.notices.length, 1);
+  // A later arrival makes the prior snapshot stale, even while a notice was
+  // already delivered; its awareness notice has not yet entered context.
+  hostA.idle = false;
+  hostA.pendingMessages = true;
+  a.deliverInbound(queuedDispatch("e2", "BODY-e2", "bob"));
+  hostA.firePending(); // holds one pending notice while active
+  assert.equal(hostA.notices.length, 1);
+
+  a.exportReloadHandoff(SESSION, carrier);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "ok");
+  assert.equal(b.size, 2);
+  hostB.idle = true;
+  b.settle();
+  // Exactly one latest body-free notice covering the present unread set [e1,e2].
+  assert.equal(hostB.notices.length, 1);
+  assert.equal(hostB.notices[0].triggerTurn, true);
+  const notice = hostB.notices[0].message;
+  assert.equal(notice.details.unread, 2);
+  assert.deepEqual(
+    notice.details.messages.map((m: { id: string }) => m.id),
+    ["e1", "e2"],
+  );
+  assert.ok(!notice.content.includes("BODY-e1"));
+  assert.ok(!notice.content.includes("BODY-e2"));
+  b.settle(); // no duplicate
+  assert.equal(hostB.notices.length, 1);
+  const rest = b.read();
+  assert.deepEqual(
+    rest.read.map((m) => m.msgId),
+    ["e1", "e2"],
+  );
+});
+
+test("reload announces only a later unread arrival when an earlier noticed one was read", () => {
+  const carrier = new FakeCarrier();
+  const hostA = new FakeHost();
+  const a = makeDispatcher(hostA, "queued", 0);
+  a.deliverInbound(queuedDispatch("e1", "BODY-e1", "alice"));
+  hostA.firePending(); // notice for [e1] delivered (current)
+  // The agent reads e1, then a later arrival e2 is queued; the prior snapshot is
+  // staled by the new arrival and held pending while active (not yet sent).
+  a.read(["e1"]);
+  hostA.idle = false;
+  hostA.pendingMessages = true;
+  a.deliverInbound(queuedDispatch("e2", "BODY-e2", "bob"));
+  hostA.firePending();
+
+  a.exportReloadHandoff(SESSION, carrier);
+  a.shutdown();
+  const hostB = new FakeHost();
+  const b = makeDispatcher(hostB, "queued", 0);
+  assert.equal(b.restoreReloadHandoff(SESSION, carrier).reason, "ok");
+  assert.equal(b.size, 1);
+  hostB.idle = true;
+  b.settle();
+  // Only e2 is unread and unpublished; the read e1 is not resurrected.
+  assert.equal(hostB.notices.length, 1);
+  const notice = hostB.notices[0].message;
+  assert.equal(notice.details.unread, 1);
+  assert.deepEqual(
+    notice.details.messages.map((m: { id: string }) => m.id),
+    ["e2"],
+  );
+  assert.ok(!notice.content.includes("BODY-e1"));
+  assert.ok(!notice.content.includes("BODY-e2"));
+  const rest = b.read();
+  assert.deepEqual(
+    rest.read.map((m) => m.msgId),
+    ["e2"],
+  );
+});
+
+// ── Malformed-carrier validation (fail closed, one-use, body-silent) ────────
+
+function validMessage(
+  id: string,
+  arrival: number,
+  body = `BODY-${id}`,
+  extra: Partial<{ kind: MessageKind; channel?: string; target?: string }> = {},
+): MailboxMessage {
+  return {
+    msgId: id,
+    sender: "alice",
+    body,
+    kind: extra.kind ?? "direct",
+    channel: extra.channel,
+    target: extra.target,
+    arrival,
+  };
+}
+
+function baseHandoff(over: Partial<ReloadHandoff>): ReloadHandoff {
+  return {
+    v: RELOAD_HANDOFF_VERSION,
+    gen: 1,
+    session: SESSION,
+    storedAt: 1000,
+    maxUnread: MAILBOX_MAX_UNREAD,
+    messages: [],
+    seq: 0,
+    noticeCurrent: false,
+    ...over,
+  } as ReloadHandoff;
+}
+
+function assertMalformed(
+  label: string,
+  over: Partial<ReloadHandoff>,
+  now = 1001,
+): void {
+  const carrier = new FakeCarrier();
+  const host = new FakeHost();
+  const b = makeDispatcher(host, "queued", 0);
+  carrier.gen = 0;
+  carrier.store(baseHandoff(over));
+  const result = b.restoreReloadHandoff(SESSION, carrier, now);
+  assert.equal(result.reason, "malformed", label);
+  assert.equal(b.size, 0, `${label}: mailbox stayed empty`);
+  // One-use: the carrier slot was consumed regardless.
+  assert.equal(carrier.slot, null, `${label}: carrier consumed`);
+  // Body-silent: no notice or immediate disclosure even for failing snapshots.
+  assert.equal(host.notices.length, 0, `${label}: no notice`);
+  assert.equal(host.immediates.length, 0, `${label}: no immediate`);
+}
+
+test("malformed-carrier scalar fields fail closed without body disclosure", () => {
+  assertMalformed("gen NaN", { gen: Number.NaN });
+  assertMalformed("gen non-integer", { gen: 1.5 });
+  assertMalformed("gen negative", { gen: -1 });
+  assertMalformed("gen non-number string", { gen: "1" as unknown as number });
+  assertMalformed("storedAt NaN", { storedAt: Number.NaN });
+  assertMalformed("storedAt non-integer", { storedAt: 1.5 });
+  assertMalformed("storedAt negative", { storedAt: -1 });
+  assertMalformed("seq NaN", { seq: Number.NaN });
+  assertMalformed("seq non-integer", { seq: 2.5 });
+  assertMalformed("seq negative", { seq: -1 });
+  assertMalformed("arrival NaN", {
+    messages: [validMessage("a", Number.NaN)],
+    seq: 1,
+  });
+  assertMalformed("arrival non-integer", {
+    messages: [validMessage("a", 0.5)],
+    seq: 1,
+  });
+  assertMalformed("arrival negative", {
+    messages: [validMessage("a", -1)],
+    seq: 1,
+  });
+  assertMalformed("arrival non-number", {
+    messages: [{ ...validMessage("a", 0), arrival: "0" as unknown as number }],
+    seq: 1,
+  });
+});
+
+test("malformed-carrier message-level fields fail closed", () => {
+  assertMalformed("duplicate ids", {
+    messages: [validMessage("dup", 0), validMessage("dup", 1)],
+    seq: 2,
+  });
+  assertMalformed("unordered arrivals", {
+    messages: [validMessage("b", 2), validMessage("a", 1)],
+    seq: 3,
+  });
+  assertMalformed("duplicate arrival values", {
+    messages: [validMessage("a", 1), validMessage("b", 1)],
+    seq: 2,
+  });
+  assertMalformed("invalid channel type", {
+    messages: [{ ...validMessage("a", 0), channel: 9 as unknown as string }],
+    seq: 1,
+  });
+  assertMalformed("invalid target type", {
+    messages: [{ ...validMessage("a", 0), target: null as unknown as string }],
+    seq: 1,
+  });
+  assertMalformed("invalid kind", {
+    messages: [{ ...validMessage("a", 0), kind: "nope" as MessageKind }],
+    seq: 1,
+  });
+  assertMalformed("empty msgId", {
+    messages: [{ ...validMessage("a", 0), msgId: "" }],
+    seq: 1,
+  });
+  assertMalformed("non-string body", {
+    messages: [{ ...validMessage("a", 0), body: 5 as unknown as string }],
+    seq: 1,
+  });
+});
+
+test("malformed-carrier seq/arrival consistency fails closed while valid empty/evicted histories restore", () => {
+  // seq inconsistent with a non-empty snapshot.
+  assertMalformed("seq not max+1", {
+    messages: [validMessage("a", 0), validMessage("b", 1)],
+    seq: 5,
+  });
+  assertMalformed("seq too low", {
+    messages: [validMessage("a", 0), validMessage("b", 1)],
+    seq: 1,
+  });
+
+  // Valid empty history restores with any non-negative seq.
+  {
+    const carrier = new FakeCarrier();
+    const host = new FakeHost();
+    const b = makeDispatcher(host, "queued", 0);
+    carrier.gen = 0;
+    carrier.store(baseHandoff({ messages: [], seq: 0 }));
+    assert.equal(b.restoreReloadHandoff(SESSION, carrier, 1001).reason, "ok");
+    assert.equal(b.size, 0);
+    carrier.gen = 0;
+    carrier.store(baseHandoff({ messages: [], seq: 42 }));
+    assert.equal(b.restoreReloadHandoff(SESSION, carrier, 1001).reason, "ok");
+  }
+
+  // Valid evicted history: arrivals start beyond 0 and seq is one past the newest.
+  {
+    const carrier = new FakeCarrier();
+    const host = new FakeHost();
+    const b = makeDispatcher(host, "queued", 0);
+    const msgs: MailboxMessage[] = [];
+    for (let i = 10; i < 10 + 3; i++) msgs.push(validMessage(`m-${i}`, i));
+    carrier.gen = 0;
+    carrier.store(baseHandoff({ messages: msgs, seq: 13 }));
+    const res = b.restoreReloadHandoff(SESSION, carrier, 1001);
+    assert.equal(res.reason, "ok");
+    assert.equal(b.size, 3);
+    // Post-reload arrival continues from the restored seq (13) and evicts oldest.
+    for (let i = 0; i <= MAILBOX_MAX_UNREAD; i++) {
+      b.deliverInbound(queuedDispatch(`n-${i}`, `body-${i}`, "peer"));
+    }
+    assert.equal(b.size, MAILBOX_MAX_UNREAD);
+    const all = b.read().read.map((m) => m.msgId);
+    assert.ok(!all.includes("m-10")); // oldest restored was evicted, not resurrected
+  }
 });

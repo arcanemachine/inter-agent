@@ -17,6 +17,11 @@ export const MAILBOX_MAX_UNREAD = 128;
 export const MAILBOX_NOTICE_DEBOUNCE_MS_DEFAULT = 0;
 export const MAILBOX_NOTICE_DEBOUNCE_MS_MAX = 5000;
 
+/** Reload handoff format version; an incompatible carrier fails closed. */
+export const RELOAD_HANDOFF_VERSION = 1;
+/** A reload handoff expires after this many ms so a stale one fails closed. */
+export const RELOAD_HANDOFF_TTL_MS = 60000;
+
 /** True for a valid configured `deliveryMode`. */
 export function isValidDeliveryMode(value: unknown): value is DeliveryMode {
   return value === "queued" || value === "immediate";
@@ -78,6 +83,54 @@ export interface MailboxReadResult {
   read: MailboxMessage[];
   missing: string[];
   remaining: number;
+}
+
+/** One-use, in-process snapshot of unread mailbox state for a same-process `/reload`. */
+export interface ReloadHandoff {
+  /** Format version; an incompatible value fails closed. */
+  v: number;
+  /** Reload-generation label; must match the carrier's current generation. */
+  gen: number;
+  /** Pi session id this snapshot came from; a mismatched session fails closed. */
+  session: string;
+  /** Wall-clock export time for expiry checks. */
+  storedAt: number;
+  /** Capacity at export; an incompatible value fails closed. */
+  maxUnread: number;
+  /** Ordered unread entries with bodies, arrival order preserved. */
+  messages: MailboxMessage[];
+  /** Next arrival sequence so post-reload arrivals stay monotonic. */
+  seq: number;
+  /**
+   * True when the latest complete unread snapshot has already entered context
+   * for the present arrival state; a pending/required notice stores false.
+   */
+  noticeCurrent: boolean;
+}
+
+/** Outcome of attempting to consume a reload handoff. */
+export type ReloadHandoffResult = {
+  restored: number;
+  reason:
+    | "ok"
+    | "missing"
+    | "incompatible"
+    | "expired"
+    | "session"
+    | "generation"
+    | "malformed";
+};
+
+/** Process-scoped one-use carrier for the reload handoff. */
+export interface ReloadHandoffCarrier {
+  /** Current generation counter (advanced on store, take, and reset). */
+  getGeneration(): number;
+  /** Store `handoff` as the active one-use handoff; adopts its generation. */
+  store(handoff: ReloadHandoff): void;
+  /** Atomically remove and return the active handoff plus the generation at take. */
+  take(): { handoff: ReloadHandoff | null; genBefore: number };
+  /** Drop any active handoff and advance the generation (fail-closed reset). */
+  reset(): void;
 }
 
 export type InboundAddOutcome =
@@ -339,6 +392,18 @@ export class Mailbox {
     this.messages.length = 0;
     this.seq = 0;
   }
+
+  /** Snapshot unread entries (with bodies and arrival order) plus the next arrival seq. */
+  exportState(): { messages: MailboxMessage[]; seq: number } {
+    return { messages: this.messages.map((m) => ({ ...m })), seq: this.seq };
+  }
+
+  /** Replace unread contents from a reload handoff, preserving IDs/bodies/order. */
+  restoreState(messages: MailboxMessage[], seq: number): void {
+    this.messages.length = 0;
+    for (const m of messages) this.messages.push({ ...m });
+    this.seq = seq;
+  }
 }
 
 /**
@@ -361,6 +426,14 @@ export class MailboxDispatcher {
   // empty the mailbox before the flush emit nothing.
   private pendingNotice = false;
   private noticeBurstGen = 0;
+  // Whether the latest complete unread snapshot has already entered context for
+  // the present arrival state. Every successfully queued new arrival marks this
+  // stale/required immediately (even while a debounce timer is pending); a sent
+  // snapshot marks it current. A same-process reload restores exactly one latest
+  // body-free notice only when this is stale, so a later pending arrival whose
+  // notice never produced a turn still triggers once, and an already-delivered
+  // latest snapshot is never duplicated.
+  private noticeCurrent = false;
 
   constructor(
     private readonly host: MailboxHost,
@@ -418,6 +491,10 @@ export class MailboxDispatcher {
         `mailbox full; evicted the oldest unread message to stay under ${MAILBOX_MAX_UNREAD}`,
       );
     }
+    // A new unread arrival makes any previously delivered snapshot stale: the
+    // present unread set changed, so its required latest complete notice has not
+    // yet entered context. Mark required even while a debounce timer is pending.
+    this.noticeCurrent = false;
     this.scheduleNotice();
   }
 
@@ -484,6 +561,7 @@ export class MailboxDispatcher {
       !this.host.hasPendingMessages() &&
       !this.pendingNotice
     ) {
+      this.noticeCurrent = true;
       this.host.sendNotice(this.buildNotice(snap), true);
       return;
     }
@@ -509,6 +587,7 @@ export class MailboxDispatcher {
     if (this.noticeBurstGen !== this.generation) return;
     const snap = this.mailbox.snapshot();
     if (snap.unread === 0) return;
+    this.noticeCurrent = true;
     this.host.sendNotice(this.buildNotice(snap), true);
   }
 
@@ -537,6 +616,188 @@ export class MailboxDispatcher {
     }
     this.pendingImmediate = [];
     this.pendingNotice = false;
+    this.noticeCurrent = false;
     this.mailbox.clear();
   }
+
+  /**
+   * Export unread mailbox state into the one-use, generation/session-scoped
+   * carrier before the old runtime clears. Call after the listener has stopped
+   * accepting arrivals and before `shutdown()`. Bodies live only in the carrier.
+   */
+  exportReloadHandoff(
+    session: string,
+    carrier: ReloadHandoffCarrier,
+    now: number = Date.now(),
+  ): void {
+    const { messages, seq } = this.mailbox.exportState();
+    carrier.store({
+      v: RELOAD_HANDOFF_VERSION,
+      gen: carrier.getGeneration() + 1,
+      session,
+      storedAt: now,
+      maxUnread: MAILBOX_MAX_UNREAD,
+      messages,
+      seq,
+      noticeCurrent: this.noticeCurrent,
+    });
+  }
+
+  /**
+   * Atomically consume any matching reload handoff and restore unread state.
+   * Any failure clears the carrier and leaves the mailbox empty; no body is
+   * disclosed outside the restored unread entries themselves. Restores at most
+   * one pending body-free notice, and only when the latest complete unread
+   * snapshot had not already entered context.
+   */
+  restoreReloadHandoff(
+    session: string,
+    carrier: ReloadHandoffCarrier,
+    now: number = Date.now(),
+  ): ReloadHandoffResult {
+    const { handoff, genBefore } = carrier.take();
+    if (!handoff) return { restored: 0, reason: "missing" };
+    const reason = validateReloadHandoff(handoff, genBefore, session, now);
+    if (reason !== "ok") return { restored: 0, reason };
+    this.mailbox.restoreState(handoff.messages, handoff.seq);
+    // Restore at most one pending body-free notice, and only when the latest
+    // complete unread snapshot had not already entered context for the present
+    // arrival state. A later pending arrival whose notice never produced a turn
+    // still counts as stale, so its awareness turn happens exactly once after
+    // reload; an already-delivered latest snapshot is never duplicated.
+    this.pendingNotice = !handoff.noticeCurrent && handoff.messages.length > 0;
+    if (this.pendingNotice) this.noticeBurstGen = this.generation;
+    return { restored: handoff.messages.length, reason: "ok" };
+  }
+}
+
+/** Validate a taken handoff against the current session/generation and expiry. */
+function isFiniteInt(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    Number.isFinite(value)
+  );
+}
+
+function validateReloadHandoff(
+  handoff: ReloadHandoff,
+  genBefore: number,
+  session: string,
+  now: number,
+): ReloadHandoffResult["reason"] {
+  // Top-level shape: required scalars and arrays must be present and well typed.
+  if (
+    typeof handoff.v !== "number" ||
+    typeof handoff.session !== "string" ||
+    typeof handoff.maxUnread !== "number" ||
+    !Array.isArray(handoff.messages) ||
+    typeof handoff.noticeCurrent !== "boolean"
+  ) {
+    return "malformed";
+  }
+  // Version/capacity must match this code before any restored body is trusted.
+  if (
+    handoff.v !== RELOAD_HANDOFF_VERSION ||
+    handoff.maxUnread !== MAILBOX_MAX_UNREAD
+  ) {
+    return "incompatible";
+  }
+  // Bounded capacity.
+  if (handoff.messages.length > MAILBOX_MAX_UNREAD) return "malformed";
+  // Per-message shape and arrival/seq consistency, checked up front so a
+  // materially malformed snapshot never reaches restored unread state.
+  const ids = new Set<string>();
+  let maxArrival = -1;
+  for (const m of handoff.messages) {
+    if (
+      !m ||
+      typeof m.msgId !== "string" ||
+      m.msgId.length === 0 ||
+      typeof m.sender !== "string" ||
+      typeof m.body !== "string" ||
+      (m.kind !== "direct" && m.kind !== "broadcast" && m.kind !== "channel") ||
+      !isFiniteInt(m.arrival) ||
+      m.arrival < 0 ||
+      (m.channel !== undefined && typeof m.channel !== "string") ||
+      (m.target !== undefined && typeof m.target !== "string")
+    ) {
+      return "malformed";
+    }
+    if (ids.has(m.msgId)) return "malformed";
+    ids.add(m.msgId);
+    // Arrivals must be strictly increasing in stored (arrival) order.
+    if (m.arrival <= maxArrival) return "malformed";
+    maxArrival = m.arrival;
+  }
+  // Finite-integer scalars with sane bounds.
+  if (!isFiniteInt(handoff.gen) || handoff.gen < 0) return "malformed";
+  if (!isFiniteInt(handoff.storedAt) || handoff.storedAt < 0)
+    return "malformed";
+  if (!isFiniteInt(handoff.seq) || handoff.seq < 0) return "malformed";
+  // `seq` is the next arrival sequence, so for a non-empty snapshot it must be
+  // exactly one past the newest restored arrival. An empty history may carry any
+  // non-negative sequence (it reached zero unread after arrivals were read out).
+  if (handoff.messages.length > 0 && handoff.seq !== maxArrival + 1) {
+    return "malformed";
+  }
+  // Generation/scoping/expiry: every mismatch here clears the one-use carrier
+  // already (the caller consumed it via take) and discloses no body.
+  if (
+    typeof session !== "string" ||
+    session.length === 0 ||
+    handoff.session !== session
+  ) {
+    return "session";
+  }
+  if (handoff.gen !== genBefore) {
+    return "generation";
+  }
+  if (
+    now < handoff.storedAt ||
+    now - handoff.storedAt > RELOAD_HANDOFF_TTL_MS
+  ) {
+    return "expired";
+  }
+  return "ok";
+}
+
+const RELOAD_HANDOFF_SYMBOL = Symbol.for(
+  "inter-agent.pi.mailbox.reloadHandoff.v1",
+);
+
+interface HandoffSlot {
+  gen: number;
+  handoff: ReloadHandoff | null;
+}
+
+/**
+ * Default one-use carrier backed by a private process-global symbol so the
+ * handoff survives Pi extension module replacement during a same-process
+ * `/reload` while staying off transcript entries, settings, env, args, and the
+ * filesystem. The symbol is not enumerable via `Object.keys`.
+ */
+export function createProcessGlobalHandoffCarrier(): ReloadHandoffCarrier {
+  const root = globalThis as unknown as Record<symbol, HandoffSlot | undefined>;
+  const read = (): HandoffSlot =>
+    root[RELOAD_HANDOFF_SYMBOL] ?? { gen: 0, handoff: null };
+  return {
+    getGeneration(): number {
+      return read().gen;
+    },
+    store(handoff: ReloadHandoff): void {
+      root[RELOAD_HANDOFF_SYMBOL] = { gen: handoff.gen, handoff };
+    },
+    take(): { handoff: ReloadHandoff | null; genBefore: number } {
+      const slot = read();
+      const handoff = slot.handoff;
+      const genBefore = slot.gen;
+      root[RELOAD_HANDOFF_SYMBOL] = { gen: genBefore + 1, handoff: null };
+      return { handoff, genBefore };
+    },
+    reset(): void {
+      const slot = read();
+      root[RELOAD_HANDOFF_SYMBOL] = { gen: slot.gen + 1, handoff: null };
+    },
+  };
 }

@@ -55,12 +55,18 @@ def test_pi_extension_stop_listener_is_awaitable_and_bounded() -> None:
     assert "pi?: ExtensionAPI" in stop_body
     assert "ctx?: ExtensionContext" in stop_body
     assert "Promise<boolean>" in stop_body
-    assert "LISTENER_STOP_SIGTERM_TIMEOUT_MS" in stop_body
-    assert "LISTENER_STOP_SIGKILL_TIMEOUT_MS" in stop_body
+    # The real millisecond timeouts back the test seam defaults (see content);
+    # the race calls use the seam-overridable stop term/kill timeouts.
+    assert "LISTENER_STOP_SIGTERM_TIMEOUT_MS = 2000;" in content
+    assert "LISTENER_STOP_SIGKILL_TIMEOUT_MS = 2000;" in content
+    assert "_setStopTimeoutsForTest" in content
+    # The actual wait races use the seam-overridable timeouts, not the raw ms constants.
+    assert "sleep(stopTermTimeoutMs)" in stop_body
+    assert "sleep(stopKillTimeoutMs)" in stop_body
     assert 'proc.kill("SIGTERM")' in stop_body
     assert 'proc.kill("SIGKILL")' in stop_body
-    assert "await Promise.race([termPromise, sleep(LISTENER_STOP_SIGTERM_TIMEOUT_MS)])" in stop_body
-    assert "await Promise.race([killPromise, sleep(LISTENER_STOP_SIGKILL_TIMEOUT_MS)])" in stop_body
+    assert "await Promise.race([termPromise, sleep(stopTermTimeoutMs)])" in stop_body
+    assert "await Promise.race([killPromise, sleep(stopKillTimeoutMs)])" in stop_body
 
 
 def test_pi_extension_stop_listener_is_idempotent_for_missing_listener() -> None:
@@ -91,7 +97,26 @@ def test_pi_extension_stop_listener_is_awaited_by_lifecycle_callers() -> None:
 
     assert "await stopListener(pi, ctx, { expected: true })" in start_body
     assert "await stopListener(pi, ctx, { expected: true })" in disconnect_body
-    assert "await stopListener(pi, currentCtx, { expected: true })" in shutdown_body
+    # The shutdown handler stops the listener, preserving durable connected
+    # routing state only for a same-process `/reload` so the matching
+    # session_start reconnects the same identity once; other reasons clear it.
+    assert "const targetCtx = currentCtx ?? ctx;" in shutdown_body
+    assert "let stopped = true;" in shutdown_body
+    assert "stopped = await stopListener(pi, targetCtx, {" in shutdown_body
+    assert "expected: true," in shutdown_body
+    assert "preserveDurableConnected: reload," in shutdown_body
+    assert 'const reload = event?.reason === "reload";' in shutdown_body
+    # Export the reload handoff only after the old listener actually stops;
+    # a failed/incomplete stop fails closed: no handoff, carrier reset, and
+    # durable connected state cleared so no replacement listener is created.
+    assert "if (reload && ctx) {" in shutdown_body
+    assert "resolveReloadCarrier().reset();" in shutdown_body
+    assert "if (!stopped) {" in shutdown_body
+    assert "persistState(pi, { ...state, connected: false });" in shutdown_body
+    assert "mailbox.exportReloadHandoff(" in shutdown_body
+    export_idx = shutdown_body.index("mailbox.exportReloadHandoff(")
+    stopped_branch_idx = shutdown_body.index("} else {")
+    assert stopped_branch_idx < export_idx
 
 
 def test_pi_extension_disconnect_reports_success_or_failure_after_stop() -> None:
@@ -781,6 +806,102 @@ def test_pi_extension_defers_mailbox_settlement_until_idle_without_pending_messa
     assert "this.flushNotices()" in mailbox_src
     # Shutdown clears mailbox state and pending work.
     assert "mailbox.shutdown()" in content
+
+
+def test_pi_extension_preserves_unread_mailbox_across_same_process_reload() -> None:
+    """Same-process `/reload` preserves the bounded unread mailbox through a
+    one-use, versioned, generation/session-scoped, expiring, process-global
+    carrier; every other lifecycle boundary starts empty.
+    """
+    content = PI_EXTENSION.read_text(encoding="utf-8")
+    mailbox_src = MAILBOX_SOURCE.read_text(encoding="utf-8")
+
+    # The carrier is a private process-global symbol slot that survives
+    # extension module replacement during same-process `/reload` while staying
+    # off transcript entries, settings, env, args, and the filesystem.
+    assert "export const RELOAD_HANDOFF_VERSION = 1;" in mailbox_src
+    assert "export const RELOAD_HANDOFF_TTL_MS = 60000;" in mailbox_src
+    assert "export interface ReloadHandoffCarrier" in mailbox_src
+    assert "export function createProcessGlobalHandoffCarrier()" in mailbox_src
+    assert "Symbol.for(" in mailbox_src
+    assert "inter-agent.pi.mailbox.reloadHandoff.v1" in mailbox_src
+    assert "globalThis" in mailbox_src
+    # The handoff is versioned, generation/session-scoped, and one-use.
+    assert "gen: number;" in mailbox_src
+    assert "session: string;" in mailbox_src
+    assert "storedAt: number;" in mailbox_src
+    assert "maxUnread: number;" in mailbox_src
+    assert "noticeCurrent: boolean;" in mailbox_src
+    # Export/restore live on the dispatcher and never send or persist directly.
+    assert "exportReloadHandoff(" in mailbox_src
+    assert "restoreReloadHandoff(" in mailbox_src
+    assert "validateReloadHandoff(" in mailbox_src
+    for reason in ("missing", "incompatible", "expired", "session", "generation", "malformed"):
+        assert f'"{reason}"' in mailbox_src
+    export_body = mailbox_src.split("exportReloadHandoff(", 1)[1]
+    export_body = export_body.split("restoreReloadHandoff(", 1)[0]
+    assert "sendNotice" not in export_body
+    assert "sendMessage" not in export_body
+    assert "appendEntry" not in export_body
+    restore_body = mailbox_src.split("restoreReloadHandoff(", 1)[1]
+    restore_body = restore_body.split("function validateReloadHandoff", 1)[0]
+    assert "sendNotice" not in restore_body
+    assert "sendMessage" not in restore_body
+    assert "appendEntry" not in restore_body
+    # Notice freshness is tracked per present unread-arrival state: every
+    # queued new arrival marks the latest snapshot stale, and only an actual
+    # sent snapshot marks it current. A pending body-free notice is restored
+    # exactly when the latest complete unread snapshot had not already entered
+    # context, so a later pending arrival still triggers once and an
+    # already-delivered latest snapshot is never duplicated.
+    assert "private noticeCurrent = false;" in mailbox_src
+    # New unread arrival marks the snapshot stale (even mid-debounce).
+    assert "this.noticeCurrent = false;" in mailbox_src
+    # A sent snapshot marks it current.
+    assert "this.noticeCurrent = true;" in mailbox_src
+    assert "!handoff.noticeCurrent && handoff.messages.length > 0" in mailbox_src
+
+    # Malformed carriers fail closed before restore: the validator checks the
+    # complete shape (finite-integer gen/time/seq/arrival with sane bounds,
+    # unique IDs, strictly increasing arrivals, seq consistent with the newest
+    # restored arrival) before any session/generation/expiry gate, allowing
+    # valid empty/evicted histories.
+    assert "function isFiniteInt(" in mailbox_src
+    assert "Number.isInteger(value)" in mailbox_src
+    assert "m.arrival < 0" in mailbox_src
+    assert "!isFiniteInt(m.arrival)" in mailbox_src
+    assert 'if (ids.has(m.msgId)) return "malformed";' in mailbox_src
+    assert 'if (m.arrival <= maxArrival) return "malformed";' in mailbox_src
+    assert "handoff.seq !== maxArrival + 1" in mailbox_src
+    assert "!isFiniteInt(handoff.gen) || handoff.gen < 0" in mailbox_src
+    assert "!isFiniteInt(handoff.seq) || handoff.seq < 0" in mailbox_src
+
+    # index.ts resolves the carrier lazily so a fresh module instance shares the
+    # same process-global slot; tests can inject a hermetic fake.
+    assert "createProcessGlobalHandoffCarrier" in content
+    assert "resolveReloadCarrier" in content
+    assert "_setReloadCarrierForTest" in content
+
+    # Export-when-stopped and fail-closed-when-not are asserted in
+    # test_pi_extension_stop_listener_is_awaited_by_lifecycle_callers; here we
+    # only reaffirm the reload-specific export/session wiring still exists.
+    assert "mailbox.exportReloadHandoff(" in content
+    assert "ctx.sessionManager.getSessionId()" in content
+    assert "resolveReloadCarrier().reset()" in content
+    start_body = content.split('pi.on("session_start"', 1)[1]
+    start_body = start_body.split('pi.on("session_shutdown"', 1)[0]
+    # Restore only on reason "reload"; every other start reason resets.
+    assert 'event?.reason === "reload"' in start_body
+    assert "mailbox.restoreReloadHandoff(" in start_body
+    assert "mailbox.settle()" in start_body
+    assert "resolveReloadCarrier().reset()" in start_body
+    restore_idx = start_body.index("mailbox.restoreReloadHandoff(")
+    settle_idx = start_body.index("mailbox.settle()")
+    # Restore happens before the listener/connection branch so restored unread
+    # exist before any new arrival, and never starts a second listener.
+    flag_idx = start_body.index('pi.getFlag("inter-agent")')
+    assert restore_idx < flag_idx
+    assert settle_idx < flag_idx
 
 
 def test_pi_package_has_test_script_and_test_tsconfig() -> None:

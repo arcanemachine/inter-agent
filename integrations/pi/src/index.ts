@@ -34,6 +34,22 @@ let spawnChildProcess: typeof spawn = spawn;
 export function _setSpawnForTest(impl: typeof spawn | null): void {
   spawnChildProcess = impl ?? spawn;
 }
+
+// Test seam: production resolves a process-global one-use carrier; behavior
+// tests inject a fake carrier so reload lifecycle cases stay hermetic.
+let reloadCarrierOverride: ReloadHandoffCarrier | null = null;
+const defaultProcessCarrier = createProcessGlobalHandoffCarrier();
+
+function resolveReloadCarrier(): ReloadHandoffCarrier {
+  return reloadCarrierOverride ?? defaultProcessCarrier;
+}
+
+/** @internal Replace the reload handoff carrier for behavior tests. */
+export function _setReloadCarrierForTest(
+  carrier: ReloadHandoffCarrier | null,
+): void {
+  reloadCarrierOverride = carrier;
+}
 import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path";
@@ -44,13 +60,18 @@ import {
   MailboxDispatcher,
   buildNoticeCompact,
   buildNoticeExpanded,
+  createProcessGlobalHandoffCarrier,
   deriveInboundMetadata,
   effectiveDeliveryMode,
   effectiveDebounceMs,
   isValidDebounceMs,
   isValidDeliveryMode,
 } from "./mailbox.js";
-import type { InboundImmediateMessage, MailboxSnapshot } from "./mailbox.js";
+import type {
+  InboundImmediateMessage,
+  MailboxSnapshot,
+  ReloadHandoffCarrier,
+} from "./mailbox.js";
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
@@ -283,6 +304,19 @@ const SERVER_START_WAIT_ATTEMPTS = 30;
 const SERVER_START_WAIT_MS = 500;
 const LISTENER_STOP_SIGTERM_TIMEOUT_MS = 2000;
 const LISTENER_STOP_SIGKILL_TIMEOUT_MS = 2000;
+// Test seam: behavior tests shorten the kill races so a hung-child failing stop
+// exercise stays bounded; production keeps the real millisecond timeouts.
+let stopTermTimeoutMs = LISTENER_STOP_SIGTERM_TIMEOUT_MS;
+let stopKillTimeoutMs = LISTENER_STOP_SIGKILL_TIMEOUT_MS;
+
+/** @internal Shorten the listener stop kill races for behavior tests. */
+export function _setStopTimeoutsForTest(
+  termMs: number | null,
+  killMs: number | null,
+): void {
+  stopTermTimeoutMs = termMs ?? LISTENER_STOP_SIGTERM_TIMEOUT_MS;
+  stopKillTimeoutMs = killMs ?? LISTENER_STOP_SIGKILL_TIMEOUT_MS;
+}
 // ── State ───────────────────────────────────────────────────────────────────
 
 interface ConnectionState {
@@ -947,11 +981,15 @@ async function startListener(
     listenerProc = null;
     listenerReady = false;
     currentConnection = null;
+    if (expected) return;
+    // An unexpected exit clears durable routing state so the session_start
+    // branch will not treat a dead listener as still connected. Expected
+    // stops (disconnect or reload) own the durable-state transition themselves
+    // via stopListener, so the exit handler must not overwrite it.
     if (state) {
       persistState(pi, { ...state, connected: false });
       updateStatus(ctx, { ...state, connected: false });
     }
-    if (expected) return;
     if (code !== 0 && code !== null) {
       const reconnectHint = wasConnected
         ? `. Use /inter-agent connect ${previousName} to reconnect.`
@@ -995,20 +1033,29 @@ async function startListener(
 async function stopListener(
   pi?: ExtensionAPI,
   ctx?: ExtensionContext,
-  options: { expected?: boolean } = {},
+  options: {
+    expected?: boolean;
+    /** Preserve the durable connected routing state in the transcript (used by
+     a same-process `/reload` so the matching `session_start` reconnects the
+     same identity once). Explicit disconnect and other shutdowns stay cleared. */
+    preserveDurableConnected?: boolean;
+  } = {},
 ): Promise<boolean> {
   const proc = listenerProc;
+  const persistAfter = (): void => {
+    if (!ctx || !pi) return;
+    const state = getConnectionState(ctx);
+    if (!state) return;
+    const connected =
+      options.preserveDurableConnected === true ? state.connected : false;
+    persistState(pi, { ...state, connected });
+    updateStatus(ctx, { ...state, connected });
+  };
   if (!proc) {
     listenerReady = false;
     currentConnection = null;
     messageBuffer = "";
-    if (ctx && pi) {
-      const state = getConnectionState(ctx);
-      if (state) {
-        persistState(pi, { ...state, connected: false });
-        updateStatus(ctx, { ...state, connected: false });
-      }
-    }
+    persistAfter();
     return true;
   }
 
@@ -1055,7 +1102,7 @@ async function stopListener(
       }
     });
 
-    await Promise.race([termPromise, sleep(LISTENER_STOP_SIGTERM_TIMEOUT_MS)]);
+    await Promise.race([termPromise, sleep(stopTermTimeoutMs)]);
     if (proc.exitCode !== null || proc.signalCode !== null) {
       listenerProc = null;
       return true;
@@ -1084,7 +1131,7 @@ async function stopListener(
       }
     });
 
-    await Promise.race([killPromise, sleep(LISTENER_STOP_SIGKILL_TIMEOUT_MS)]);
+    await Promise.race([killPromise, sleep(stopKillTimeoutMs)]);
 
     if (proc.exitCode !== null || proc.signalCode !== null) {
       listenerProc = null;
@@ -1095,12 +1142,8 @@ async function stopListener(
 
   try {
     const exited = await activeStop;
-    if (exited && ctx && pi) {
-      const state = getConnectionState(ctx);
-      if (state) {
-        persistState(pi, { ...state, connected: false });
-        updateStatus(ctx, { ...state, connected: false });
-      }
+    if (exited) {
+      persistAfter();
     }
     return exited;
   } finally {
@@ -1248,8 +1291,24 @@ export default function (pi: ExtensionAPI) {
 
   // ── Session Lifecycle ─────────────────────────────────────────────────────
 
-  pi.on("session_start", async (_event, ctx) => {
+  pi.on("session_start", async (event, ctx) => {
     currentCtx = ctx;
+
+    // Same-process `/reload` preserves the bounded unread mailbox through the
+    // one-use carrier; every other start reason starts empty and clears any
+    // stale handoff. Restoration is metadata/bodies only and never starts a
+    // second listener or changes routing identity.
+    if (event?.reason === "reload") {
+      mailbox.restoreReloadHandoff(
+        ctx.sessionManager.getSessionId(),
+        resolveReloadCarrier(),
+      );
+      // Flush a restored pending body-free notice once, now that the new
+      // runtime is idle; settle is a no-op unless a notice is actually pending.
+      mailbox.settle();
+    } else {
+      resolveReloadCarrier().reset();
+    }
 
     // Warn exactly once per invalid configured key once UI context exists.
     if (modeConfiguredInvalid && !warnedInvalidMode) {
@@ -1328,11 +1387,47 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.on("session_shutdown", async () => {
-    if (currentCtx) {
-      await stopListener(pi, currentCtx, { expected: true });
+  pi.on("session_shutdown", async (event, ctx) => {
+    const reload = event?.reason === "reload";
+    const targetCtx = currentCtx ?? ctx;
+    let stopped = true;
+    if (targetCtx) {
+      // For a same-process `/reload`, stop the listener while preserving the
+      // durable connected routing state so the matching `session_start`
+      // reconnects the same identity once through the existing branch. Every
+      // other shutdown reason clears connected state as before.
+      stopped = await stopListener(pi, targetCtx, {
+        expected: true,
+        preserveDurableConnected: reload,
+      });
     } else {
       await stopListener();
+    }
+    // After the listener has stopped accepting arrivals and before the old
+    // runtime mailbox clears, export unread state for a same-process reload
+    // only. Any other shutdown reason clears the pending handoff. A failed or
+    // incomplete reload stop must fail closed: do not export any body handoff,
+    // drop the pending carrier, and clear durable connected state so the
+    // matching `session_start` cannot start a replacement listener while the
+    // old listener process may still be alive.
+    if (reload && ctx) {
+      resolveReloadCarrier().reset();
+      if (!stopped) {
+        // The old listener may still be running; fail closed and leave no
+        // durable reconnect path so no replacement listener is created.
+        const state = getConnectionState(ctx);
+        if (state) {
+          persistState(pi, { ...state, connected: false });
+          updateStatus(ctx, { ...state, connected: false });
+        }
+      } else {
+        mailbox.exportReloadHandoff(
+          ctx.sessionManager.getSessionId(),
+          resolveReloadCarrier(),
+        );
+      }
+    } else {
+      resolveReloadCarrier().reset();
     }
     mailbox.shutdown();
     currentCtx = null;
@@ -1465,14 +1560,22 @@ export default function (pi: ExtensionAPI) {
     const name = args.trim();
     const parts = name.split(/\s+/).filter(Boolean);
     if (parts.length !== 1) {
-      notify("[inter-agent] kick failed", "usage: /inter-agent kick <name>", "error");
+      notify(
+        "[inter-agent] kick failed",
+        "usage: /inter-agent kick <name>",
+        "error",
+      );
       return;
     }
     // Kick is user-only and uses a short-lived authenticated control
     // connection; it does not require this Pi listener to be connected.
     const result = await execPiScript(currentScripts(), ["kick", name]);
     if (result.code !== 0) {
-      notify("[inter-agent] kick failed", scriptFailureMessage(result, "kick"), "error");
+      notify(
+        "[inter-agent] kick failed",
+        scriptFailureMessage(result, "kick"),
+        "error",
+      );
       return;
     }
     try {

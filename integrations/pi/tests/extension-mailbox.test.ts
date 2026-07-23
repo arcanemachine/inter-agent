@@ -11,7 +11,12 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import ext, { _setSpawnForTest } from "../src/index.js";
+import ext, {
+  _setSpawnForTest,
+  _setReloadCarrierForTest,
+  _setStopTimeoutsForTest,
+} from "../src/index.js";
+import type { ReloadHandoff, ReloadHandoffCarrier } from "../src/mailbox.js";
 
 // ── Fake Pi runtime ─────────────────────────────────────────────────────────
 
@@ -37,6 +42,9 @@ class FakeChildProcess extends EventEmitter {
   signalCode: NodeJS.Signals | null = null;
   // The extension sets this to mark an expected (disconnect) stop.
   [key: string]: unknown;
+  // When true, kill() records the signal but never emits exit/close, simulating
+  // a hung child that drives stopListener to time out and return false.
+  hangOnKill = false;
 
   emitStdout(line: string): void {
     this.stdout.emit("data", Buffer.from(line));
@@ -48,6 +56,10 @@ class FakeChildProcess extends EventEmitter {
 
   kill(signal: NodeJS.Signals = "SIGTERM"): boolean {
     if (this.exitCode !== null || this.signalCode !== null) return false;
+    // A hung child records the kill attempt but never exits, so stopListener's
+    // SIGTERM/SIGKILL races time out and it returns false. signalCode is NOT
+    // set so stopListener's exit checks stay false until the real timeouts.
+    if (this.hangOnKill) return false;
     this.signalCode = signal;
     this.emit("exit", null, signal);
     this.emit("close", null, signal);
@@ -67,7 +79,10 @@ class FakeChildProcess extends EventEmitter {
 }
 
 class FakeCtx {
-  readonly sessionManager: { getBranch(): BranchEntry[] };
+  readonly sessionManager: {
+    getBranch(): BranchEntry[];
+    getSessionId(): string;
+  };
   readonly ui: {
     notify: (m: string, t?: string) => void;
     setStatus: (k: string, t: string | undefined) => void;
@@ -75,6 +90,7 @@ class FakeCtx {
   cwd: string;
   idle = true;
   pendingMessages = false;
+  sessionId = "reload-session-1";
 
   constructor(
     branch: BranchEntry[],
@@ -82,6 +98,7 @@ class FakeCtx {
   ) {
     this.sessionManager = {
       getBranch: () => branch,
+      getSessionId: () => this.sessionId,
     };
     this.ui = {
       notify: (message, type = "info") => notifyLog.push({ message, type }),
@@ -290,6 +307,29 @@ function readTool(pi: FakePi): { execute: Handler } {
 }
 
 const MARKER = "SECRET-MARKER-extension-body";
+
+class FakeCarrier implements ReloadHandoffCarrier {
+  gen = 0;
+  slot: ReloadHandoff | null = null;
+  getGeneration(): number {
+    return this.gen;
+  }
+  store(handoff: ReloadHandoff): void {
+    this.gen = handoff.gen;
+    this.slot = handoff;
+  }
+  take(): { handoff: ReloadHandoff | null; genBefore: number } {
+    const handoff = this.slot;
+    const genBefore = this.gen;
+    this.slot = null;
+    this.gen = this.gen + 1;
+    return { handoff, genBefore };
+  }
+  reset(): void {
+    this.slot = null;
+    this.gen = this.gen + 1;
+  }
+}
 
 /** Emit a welcome then a queued direct msg frame on the current listener. */
 function emitDirectMsg(
@@ -643,4 +683,448 @@ test("agent_settled flushes a pending queued notice at most once", async () => {
       assert.equal(notices[0].options.triggerTurn, true);
     },
   );
+});
+
+// ── Same-process reload handoff wiring ──────────────────────────────────────
+
+function emitMsg(
+  listener: FakeChildProcess,
+  msgId: string,
+  fromName: string,
+  body: string,
+  extra: Record<string, unknown> = {},
+): void {
+  listener.emitStdout(
+    JSON.stringify({
+      op: "msg",
+      msg_id: msgId,
+      from_name: fromName,
+      text: body,
+      ...extra,
+    }) + "\n",
+  );
+}
+
+function mailboxNotices(pi: FakePi): RecordedMessage[] {
+  return pi.messages.filter(
+    (m) => m.message.customType === "inter-agent-mailbox",
+  );
+}
+
+test("ordinary command-connected identity reconnects exactly once across reload via transcript-restored state", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        const cmd = interAgentCommand(pi);
+        await cmd.handler("connect rx", pi.ctx);
+        const listener1 = listeners[listeners.length - 1];
+        listener1.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        await tick();
+        // Established command-connected identity: rx, durable in the transcript.
+        const stateEntry = pi.branch.find(
+          (e) => e.customType === "inter-agent-state",
+        );
+        assert.deepEqual(stateEntry?.data, {
+          name: "rx",
+          label: null,
+          connected: true,
+        });
+
+        emitMsg(listener1, "d1", "alice", `${MARKER}-d1`, { to: "rx" });
+        emitMsg(listener1, "b1", "bob", `${MARKER}-b1`);
+        emitMsg(listener1, "c1", "cara", `${MARKER}-c1`, {
+          channel: "updates",
+        });
+        await tick();
+        const noticesBefore = mailboxNotices(pi).length;
+
+        // No flag, so reconnect must come from transcript-restored connected state.
+        pi.setFlagValue(undefined);
+        const listenersBefore = listeners.length;
+        // Reload: shutdown stops the OLD listener first (preserving durable
+        // connected state), exports to the carrier, then clears the old mailbox.
+        await runHandler(pi, "session_shutdown", { reason: "reload" }, pi.ctx);
+        // The old listener process is gone; exactly one listener has been stopped.
+        assert.equal(listeners.length, listenersBefore);
+        assert.equal(listener1.signalCode, "SIGTERM");
+        // Durable connected routing state was preserved for the reload start, so
+        // the existing session_start connection branch reconnects.
+        const reloadedState = pi.branch
+          .slice()
+          .reverse()
+          .find((e) => e.customType === "inter-agent-state");
+        assert.deepEqual(reloadedState?.data, {
+          name: "rx",
+          label: null,
+          connected: true,
+        });
+
+        await runHandler(pi, "session_start", { reason: "reload" }, pi.ctx);
+        await tick();
+        // The matching reload start starts exactly one replacement listener (+1),
+        // under the same routing name, with no overlap or second replacement.
+        assert.equal(listeners.length, listenersBefore + 1);
+        const listener2 = listeners[listeners.length - 1];
+        listener2.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        await tick();
+        const finalState = pi.branch
+          .slice()
+          .reverse()
+          .find((e) => e.customType === "inter-agent-state");
+        assert.deepEqual(finalState?.data, {
+          name: "rx",
+          label: null,
+          connected: true,
+        });
+
+        // The old unread IDs survive in the mailbox; bodies surface only on read.
+        const read = (await readTool(pi).execute(
+          "c",
+          {},
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as {
+          details: {
+            read: {
+              id: string;
+              body: string;
+              kind: string;
+              channel?: string;
+            }[];
+          };
+        };
+        assert.equal(read.details.read.length, 3);
+        assert.deepEqual(
+          read.details.read.map((m) => m.id),
+          ["d1", "b1", "c1"],
+        );
+        assert.equal(read.details.read[0].body, `${MARKER}-d1`);
+        assert.equal(read.details.read[2].kind, "channel");
+        assert.equal(read.details.read[2].channel, "updates");
+
+        // No duplicate awareness turn for the notice that already entered context.
+        assert.equal(mailboxNotices(pi).length, noticesBefore);
+        // No manual reconnect was issued to satisfy reload continuity.
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+  }
+});
+
+test("startup --inter-agent flag identity reconnects exactly once across reload", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        // The flag takes precedence over transcript state; it is reapplied on every
+        // session_start reason including reload.
+        pi.setFlagValue("worker-a");
+        await runHandler(pi, "session_start", {}, pi.ctx);
+        await tick();
+        const listener1 = listeners[listeners.length - 1];
+        listener1.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        await tick();
+
+        emitMsg(listener1, "f1", "alice", `${MARKER}-f1`, { to: "worker-a" });
+        await tick();
+        const noticesBefore = mailboxNotices(pi).length;
+
+        const listenersBefore = listeners.length;
+        await runHandler(pi, "session_shutdown", { reason: "reload" }, pi.ctx);
+        assert.equal(listener1.signalCode, "SIGTERM");
+        await runHandler(pi, "session_start", { reason: "reload" }, pi.ctx);
+        await tick();
+        // The flag branch reconnects exactly once under the same flag name.
+        assert.equal(listeners.length, listenersBefore + 1);
+        const listener2 = listeners[listeners.length - 1];
+        listener2.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        await tick();
+        const finalState = pi.branch
+          .slice()
+          .reverse()
+          .find((e) => e.customType === "inter-agent-state");
+        assert.deepEqual(finalState?.data, {
+          name: "worker-a",
+          label: null,
+          connected: true,
+        });
+
+        const read = (await readTool(pi).execute(
+          "c",
+          {},
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as { details: { read: { id: string; body: string }[] } };
+        assert.equal(read.details.read.length, 1);
+        assert.equal(read.details.read[0].id, "f1");
+        assert.equal(read.details.read[0].body, `${MARKER}-f1`);
+        assert.equal(mailboxNotices(pi).length, noticesBefore);
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+  }
+});
+
+test("mailbox restore itself does not start a listener or change routing identity", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        const cmd = interAgentCommand(pi);
+        await cmd.handler("connect rx", pi.ctx);
+        const listener1 = listeners[listeners.length - 1];
+        listener1.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        emitMsg(listener1, "r1", "alice", `${MARKER}-r1`, { to: "rx" });
+        await tick();
+        const noticesBefore = mailboxNotices(pi).length;
+
+        // Export a handoff, but simulate a reload start WITHOUT a transcript
+        // reconnect path (no flag, durable state cleared) so restore alone runs.
+        await runHandler(pi, "session_shutdown", { reason: "reload" }, pi.ctx);
+        // Wipe the durable connected state and pin the flag off so the
+        // session_start connection branch will not fire.
+        pi.branch.length = 0;
+        pi.setFlagValue(undefined);
+        const listenersBefore = listeners.length;
+        await runHandler(pi, "session_start", { reason: "reload" }, pi.ctx);
+        await tick();
+        // Restore consumed the carrier and reloaded unread; it started no listener.
+        assert.equal(listeners.length, listenersBefore);
+        assert.equal(carrier.slot, null);
+        const read = (await readTool(pi).execute(
+          "c",
+          {},
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as { details: { read: { id: string; body: string }[] } };
+        assert.equal(read.details.read.length, 1);
+        assert.equal(read.details.read[0].body, `${MARKER}-r1`);
+        // Restore alone does not duplicate the already-delivered notice.
+        assert.equal(mailboxNotices(pi).length, noticesBefore);
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+  }
+});
+
+test("reload restores exactly one body-free awareness notice for a pre-reload pending notice", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        const cmd = interAgentCommand(pi);
+        await cmd.handler("connect rx", pi.ctx);
+        const listener = listeners[listeners.length - 1];
+        listener.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        await tick();
+
+        // Hold a notice pending while the agent is active so no awareness turn
+        // has entered context before reload.
+        pi.ctx.idle = false;
+        pi.ctx.pendingMessages = true;
+        emitMsg(listener, "p1", "alice", `${MARKER}-p1`, { to: "rx" });
+        await tick();
+        assert.equal(mailboxNotices(pi).length, 0);
+
+        await runHandler(pi, "session_shutdown", { reason: "reload" }, pi.ctx);
+        // After reload, the new runtime is idle; the pending notice flushes once.
+        pi.ctx.idle = true;
+        pi.ctx.pendingMessages = false;
+        await runHandler(pi, "session_start", { reason: "reload" }, pi.ctx);
+        await tick();
+
+        const notices = mailboxNotices(pi);
+        assert.equal(notices.length, 1);
+        assert.equal(notices[0].options.triggerTurn, true);
+        assert.ok(!JSON.stringify(notices[0].message.details).includes(MARKER));
+        // The restored unread is still readable.
+        const read = (await readTool(pi).execute(
+          "c",
+          {},
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as { details: { read: { id: string; body: string }[] } };
+        assert.equal(read.details.read[0].id, "p1");
+        assert.equal(read.details.read[0].body, `${MARKER}-p1`);
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+  }
+});
+
+test("non-reload shutdown/start reasons clear the handoff and start empty", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        const cmd = interAgentCommand(pi);
+        await cmd.handler("connect rx", pi.ctx);
+        const listener = listeners[listeners.length - 1];
+        listener.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        emitMsg(listener, "g1", "alice", `${MARKER}-g1`, { to: "rx" });
+        await tick();
+
+        // A terminated-process analog: shutdown reason "quit" clears the handoff,
+        // and a later "resume" start (new process) does not restore it.
+        await runHandler(pi, "session_shutdown", { reason: "quit" }, pi.ctx);
+        assert.equal(carrier.slot, null);
+        await runHandler(pi, "session_start", { reason: "resume" }, pi.ctx);
+        await tick();
+        assert.equal(carrier.slot, null);
+
+        const read = (await readTool(pi).execute(
+          "c",
+          { ids: ["g1"] },
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as { details: { read: unknown[]; missing: string[] } };
+        assert.equal(read.details.read.length, 0);
+        assert.deepEqual(read.details.missing, ["g1"]);
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+  }
+});
+
+test("reload handoff bodies never reach notices, settings entries, or diagnostics", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        const cmd = interAgentCommand(pi);
+        await cmd.handler("connect rx", pi.ctx);
+        const listener = listeners[listeners.length - 1];
+        listener.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        emitMsg(listener, "s1", "alice", `${MARKER}-secret`, { to: "rx" });
+        await tick();
+
+        await runHandler(pi, "session_shutdown", { reason: "reload" }, pi.ctx);
+        await runHandler(pi, "session_start", { reason: "reload" }, pi.ctx);
+        await tick();
+
+        // The carrier holds the body in process memory only; it never appears in
+        // Pi messages, branch entries, or notifications.
+        for (const recorded of pi.messages) {
+          assert.ok(!JSON.stringify(recorded).includes(`${MARKER}-secret`));
+        }
+        for (const entry of pi.branch) {
+          assert.ok(!JSON.stringify(entry).includes(`${MARKER}-secret`));
+        }
+        for (const n of pi.notifyLog) {
+          assert.ok(!n.message.includes(`${MARKER}-secret`));
+        }
+        // The body surfaces only through an explicit read.
+        const read = (await readTool(pi).execute(
+          "c",
+          {},
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as { details: { read: { body: string }[] } };
+        assert.equal(read.details.read[0].body, `${MARKER}-secret`);
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+  }
+});
+
+test("reload fails closed when stopListener cannot stop the old listener (hung child)", async () => {
+  const carrier = new FakeCarrier();
+  _setReloadCarrierForTest(carrier);
+  _setStopTimeoutsForTest(10, 10);
+  try {
+    await withEnv(
+      { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+      async ({ pi, listeners }) => {
+        const cmd = interAgentCommand(pi);
+        await cmd.handler("connect rx", pi.ctx);
+        const listener1 = listeners[listeners.length - 1];
+        listener1.emitStdout(JSON.stringify({ op: "welcome" }) + "\n");
+        await tick();
+        emitMsg(listener1, "h1", "alice", `${MARKER}-hung`, { to: "rx" });
+        await tick();
+        const noticesBefore = mailboxNotices(pi).length;
+
+        // Make the child ignore kill so stopListener times out and returns false.
+        listener1.hangOnKill = true;
+        pi.setFlagValue(undefined);
+        const listenersBefore = listeners.length;
+
+        // Reload shutdown: stop times out → no handoff exported, carrier cleared,
+        // durable connected state cleared so matching start cannot reconnect.
+        await runHandler(pi, "session_shutdown", { reason: "reload" }, pi.ctx);
+        assert.equal(carrier.slot, null); // no body handoff
+        const failState = pi.branch
+          .slice()
+          .reverse()
+          .find((e) => e.customType === "inter-agent-state");
+        assert.deepEqual(failState?.data, {
+          name: "rx",
+          label: null,
+          connected: false,
+        });
+
+        // Matching reload start: no replacement listener (durable state cleared),
+        // no handoff to restore, old unread unavailable to the new runtime.
+        await runHandler(pi, "session_start", { reason: "reload" }, pi.ctx);
+        await tick();
+        assert.equal(listeners.length, listenersBefore); // no replacement started
+        assert.equal(carrier.slot, null);
+
+        const read = (await readTool(pi).execute(
+          "c",
+          { ids: ["h1"] },
+          undefined,
+          undefined,
+          pi.ctx,
+        )) as { details: { read: unknown[]; missing: string[] } };
+        assert.equal(read.details.read.length, 0);
+        assert.deepEqual(read.details.missing, ["h1"]);
+
+        // No body disclosed in notices, diagnostics, or messages.
+        for (const recorded of pi.messages) {
+          assert.ok(!JSON.stringify(recorded).includes(`${MARKER}-hung`));
+        }
+        for (const entry of pi.branch) {
+          assert.ok(!JSON.stringify(entry).includes(`${MARKER}-hung`));
+        }
+        for (const n of pi.notifyLog) {
+          assert.ok(!n.message.includes(`${MARKER}-hung`));
+        }
+        // No new awareness notice for the failed reload.
+        assert.equal(mailboxNotices(pi).length, noticesBefore);
+
+        // Let the finally's shutdown stop instantly instead of timing out again.
+        listener1.hangOnKill = false;
+        listener1.kill("SIGTERM");
+      },
+    );
+  } finally {
+    _setReloadCarrierForTest(null);
+    _setStopTimeoutsForTest(null, null);
+  }
 });
