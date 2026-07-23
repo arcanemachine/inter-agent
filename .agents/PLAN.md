@@ -8,17 +8,11 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 8d: Pi compaction connection and mailbox continuity
+No item is active. Project closeout item 8d was closed verification-only after post-supercompaction identity continuity and a real two-way inter-agent messaging test passed; it required no additional product change.
 
-Verify first whether item 8c already resolved the previously observed compaction disconnect. If native and supercompact paths pass, close verification-only; implement no speculative reconciliation. Item 8c was accepted in `ad4de46`.
+The next accepted item is installed cross-adapter TLS acceptance. It is not active or planned in this file.
 
-Task packet:
-
-- [Task 1 — Diagnose and preserve Pi continuity across compaction](plans/pi-compaction-continuity/01-diagnose-and-reconcile.md)
-
-Do not dispatch this packet until the user explicitly authorizes dispatch. Installed cross-adapter TLS acceptance is the next roadmap item after item 8d is accepted.
-
-Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
+Continuity is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only an active item belongs in this plan.
 
 ## Planning workflow
 
