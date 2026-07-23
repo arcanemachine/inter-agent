@@ -1,6 +1,7 @@
 # Task 1 — Prove installed Pi/Claude interoperability over TLS
 
 Status: ready for dispatch
+Assigned executor: none
 
 ## Outcome
 
@@ -14,14 +15,15 @@ Read these before changing files:
 
 1. `AGENTS.md`
 2. `/workspace/.agents/languages/python.md`
-3. `.agents/PLAN.md`
-4. this packet
-5. `docs/plans/important-closeout/02-installed-tls-acceptance.md`
-6. `docs/plans/important-closeout/00-execution-guide.md`
-7. `SECURITY.md`
-8. the current versions of every file selected from the allowed-file list below
+3. `/workspace/.agents/languages/nodejs.md`
+4. `.agents/PLAN.md`
+5. this packet
+6. `docs/plans/important-closeout/02-installed-tls-acceptance.md`
+7. `docs/plans/important-closeout/00-execution-guide.md`
+8. `SECURITY.md`
+9. the current versions of every file selected from the allowed-file list below
 
-For Pi changes, also read `integrations/pi/AGENTS.md`. For Claude integration changes, also read `integrations/claude-code/AGENTS.md`. Do not traverse or print `node_modules`, dependency trees, user/global configuration, credentials, certificate private-key contents, or real message bodies.
+For Pi changes, also read `integrations/pi/AGENTS.md`. Claude integration changes follow the root `AGENTS.md`; there is no integration-local Claude agent file. Do not traverse or print `node_modules`, dependency trees, user/global configuration, credentials, certificate private-key contents, or real message bodies.
 
 ## Existing behavior — do not redesign it
 

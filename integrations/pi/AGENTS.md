@@ -1,8 +1,10 @@
 # Agent Instructions
 
+Follow the repository-root `AGENTS.md` and the assigned role document before this integration-specific guidance. Root role boundaries take precedence.
+
 ## Workflow
 
-Commit when a task is completed.
+The leader commits accepted completed work. Executors never commit.
 
 When changing tool behavior, update README examples and config docs in the same task.
 

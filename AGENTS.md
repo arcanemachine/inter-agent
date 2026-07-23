@@ -16,6 +16,18 @@ Before task work begins, the user must explicitly assign one of these roles to t
 
 Role assignment and task dispatch are separate. A newly assigned executor without a task packet finishes the short onboarding in its role document, does not inspect project work, and waits for the leader. The leader alone selects active work, prepares and commits its packet, obtains dispatch authorization, and assigns it.
 
+### Ordered onboarding
+
+Mandatory onboarding reads are sequential, not a set that may be opened in parallel:
+
+1. Every role reads this file completely before opening another project file.
+2. The assigned role then reads only its role document.
+3. A `leader` next reads `.agents/PLAN.md` and, when it links current work, that one active packet. The packet is part of mandatory active-state review; all other project content remains subject to the leader's filename-inventory and user-approval boundary.
+4. An unassigned `executor` stops after its role document and waits. After dispatch, it reads the named packet before any packet-authorized references.
+5. Once the task language is known, read the relevant `/workspace/.agents/languages/<language>/` file or `/workspace/.agents/languages/<language>.md` before language-specific task work. A filename-only root inventory is sufficient to identify the language; do not open a manifest early just to infer it.
+
+When discovering additional agent or LLM guidance, inspect filenames only at first. Check case-insensitively for `*usage*.md`, `*claude*.md`, `*agent*.md`, and `.claude/`, while pruning `.git`, `node_modules`, virtual environments, caches, build outputs, and generated dependency trees. Dependency documentation is not project guidance. Read only relevant files after the applicable role or packet authorization.
+
 The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task packets live in `.agents/plans/`.
 
 ## Core rules
@@ -33,10 +45,11 @@ The authoritative active-plan file is `.agents/PLAN.md`. Detailed active task pa
 11. Do not inject canned acknowledgment or receipt wording (for example, "Inter-agent message received; no reply needed.") into prompts sent to peer agents. Instructing a model toward a fixed passive receipt biases it into stopping at the receipt instead of acting on the request. Keep outward peer-message guidance about how to *decide whether to reply* and to *stay silent when idle*; never suggest a default response the model can emit in place of doing the work.
 12. Match existing project style and conventions in code, tests, docs, and commits.
 13. A `leader` delegates only work required by the active plan or explicitly requested by the user. Do not create or dispatch work merely because it can be bounded.
-14. The `leader` keeps commits atomic per logical step.
-15. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
-16. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
-17. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
+14. Every active packet records its durable dispatch state with `Status:` and `Assigned executor:` fields. `Assigned executor: none` means it has not been dispatched. Never infer unused or eligible executor state solely from connection order or a routing-name suffix.
+15. The `leader` keeps commits atomic per logical step.
+16. The `leader` uses [Conventional Commits](https://www.conventionalcommits.org/) style for commits: `type: description` (e.g., `fix: prevent duplicate names on concurrent connections`, `test: add concurrent duplicate name rejection test`).
+17. The `leader` commits completed work before handing back unless the user explicitly requests no commits.
+18. After completing a task, summarize what was done, describe what is coming next, and continue with the plan unless there is an important reason to stop, such as a required user decision or significant new information.
 
 ## Required workflow for every feature/change
 

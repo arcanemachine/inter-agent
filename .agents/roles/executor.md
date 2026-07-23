@@ -6,7 +6,7 @@ An executor executes one bounded task at a time. Follow `AGENTS.md`, then this r
 
 When assigned the executor role without a task packet:
 
-1. Read only `AGENTS.md` and this role document.
+1. Read `AGENTS.md` completely, then this role document. Do not open them in parallel or read any other project file between them.
 2. Do not inspect `.agents/PLAN.md`, `ROADMAP.md`, `.agents/plans/`, source files, tests, Git history, or worktree changes.
 3. Report that onboarding is complete, then remain silent while idle and wait for the leader to dispatch a packet. Do not propose, select, inventory, or begin work independently.
 
@@ -16,10 +16,11 @@ Role assignment is not permission to execute a task. Stay idle until the leader 
 
 When the leader dispatches a task through the inter-agent bus:
 
-1. Confirm the dispatch message names the packet path and that the packet identifies one bounded task with allowed read and modify files, non-goals, requirements, acceptance criteria, checks, and an end-to-end acceptance test when applicable.
-2. Treat the dispatch as authorization to read that named packet. Then read only the additional files the packet authorizes.
-3. Stop and ask the leader if the packet is missing required boundaries, conflicts with repository instructions, or does not authorize a file needed for the task.
-4. Do not read `.agents/PLAN.md` unless the packet explicitly authorizes it.
+1. Confirm the dispatch message names the packet path. Read that packet first, then confirm it identifies one bounded task with allowed read and modify files, non-goals, requirements, acceptance criteria, checks, and an end-to-end acceptance test when applicable.
+2. Confirm the packet says `Status: dispatched` and its `Assigned executor:` value exactly matches this session's routing name. Stop and ask the leader if either field is absent or mismatched.
+3. Treat the dispatch as authorization to read that named packet. Then read only the additional files the packet authorizes, in its stated order, including relevant workspace language instructions.
+4. Stop and ask the leader if the packet is missing required boundaries, conflicts with repository instructions, or does not authorize a file needed for the task.
+5. Do not read `.agents/PLAN.md` unless the packet explicitly authorizes it.
 
 ## Execution boundary
 

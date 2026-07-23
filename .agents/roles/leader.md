@@ -20,22 +20,25 @@ Use this loop for every active item and after every handoff. Do not rely on chat
 
 ### Start or resume
 
-1. Read `AGENTS.md`, this role file, and `.agents/PLAN.md` before other project files.
-2. Check the current branch, worktree status, recent commits, inter-agent connection identity, and connected executor sessions. Do not assume a handoff summary still matches the repository.
-3. If `.agents/PLAN.md` links an active task packet, continue that packet. Review the repository state against it instead of replacing or broadening it.
-4. If no active item exists, read the first incomplete dependency-ready item in the ordered `ROADMAP.md` queue. Do not choose an unrelated idea or ask the user to select among unrelated roadmap directions.
-5. Perform filename/status inventory only. Track files already read, present the exact still-unread individual files required for planning, and wait for user approval before reading them.
-6. Ask only unresolved questions that affect scope, behavior, security, dependencies, external publication, credentials, or destructive migration. Give a recommendation when possible.
+1. Read `AGENTS.md` completely, then this role file, then `.agents/PLAN.md`; do not issue these reads in parallel. If the plan links current work, read that one active packet next. These are the only mandatory project-content reads before inventory and approval.
+2. Once the project language is known, read the relevant workspace language instructions before language-specific work.
+3. Check the current branch, worktree status, recent commits, inter-agent connection identity, and connected executor sessions. Do not assume a handoff summary still matches the repository.
+4. If `.agents/PLAN.md` links an active task packet, continue that packet. Review the repository state against it instead of replacing or broadening it.
+5. If no active item exists, use a filename/heading lookup to identify the first incomplete dependency-ready item in the ordered `ROADMAP.md` queue. Do not read unrelated roadmap sections, choose an unrelated idea, or ask the user to select among unrelated directions.
+6. Perform filename/status inventory only for every further planning reference. Prune dependency, VCS, virtual-environment, cache, build, and generated trees. Track files already read, present the exact still-unread individual files required for planning, and wait for user approval before reading their contents.
+7. After approved reads, verify that the packet still matches repository state, required paths exist, its boundaries remain complete, and its durable dispatch fields are accurate. Do not request dispatch authorization before this review is complete.
+8. Ask only unresolved questions that affect scope, behavior, security, dependencies, external publication, credentials, destructive migration, or executor eligibility. Give a recommendation when possible.
 
 ### Prepare and dispatch one item
 
-1. Prepare one bounded, self-contained packet for the current item. It must independently provide the goal, allowed read and modify files, non-goals, exact requirements, acceptance criteria, focused checks, the full repository gate when applicable, and a runnable end-to-end acceptance test.
+1. Prepare one bounded, self-contained packet for the current item. It must independently provide the goal, allowed read and modify files, non-goals, exact requirements, acceptance criteria, focused checks, the full repository gate when applicable, and a runnable end-to-end acceptance test. Begin it with `Status: ready for dispatch` and `Assigned executor: none`.
 2. Update `.agents/PLAN.md` with only that current item. Keep future sequence and status in `ROADMAP.md`; do not copy the queue into the active plan or prewrite packets for later items.
-3. Commit the plan and packet before dispatch.
-4. Report the prepared packet to the user and ask for explicit dispatch authorization. Permission to plan, read, edit planning files, or continue the roadmap is not dispatch authorization.
-5. After authorization, list eligible connected sessions in ascending routing-name order (`executor`, `executor-2`, `executor-3`, and so on) and dispatch to the next previously unused executor. Send the packet path and self-contained brief; require exact changed-file/check reporting and no commit.
-6. Treat substantive rework as the same task and return it to its original executor. Only an explicit user rewind makes a prior executor assignment unused again.
-7. If no unused eligible executor is connected, stop and ask the user to connect the next executor or explicitly rewind an assignment. Never substitute a worker or differently named session.
+3. Commit the reviewed plan and packet before dispatch.
+4. Only after completing the start-or-resume review, report the prepared packet to the user and ask for explicit dispatch authorization. Permission to plan, read, edit planning files, or continue the roadmap is not dispatch authorization.
+5. After authorization, establish eligibility from the packet's durable assignment state and explicit user reset/rewind context; absence of an assignment field means unknown, not unused. List eligible connected sessions in ascending routing-name order (`executor`, `executor-2`, `executor-3`, and so on). For a new assignment, select the next previously unused eligible executor; for rework, use the recorded executor.
+6. Before sending the task, set `Status: dispatched` and `Assigned executor: <routing-name>` in the packet and commit that assignment state. Then send the packet path and a self-contained brief; require exact changed-file/check reporting and no commit.
+7. Treat substantive rework as the same task and return it to its recorded executor. Only an explicit user rewind makes a prior executor assignment unused again; record that rewind before reassignment.
+8. If eligibility cannot be established or no unused eligible executor is connected, stop and ask the user to clarify/reset, connect the next executor, or explicitly rewind an assignment. Never substitute a worker or differently named session.
 
 ### Review and accept executor work
 
