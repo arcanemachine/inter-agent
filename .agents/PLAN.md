@@ -8,15 +8,15 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Project closeout — item 8c: Pi mailbox continuity across extension reload
+### Project closeout — item 8d: Pi compaction connection and mailbox continuity
 
-Preserve the exact bounded unread Pi mailbox through same-process extension `/reload` with a one-use memory-only handoff, while terminated-session resume and replacement boundaries remain empty. Item 8b was accepted in `6210ed6`.
+Verify first whether item 8c already resolved the previously observed compaction disconnect. If native and supercompact paths pass, close verification-only; implement no speculative reconciliation. Item 8c was accepted in `ad4de46`.
 
 Task packet:
 
-- [Task 1 — Preserve Pi unread mailbox through same-process reload](plans/pi-mailbox-reload-continuity/01-one-use-reload-handoff.md)
+- [Task 1 — Diagnose and preserve Pi continuity across compaction](plans/pi-compaction-continuity/01-diagnose-and-reconcile.md)
 
-Do not dispatch this packet until the user explicitly authorizes dispatch. Pi compaction connection and mailbox continuity is the next roadmap item after item 8c is accepted.
+Do not dispatch this packet until the user explicitly authorizes dispatch. Installed cross-adapter TLS acceptance is the next roadmap item after item 8d is accepted.
 
 Continuity after this item is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue). Only the current item belongs in this active plan.
 
