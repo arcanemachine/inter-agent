@@ -1,7 +1,7 @@
 # Task 1 — Prove installed Pi/Claude interoperability over TLS
 
-Status: ready for dispatch
-Assigned executor: none
+Status: dispatched
+Assigned executor: inter-agent-executor
 
 ## Outcome
 
