@@ -6,17 +6,6 @@ Status: concrete; user-gated physical migration; queued after mailbox and TLS ac
 
 Freeze an accepted source state, confirm ownership and naming, create the private maintainer superproject, and establish a safe migration workspace before extracting public packages.
 
-## Shallow execution slices
-
-Execute this checkpoint as separate, dependency-ordered slices so each executor needs only narrow context:
-
-1. **10A — Local freeze preflight:** record the current local Git/package state and rerun the monorepo, Pi, and Claude validation gates without creating refs, repositories, remotes, or registry state.
-2. **10B — Maintainer decision gate:** the leader presents the preflight facts and obtains the required ownership, visibility, authorization, branch-policy, registry, current-remote, and maintenance-window decisions directly from the user. This is not an executor handoff.
-3. **10C — Extraction mapping manifest:** prepare and review the exact child path/history mapping locally without filtering history or moving files.
-4. **10D — Private meta and recovery scaffold:** only after the explicit physical-migration gate, establish the recoverable freeze ref/workspace and private-meta repository, then verify visibility and URLs without exposing credentials.
-
-Activate and prepare only the next dependency-ready slice. Later packets are written just in time from accepted findings.
-
 ## Locked topology and names
 
 - Private: `inter-agent-meta`.

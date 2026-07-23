@@ -8,17 +8,55 @@ Detailed active task packets live in `.agents/plans/<plan-name>/`.
 
 ## Current active work
 
-### Closeout item 10A — local freeze preflight
+### Closeout item 10 — migration checkpoint and private meta repository
 
-Record the current local Git/package baseline and rerun the monorepo, Pi, and Claude validation gates without selecting a final freeze ref or taking external, credentialed, destructive, or migration actions.
+#### Purpose
 
-Task packet:
+Establish a safe, explicitly approved starting point for splitting the monorepo. This checkpoint prepares the migration; it does not itself authorize repository extraction, publication, credential use, or remote changes.
 
-- [Task 1 — Local freeze preflight](plans/migration-checkpoint/01-local-freeze-preflight.md)
+The intended topology remains:
 
-The packet is prepared but not dispatched. Dispatch requires separate explicit user authorization. Item 10's later maintainer-decision, extraction-mapping, and private-meta/recovery slices remain inactive and will be planned just in time. Do not create refs, repositories, remotes, or submodules; use credentials; contact registries; rewrite history; move files; publish; or begin extraction under this slice.
+- private maintainer repository `inter-agent-meta`;
+- public ecosystem repository `inter-agent/inter-agent`;
+- public child repositories `inter-agent-core`, `inter-agent-pi`, and `inter-agent-claude-code`.
 
-Continuity is tracked as individually named work in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue).
+#### Leader-owned migration-readiness analysis
+
+The leader performs this decision and synthesis work directly rather than delegating it:
+
+1. Verify the current repository state and run the full monorepo, Pi, and Claude validation gates.
+2. Identify the candidate tested source commit/version and inventory current package, repository, and remote facts without exposing credentials.
+3. Produce the complete path and history-ownership mapping for private meta material, core, Pi, Claude Code, and ecosystem-level files and tests.
+4. Design the recoverable backup/ref and throwaway-clone strategy.
+5. Identify conflicts and unresolved decisions, then give the user concrete recommendations.
+
+#### User decision and authorization gate
+
+Before any external, credentialed, destructive, or physical migration action, the leader presents recommendations and obtains explicit user decisions for:
+
+- Git hosting owner/organization and exact intended repository URLs;
+- private/public visibility;
+- authorization to create repositories and push;
+- default branches and branch-protection expectations;
+- package-registry ownership and namespaces;
+- disposition of the current public remote;
+- maintenance-window timing;
+- final freeze ref, tag, or version;
+- authorization to begin physical migration.
+
+#### Mechanical execution after approval
+
+Only after those decisions are locked may the leader prepare a bounded executor packet for concrete mechanical work such as creating the approved recoverable workspace, applying the approved mapping in throwaway clones, or scaffolding the approved private meta repository. Credentialed actions remain with the user when the container lacks authorized access. Pi extraction remains roadmap item 11 and must not begin during item 10.
+
+#### Completion standard
+
+The leader verifies the tested freeze state, recovery path, approved repository visibility and URLs, private/public content boundary, and complete ownership mapping. Item 10 is complete only when item 11 can begin without unresolved naming, ownership, safety, or authorization questions.
+
+#### Current authorization boundary
+
+This active plan records the agreed process only. No executor dispatch, migration-readiness audit, repository or ref creation, credential use, registry contact, remote change, history rewrite, file move, publication, or extraction is currently authorized.
+
+Detailed accepted requirements remain in [`../docs/plans/important-closeout/04-migration-checkpoint-and-meta.md`](../docs/plans/important-closeout/04-migration-checkpoint-and-meta.md). Continuity is tracked in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue).
 
 ## Planning workflow
 
