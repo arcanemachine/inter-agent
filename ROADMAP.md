@@ -60,7 +60,7 @@ This queue preserves continuity between active slices. Complete items in order u
 11. **Pi repository extraction** — create independent `inter-agent-pi` npm/Pi and Python-helper package boundaries with package-local tests and no monorepo runtime dependency. **Status: queued after item 10 if migration is authorized.**
 12. **Claude Code repository extraction** — create independent `inter-agent-claude-code` plugin/marketplace and Python-helper package boundaries. **Status: queued after item 11.**
 13. **Core repository extraction and naming** — create clean `inter-agent-core`, retain the `inter_agent` import namespace and generic CLI names, and remove host assets/adapters from core artifacts. **Status: queued after item 12.**
-14. **Public ecosystem superproject and pre-publication acceptance** — create `inter-agent/inter-agent` with real core/Pi/Claude submodules and prove candidate artifacts interoperate before publication. **Status: queued after item 13.**
+14. **Public ecosystem superproject and pre-publication acceptance** — create `arcanemachine/inter-agent` with real core/Pi/Claude submodules and prove candidate artifacts interoperate before publication. **Status: queued after item 13.**
 15. **Core release-source audit and candidate validation** — recheck package ownership, metadata, entry points, artifact contents, versioning, and clean wheel/sdist behavior for `inter-agent-core`. **Status: queued after item 14.**
 16. **Core PyPI publication checkpoint** — obtain authorization and publish the exact validated core artifacts without exposing credentials. **Status: user-gated after item 15.**
 17. **Published-core installation acceptance** — install only from public PyPI in clean environments and verify generic CLI, auth, TLS, routing, and channels. **Status: queued after item 16 or maintainer publication.**
@@ -164,9 +164,9 @@ Status: accepted and queued after current reliability, mailbox, and TLS work.
 
 The locked split direction is:
 
-- private `inter-agent-meta` maintainer superproject containing private workflow and the public ecosystem as a submodule;
-- public `inter-agent/inter-agent` ecosystem superproject containing real submodules at `core/`, `extensions/pi/`, and `extensions/claude-code/`;
-- independently deployable `inter-agent-core`, `inter-agent-pi`, and `inter-agent-claude-code` repositories;
+- private `arcanemachine/inter-agent-meta` maintainer superproject containing private workflow and the public ecosystem as a submodule;
+- public `arcanemachine/inter-agent` ecosystem superproject containing real submodules at `core/`, `extensions/pi/`, and `extensions/claude-code/`;
+- independently deployable `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code` repositories;
 - PyPI core distribution `inter-agent-core` retaining the `inter_agent` import namespace and generic CLI names;
 - extension-owned Python helper packages `inter_agent_pi` and `inter_agent_claude` preserving `inter-agent-pi` and `inter-agent-claude` commands;
 - split before initial publication so release artifacts contain no transitional monorepo clutter;

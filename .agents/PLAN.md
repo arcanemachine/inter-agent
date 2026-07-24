@@ -16,9 +16,9 @@ Establish a safe, explicitly approved starting point for splitting the monorepo.
 
 The intended topology remains:
 
-- private maintainer repository `inter-agent-meta`;
-- public ecosystem repository `inter-agent/inter-agent`;
-- public child repositories `inter-agent-core`, `inter-agent-pi`, and `inter-agent-claude-code`.
+- private maintainer repository `arcanemachine/inter-agent-meta`;
+- public ecosystem repository `arcanemachine/inter-agent`;
+- public child repositories `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code`.
 
 #### Durable working record
 

@@ -12,9 +12,9 @@ Complete and release the existing inter-agent product before any OpenCode or Cod
 - Preserve the implemented Pi queued mailbox for direct, broadcast, and channel deliveries through the remaining reliability and packaging work.
 - Verify installed Pi and Claude adapters together over TLS; do not treat core-only TLS tests as the final acceptance.
 - Split into clean repositories before initial publication.
-- Use a private `inter-agent-meta` maintainer superproject.
-- Use a public `inter-agent/inter-agent` ecosystem superproject containing real Git submodules.
-- Create independent public repositories `inter-agent-core`, `inter-agent-pi`, and `inter-agent-claude-code`.
+- Use a private `arcanemachine/inter-agent-meta` maintainer superproject.
+- Use a public `arcanemachine/inter-agent` ecosystem superproject containing real Git submodules.
+- Create independent public repositories `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code`.
 - Publish the core Python distribution as `inter-agent-core`; retain the `inter_agent` import namespace and practical existing generic CLI names.
 - Use `inter-agent-pi` for the Pi repository, npm package, and extension-owned Python helper distribution.
 - Use `inter-agent-claude-code` for the Claude repository and extension-owned Python helper distribution.

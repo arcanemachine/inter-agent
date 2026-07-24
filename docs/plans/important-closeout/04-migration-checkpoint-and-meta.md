@@ -8,9 +8,9 @@ Freeze an accepted source state, confirm ownership and naming, create the privat
 
 ## Locked topology and names
 
-- Private: `inter-agent-meta`.
-- Public ecosystem: `inter-agent/inter-agent`.
-- Public children: `inter-agent-core`, `inter-agent-pi`, `inter-agent-claude-code`.
+- Private: `arcanemachine/inter-agent-meta`.
+- Public ecosystem: `arcanemachine/inter-agent`.
+- Public children: `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, `arcanemachine/inter-agent-claude-code`.
 - Private meta contains the public ecosystem repository as a submodule at `ecosystem/`.
 - Public ecosystem later contains real child submodules at `core/`, `extensions/pi/`, and `extensions/claude-code/`.
 

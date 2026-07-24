@@ -4,7 +4,7 @@ Status: concrete; queued after all three child extractions
 
 ## Goal
 
-Create the public `inter-agent/inter-agent` collector repository with real submodules and prove the extracted packages work together before any registry publication.
+Create the public `arcanemachine/inter-agent` collector repository with real submodules and prove the extracted packages work together before any registry publication.
 
 ## Required structure
 

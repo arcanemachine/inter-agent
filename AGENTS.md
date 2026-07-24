@@ -95,7 +95,7 @@ Apply these requirements within the assigned role: executors perform only packet
   - `claude plugin details inter-agent`
 - Claude persistent plugin installation installs Claude Code assets and uses a bundled wrapper in `skills/inter-agent/bin/`. Runtime resolution is: `INTER_AGENT_CLAUDE_HELPER`, plugin `project_path` config, Claude-managed venv, then `inter-agent-claude` on `PATH`.
 - Pi git installability from this repository uses root `package.json` with `pi.extensions` pointing at `./integrations/pi/src/index.ts`. The nested `integrations/pi/package.json` remains for local/separate package installs. Pi runtime resolution is: `INTER_AGENT_PI_HELPER`, configured `interAgent.projectPath`, legacy `~/.local/share/inter-agent` if present, Pi-managed venv, then helper commands on `PATH`.
-- The target split direction is a private `inter-agent-meta` wrapper, a public `inter-agent/inter-agent` ecosystem superproject, and independently deployable `inter-agent-core`, `inter-agent-claude-code`, `inter-agent-pi`, and future extension repos. Keep internal workflow material private by default and keep protocol material with core.
+- The target split direction is a private `arcanemachine/inter-agent-meta` wrapper, a public `arcanemachine/inter-agent` ecosystem superproject, and independently deployable `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-claude-code`, `arcanemachine/inter-agent-pi`, and future extension repos. Keep internal workflow material private by default and keep protocol material with core.
 
 ## Design boundary
 

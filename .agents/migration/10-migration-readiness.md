@@ -10,9 +10,9 @@ This record contains no credentials or authenticated registry/hosting results. I
 
 ## Intended topology
 
-- Private maintainer repository: `inter-agent-meta`.
-- Public ecosystem repository: `inter-agent/inter-agent`.
-- Public children: `inter-agent-core`, `inter-agent-pi`, and `inter-agent-claude-code`.
+- Private maintainer repository: `arcanemachine/inter-agent-meta`.
+- Public ecosystem repository: `arcanemachine/inter-agent`.
+- Public children: `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code`.
 - Private meta contains the ecosystem repository as the `ecosystem/` submodule.
 - The ecosystem repository contains child submodules at `core/`, `extensions/pi/`, and `extensions/claude-code/`.
 
@@ -324,12 +324,14 @@ Never run history filtering in the main checkout or the only recovery copy.
 | D10 | Freeze ref | Use a clearly pre-split annotated source tag, exact name chosen by user | User decision required |
 | D11 | Registry names | Use locked names; recheck ownership/availability only under explicit authorization | User decision required |
 | D12 | Physical migration | Begin only after all preceding gates and maintenance-window confirmation | Not authorized |
+| D13 | GitHub owner and target repositories | Use `arcanemachine/inter-agent-meta`, `arcanemachine/inter-agent`, `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code` | Approved |
+| D14 | Monorepo archive name | Rename the current repository to `arcanemachine/inter-agent-monorepo` before creating the clean ecosystem repository at `arcanemachine/inter-agent` | User decision required |
 
 ## Mandatory user gate
 
 Before repository/ref creation, remote changes, registry contact, history filtering, directory moves, or publication, resolve and record:
 
-- hosting owner/organization and exact intended URLs;
+- exact archive name and transition procedure for the current `arcanemachine/inter-agent` monorepo;
 - visibility confirmation;
 - repository creation and push authorization;
 - default branches and branch-protection expectations;
