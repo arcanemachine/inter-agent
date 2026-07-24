@@ -312,14 +312,14 @@ Never run history filtering in the main checkout or the only recovery copy.
 
 | ID | Decision | Leader recommendation | Status |
 | --- | --- | --- | --- |
-| D1 | Mapping | Accept the ownership manifest above | User review required |
-| D2 | Shared control bridge | Promote one host-neutral implementation into core | User review required |
-| D3 | `unstable` branch | Preserve in recovery bundle only; do not extract | User decision required |
-| D4 | Ecosystem history | Create a clean collector repository | User decision required |
-| D5 | Current public remote | Preserve/archive the monorepo until all children and the ecosystem pass; do not rewrite it in place | User decision required |
-| D6 | New-repository default branch | Use `main`; retain source `master` only in the archived source history | User decision required |
-| D7 | Visibility | Private meta; public ecosystem and children, as already locked | Confirmation required |
-| D8 | Initial versions | Coordinate initial `0.1.0`, then version children independently | Confirmation required |
+| D1 | Mapping | Accept the ownership manifest above | Approved |
+| D2 | Shared control bridge | Promote one host-neutral implementation into core | Approved |
+| D3 | `unstable` branch | Preserve in recovery bundle only; do not extract | Approved |
+| D4 | Ecosystem history | Create a clean collector repository | Approved |
+| D5 | Current public remote | Preserve/archive the monorepo until all children and the ecosystem pass; do not rewrite it in place | Approved |
+| D6 | New-repository default branch | Use `main`; retain source `master` only in the archived source history | Approved |
+| D7 | Visibility | Private meta; public ecosystem and children, as already locked | Approved |
+| D8 | Initial versions | Coordinate initial `0.1.0`, then version children independently | Approved |
 | D9 | Freeze source | Latest accepted `HEAD` after the final full gate | Pending blocker resolution |
 | D10 | Freeze ref | Use a clearly pre-split annotated source tag, exact name chosen by user | User decision required |
 | D11 | Registry names | Use locked names; recheck ownership/availability only under explicit authorization | User decision required |
