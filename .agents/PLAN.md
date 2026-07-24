@@ -20,6 +20,10 @@ The intended topology remains:
 - public ecosystem repository `inter-agent/inter-agent`;
 - public child repositories `inter-agent-core`, `inter-agent-pi`, and `inter-agent-claude-code`.
 
+#### Durable working record
+
+Verified facts, the ownership manifest, recovery design, recommendations, and pending decisions are maintained in [`migration/10-migration-readiness.md`](migration/10-migration-readiness.md). Keep that record non-secret and update it as decisions are approved.
+
 #### Leader-owned migration-readiness analysis
 
 The leader performs this decision and synthesis work directly rather than delegating it:
@@ -54,7 +58,7 @@ The leader verifies the tested freeze state, recovery path, approved repository 
 
 #### Current authorization boundary
 
-This active plan records the agreed process only. No executor dispatch, migration-readiness audit, repository or ref creation, credential use, registry contact, remote change, history rewrite, file move, publication, or extraction is currently authorized.
+Local leader analysis and non-secret durable planning documentation are authorized. No executor dispatch, repository or ref creation, credential use, registry contact, remote change, history rewrite, file move, publication, or extraction is currently authorized.
 
 Detailed accepted requirements remain in [`../docs/plans/important-closeout/04-migration-checkpoint-and-meta.md`](../docs/plans/important-closeout/04-migration-checkpoint-and-meta.md). Continuity is tracked in [`../ROADMAP.md`](../ROADMAP.md#closeout-execution-queue).
 
