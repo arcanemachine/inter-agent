@@ -692,16 +692,19 @@ def test_pi_extension_registers_delivery_mode_command() -> None:
     assert 'value: "delivery"' in content
     assert 'case "delivery":' in content
     assert "async function handleDelivery" in content
-    assert "usage: /inter-agent delivery <queued|immediate>" in content
+    assert "usage: /inter-agent delivery <immediate|queued> (aliases: i, q)" in content
+    # The mode is resolved from the first character of the argument, so any
+    # leading i/q string (e.g. "imm", "immaculate", "qu", "quesadilla") works.
+    assert 'first === "i" ? "immediate"' in content
+    assert 'first === "q" ? "queued"' in content
     assert "mailbox.setDeliveryMode(mode)" in content
     # Changing mode does not rewrite settings and affects future arrivals only.
     assert "already queued are left unchanged" in content
 
-    # Delivery-mode autocomplete offers the two modes.
-    completion_body = content.split('prefix.startsWith("delivery ")', 1)[1]
-    completion_body = completion_body.split("INTER_AGENT_SUBCOMMANDS.filter", 1)[0]
-    assert '"queued"' in completion_body
-    assert '"immediate"' in completion_body
+    # Second-term autocomplete is intentionally disabled for the delivery
+    # subcommand (the host autocomplete UI clobbers the first term when a
+    # second term is offered), so no "delivery " prefix branch exists.
+    assert 'prefix.startsWith("delivery ")' not in content
 
 
 def test_pi_extension_registers_inter_agent_read_messages_tool() -> None:

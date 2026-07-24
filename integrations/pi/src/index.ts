@@ -1161,7 +1161,7 @@ function updateStatus(ctx: ExtensionContext, state: ConnectionState | null) {
 
 // ── Extension Export ────────────────────────────────────────────────────────
 
-export default function (pi: ExtensionAPI) {
+export default function(pi: ExtensionAPI) {
   const config = loadConfig();
   const currentScripts = () => getScripts(config);
 
@@ -1208,15 +1208,15 @@ export default function (pi: ExtensionAPI) {
   }>("inter-agent-message", (message, { expanded }, theme) => {
     const details =
       typeof message.details === "object" &&
-      message.details !== null &&
-      "displayContent" in message.details
+        message.details !== null &&
+        "displayContent" in message.details
         ? (message.details as {
-            displayContent?: string;
-            from?: string;
-            text?: string;
-            toInfo?: string;
-            outgoing?: boolean;
-          })
+          displayContent?: string;
+          from?: string;
+          text?: string;
+          toInfo?: string;
+          outgoing?: boolean;
+        })
         : undefined;
     const display =
       details?.displayContent ??
@@ -1511,7 +1511,7 @@ export default function (pi: ExtensionAPI) {
     {
       value: "delivery",
       label: "delivery",
-      description: "Set queued or immediate message delivery",
+      description: "Set [i]mmediate or [q]ueued (via mailbox) message delivery <immediate|queued>",
     },
   ];
 
@@ -1871,11 +1871,13 @@ export default function (pi: ExtensionAPI) {
   }
 
   async function handleDelivery(args: string, _ctx: ExtensionContext) {
-    const mode = args.trim();
+    const raw = args.trim();
+    const first = raw.charAt(0).toLowerCase();
+    const mode = first === "i" ? "immediate" : first === "q" ? "queued" : raw;
     if (mode !== "queued" && mode !== "immediate") {
       notify(
         "[inter-agent] delivery failed",
-        "usage: /inter-agent delivery <queued|immediate>",
+        "usage: /inter-agent delivery <immediate|queued> (aliases: i, q)",
         "error",
       );
       return;
@@ -1883,8 +1885,7 @@ export default function (pi: ExtensionAPI) {
     mailbox.setDeliveryMode(mode);
     notify(
       "[inter-agent] delivery",
-      `future arrivals will be delivered ${
-        mode === "immediate" ? "immediately" : "into the mailbox queue"
+      `future arrivals will be delivered ${mode === "immediate" ? "immediately" : "into the mailbox queue"
       }; ${mailbox.size} unread message(s) already queued are left unchanged`,
     );
   }
@@ -1949,19 +1950,6 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("inter-agent", {
     description: "Inter-agent bus commands",
     getArgumentCompletions: (prefix: string): AutocompleteItem[] | null => {
-      if (prefix.startsWith("delivery ")) {
-        const valuePrefix = prefix.slice("delivery ".length);
-        return ["queued", "immediate"]
-          .filter((v) => v.startsWith(valuePrefix))
-          .map((v) => ({
-            value: v,
-            label: v,
-            description:
-              v === "queued"
-                ? "Queue new bodies into the mailbox (default)"
-                : "Deliver new bodies immediately",
-          }));
-      }
       const filtered = INTER_AGENT_SUBCOMMANDS.filter((s) =>
         s.value.startsWith(prefix),
       );
@@ -2144,14 +2132,14 @@ export default function (pi: ExtensionAPI) {
       const label = connected ? currentConnection.label : null;
       const lines = connected
         ? [
-            "Connected: true",
-            `Name: ${name}`,
-            ...(label ? [`Label: ${label}`] : []),
-          ]
+          "Connected: true",
+          `Name: ${name}`,
+          ...(label ? [`Label: ${label}`] : []),
+        ]
         : [
-            "Connected: false",
-            ...(state?.name ? [`Last name: ${state.name}`] : []),
-          ];
+          "Connected: false",
+          ...(state?.name ? [`Last name: ${state.name}`] : []),
+        ];
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
         details: {

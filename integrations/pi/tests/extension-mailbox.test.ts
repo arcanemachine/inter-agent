@@ -450,6 +450,46 @@ test("delivery command overrides the session mode for future arrivals only", asy
   );
 });
 
+test("delivery command accepts any leading i/q string for the mode", async () => {
+  await withEnv(
+    { project: { projectPath: process.cwd(), deliveryMode: "queued" } },
+    async ({ pi }) => {
+      const cmd = interAgentCommand(pi);
+
+      // Only the first character matters: imm, immediate, and immaculate all
+      // resolve to immediate.
+      for (const arg of ["imm", "immediate", "immaculate"]) {
+        pi.notifyLog.length = 0;
+        await cmd.handler(`delivery ${arg}`, pi.ctx);
+        const immediateNotify = pi.notifyLog
+          .slice()
+          .reverse()
+          .find((n) =>
+            n.message.includes(
+              "future arrivals will be delivered immediately",
+            ),
+          );
+        assert.ok(immediateNotify, `alias ${arg} did not switch to immediate`);
+      }
+
+      // qu, queued, and quesadilla all resolve to queued.
+      for (const arg of ["qu", "queued", "quesadilla"]) {
+        pi.notifyLog.length = 0;
+        await cmd.handler(`delivery ${arg}`, pi.ctx);
+        const queuedNotify = pi.notifyLog
+          .slice()
+          .reverse()
+          .find((n) =>
+            n.message.includes(
+              "future arrivals will be delivered into the mailbox queue",
+            ),
+          );
+        assert.ok(queuedNotify, `alias ${arg} did not switch to queued`);
+      }
+    },
+  );
+});
+
 test("project settings override global settings for delivery mode precedence", async () => {
   // Global says immediate; project overrides to queued. Project wins.
   await withEnv(
