@@ -325,13 +325,12 @@ Never run history filtering in the main checkout or the only recovery copy.
 | D11 | Registry names | Use locked names; recheck ownership/availability only under explicit authorization | User decision required |
 | D12 | Physical migration | Begin only after all preceding gates and maintenance-window confirmation | Not authorized |
 | D13 | GitHub owner and target repositories | Use `arcanemachine/inter-agent-meta`, `arcanemachine/inter-agent`, `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code` | Approved |
-| D14 | Monorepo archive name | Rename the current repository to `arcanemachine/inter-agent-monorepo` before creating the clean ecosystem repository at `arcanemachine/inter-agent` | User decision required |
+| D14 | Monorepo archive name | Rename the current repository to `arcanemachine/inter-agent-monorepo` before creating the clean ecosystem repository at `arcanemachine/inter-agent` | Approved |
 
 ## Mandatory user gate
 
 Before repository/ref creation, remote changes, registry contact, history filtering, directory moves, or publication, resolve and record:
 
-- exact archive name and transition procedure for the current `arcanemachine/inter-agent` monorepo;
 - visibility confirmation;
 - repository creation and push authorization;
 - default branches and branch-protection expectations;
