@@ -49,7 +49,7 @@ The pre-existing ignored `integrations/pi/dist/` directory was preserved, and th
 - Current `HEAD` has not passed the complete gate recorded above.
 - The current Claude plugin manifest has no version, while `tests/test_versioning_docs.py` requires its version to match `0.1.0`. The final freeze cannot use current `HEAD` until the intended version policy and test agree and the complete gate passes.
 
-Recommendation: use the latest accepted `HEAD`, not its parent, as the eventual freeze source after the final gate passes.
+Approved direction: use the latest accepted `HEAD`, not its parent, as the eventual freeze source after the final gate passes. The exact prerelease version and tag mapping remains to be confirmed.
 
 ## Repository inventory
 
@@ -272,7 +272,7 @@ Accepted extracted repositories are retained. Filtering clones and recovery mate
 
 ### Source recovery set
 
-In a persistent, namespaced migration workspace outside every repository checkout:
+In a temporary, namespaced migration workspace outside every repository checkout, retained through migration acceptance:
 
 1. Create a full local Git bundle containing all refs, including `unstable`.
 2. Verify the bundle with `git bundle verify` and record its SHA-256 digest privately.
@@ -281,7 +281,7 @@ In a persistent, namespaced migration workspace outside every repository checkou
 5. After authorization, create the approved annotated freeze tag/ref at the tested commit.
 6. Record the source commit, ref, bundle digest, branch inventory, and verification results in private migration notes.
 
-The bundle is the portable immutable recovery artifact. The mirror is the convenient source for repeatable local clones.
+The bundle is the portable immutable recovery artifact during migration. The mirror is the convenient source for repeatable local clones. Neither is intended to remain permanently under `/workspace/tmp/`; retain them until the archived monorepo and accepted target repositories provide verified durable recovery, then remove them only with user confirmation.
 
 ### Filtering workspace
 
@@ -320,24 +320,25 @@ Never run history filtering in the main checkout or the only recovery copy.
 | D6 | New-repository default branch | Use `main`; retain source `master` only in the archived source history | Approved |
 | D7 | Visibility | Private meta; public ecosystem and children, as already locked | Approved |
 | D8 | Initial versions | Coordinate initial `0.1.0`, then version children independently | Approved |
-| D9 | Freeze source | Latest accepted `HEAD` after the final full gate | Pending blocker resolution |
-| D10 | Freeze ref | Use a clearly pre-split annotated source tag, exact name chosen by user | User decision required |
-| D11 | Registry names | Use locked names; recheck ownership/availability only under explicit authorization | User decision required |
+| D9 | Freeze source | Latest accepted `HEAD` after the final full gate | Approved; exact prerelease mapping pending |
+| D10 | Freeze ref and version | Use explicit `0.1.0-alpha1` / `0.1.0-alpha2` identities as directed by the user | Exact commit and manifest/tag mapping required |
+| D11 | Registry names and checks | Use locked names; user controls suitable PyPI/npm accounts and will handle availability/publication later; no agent registry contact | Approved and deferred |
 | D12 | Physical migration | Begin only after all preceding gates and maintenance-window confirmation | Not authorized |
 | D13 | GitHub owner and target repositories | Use `arcanemachine/inter-agent-meta`, `arcanemachine/inter-agent`, `arcanemachine/inter-agent-core`, `arcanemachine/inter-agent-pi`, and `arcanemachine/inter-agent-claude-code` | Approved |
 | D14 | Monorepo archive name | Rename the current repository to `arcanemachine/inter-agent-monorepo` before creating the clean ecosystem repository at `arcanemachine/inter-agent` | Approved |
+| D15 | GitHub operation responsibility | Leader may use an existing authenticated `gh` session for approved rename/create operations; user performs every push | Approved, later authorization still required |
+| D16 | Branch protection | No agent action; user manages hosting policy | Approved and user-owned |
+| D17 | Migration workspace | Use `/workspace/tmp/inter-agent-migration/` only for transitional bundles, mirrors, filtering clones, and build artifacts; nothing there is a permanent deliverable | Approved |
+| D18 | Maintenance workflow | Stop repository writers, run the final gates, and create verified recovery artifacts before migration edits | Approved; exact window pending |
+| D19 | Final physical gate | Require a separate final go/no-go before tag creation, GitHub operations, filtering, or pushing | Approved |
 
 ## Mandatory user gate
 
 Before repository/ref creation, remote changes, registry contact, history filtering, directory moves, or publication, resolve and record:
 
-- visibility confirmation;
-- repository creation and push authorization;
-- default branches and branch-protection expectations;
-- registry ownership/namespace availability and authorization to check it;
-- disposition of the current public remote;
-- `unstable` branch disposition;
+- authorization for leader-performed GitHub rename/create operations;
 - current plugin-version policy and freeze blocker;
+- exact `0.1.0-alpha1` / `0.1.0-alpha2` commit, manifest, and tag mapping;
 - maintenance-window timing;
 - final freeze version/ref;
 - authorization for physical migration.

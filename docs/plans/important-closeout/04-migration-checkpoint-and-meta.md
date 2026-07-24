@@ -20,10 +20,10 @@ Before any remote creation, history rewrite, directory move, or visibility chang
 
 - Git hosting owner/organization and exact remote URLs;
 - that `inter-agent-meta` is private and every product repository is public;
-- authorization to create repositories and push rewritten/extracted history;
-- default branch and branch-protection expectations;
-- package registry ownership/namespace availability;
-- whether the current public remote is converted into the ecosystem superproject or replaced by a new remote;
+- authorization for the leader to rename/create repositories; the user performs every push;
+- `main` as the new-repository default branch; the user manages branch-protection policy;
+- user control of suitable package publisher accounts; registry availability is rechecked by the user at the later publication gate;
+- replacement of the current public remote by a clean ecosystem repository after preserving it as `arcanemachine/inter-agent-monorepo`;
 - a maintenance window in which no executor is modifying the monorepo.
 
 Never request, display, copy, or commit credentials. If repository creation requires maintainer authentication unavailable in the container, provide exact commands for the maintainer and verify results afterward.
