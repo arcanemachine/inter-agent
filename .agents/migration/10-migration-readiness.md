@@ -343,9 +343,91 @@ Before repository/ref creation, remote changes, registry contact, history filter
 - final freeze version/ref;
 - authorization for physical migration.
 
+## Proposed prerelease mapping
+
+Planning proposal only; not yet approved:
+
+1. Treat tested commit `2ae2a72ee375514914c7c5cdbddf311a40fcd363` as historical prerelease `0.1.0-alpha1`.
+2. Update the final monorepo metadata consistently for `0.1.0-alpha2`, using the Python-normalized form where packaging requires it.
+3. Restore the Claude plugin version using the approved alpha-2 identity so coordinated metadata and validation agree.
+4. After the complete gate passes, treat that exact final commit as `0.1.0-alpha2`.
+5. Create annotated `0.1.0-alpha1` and `0.1.0-alpha2` tags only after the final physical go/no-go.
+6. Let extracted children progress from alpha-2 source toward their first stable `0.1.0` releases.
+
+The user must confirm whether alpha identities apply to both package manifests and Git tags, or to Git tags only.
+
+## Planned execution runbook
+
+Status: planning only; none of these actions is currently authorized
+
+### Phase A — resolve and validate the final source
+
+1. Confirm the prerelease mapping above.
+2. Make only the approved coordinated version-policy correction.
+3. Run the focused version/plugin checks.
+4. Run the complete monorepo, Pi, and Claude gates against the resulting current `HEAD`.
+5. Confirm a clean worktree and record the exact passing commit.
+6. Commit the validated metadata correction before requesting physical migration authorization.
+
+### Phase B — final physical go/no-go
+
+Present the exact passing commit, proposed tags, GitHub operations, local recovery commands, workspace inventory, and writer-lock status. Obtain one explicit go/no-go covering only those reviewed actions.
+
+No earlier planning approval substitutes for this gate.
+
+### Phase C — source freeze and temporary recovery set
+
+After the go/no-go:
+
+1. Begin the maintenance window and confirm no executor or other session is writing to the monorepo.
+2. Create the approved local annotated source tags without pushing them.
+3. Create and verify an all-refs bundle under `/workspace/tmp/inter-agent-migration/`.
+4. Record its SHA-256 digest in this maintainer migration record.
+5. Create a local mirror from the checkout without contacting the remote.
+6. Run `git fsck --full` and verify the mirror contains `master`, `unstable`, and both approved source tags.
+7. Create no child filtering clone until its roadmap item becomes active.
+
+The bundle and mirror remain transitional recovery material through the extraction program. They are removed only after verified durable repositories exist and the user explicitly confirms cleanup.
+
+### Phase D — approved GitHub topology transition
+
+After separate credential-use authorization:
+
+1. Use the existing authenticated `gh` session without displaying credential details.
+2. Rename `arcanemachine/inter-agent` to `arcanemachine/inter-agent-monorepo`.
+3. Create private `arcanemachine/inter-agent-meta` without pushing source.
+4. Create public `arcanemachine/inter-agent` as the clean ecosystem placeholder without importing monorepo history.
+5. Do not create child repositories early; each child repository is created with its extraction item.
+6. Update the source checkout's `origin` to the approved archive URL only after the rename is verified.
+7. The user performs every push, including source tags and initial meta/ecosystem branches.
+8. The leader verifies repository names and visibility without exposing credentials.
+
+### Phase E — private meta scaffold
+
+Using an isolated filtering clone from the verified local mirror:
+
+1. Filter only the approved meta-owned paths from the accepted freeze branch.
+2. Reorganize them into a maintainer-only repository with no runtime code, package artifacts, generated environments, secrets, or copied child histories.
+3. Retain the active plan, role/workflow documents, accepted migration record, and internal planning history.
+4. Add the clean public ecosystem repository at `ecosystem/` only after the user has pushed an initial ecosystem commit that can be pinned as a submodule.
+5. Run `git fsck --full`, inspect the complete file inventory, and run `git diff --check`.
+6. Prepare the local meta branch for the user's push; the leader does not push it.
+
+### Phase F — checkpoint verification and closeout
+
+1. Verify the archived monorepo remains complete and recoverable.
+2. Verify private meta and public ecosystem visibility and canonical URLs.
+3. Verify the meta repository contains no runtime source or secret material.
+4. Verify the ecosystem placeholder contains no monorepo/private history.
+5. Verify the reviewed path manifest remains usable for Pi, Claude, and core extraction.
+6. Record user-performed pushes and observed remote results.
+7. Close item 10 only when Pi extraction can begin without unresolved ownership, naming, recovery, or authorization questions.
+8. Prepare the concrete Pi-extraction packet as roadmap item 11; do not begin it under item 10.
+
 ## Immediate next steps
 
-1. Review this durable mapping and recovery recommendation with the user.
-2. Revise and commit this record if the user changes a recommendation.
-3. Resolve the mandatory decision register.
-4. Only then update the record with approved values and prepare concrete mechanical execution.
+1. Confirm or revise the proposed prerelease mapping.
+2. Resolve the remaining maintenance-window and final-ref decisions.
+3. Update and commit this record with approved values.
+4. Prepare the exact final-source metadata change for separate authorization.
+5. Stop at the final physical go/no-go before any tag, credentialed action, remote operation, filtering, or push.
