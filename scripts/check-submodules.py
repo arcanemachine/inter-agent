@@ -16,7 +16,7 @@ EXPECTED = {
 
 
 def git(*args: str) -> str:
-    return subprocess.check_output(["git", "-C", str(ROOT), *args], text=True).strip()
+    return subprocess.check_output(["git", "-C", str(ROOT), *args], text=True)
 
 
 def fail(message: str) -> None:
@@ -31,7 +31,7 @@ def main() -> None:
     configured = {}
     for path in EXPECTED:
         try:
-            configured[path] = git("config", "-f", ".gitmodules", "--get", f"submodule.{path}.url")
+            configured[path] = git("config", "-f", ".gitmodules", "--get", f"submodule.{path}.url").strip()
         except subprocess.CalledProcessError:
             fail(f"missing URL for {path}")
     if configured != EXPECTED:

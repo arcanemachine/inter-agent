@@ -1,0 +1,9 @@
+[submodule "core"]
+	path = core
+	url = https://github.com/arcanemachine/inter-agent-core.git
+[submodule "extensions/pi"]
+	path = extensions/pi
+	url = https://github.com/arcanemachine/inter-agent-pi.git
+[submodule "extensions/claude-code"]
+	path = extensions/claude-code
+	url = https://github.com/arcanemachine/inter-agent-claude-code.git
