@@ -31,6 +31,15 @@ scripts/run-checks.sh
 
 The root check is offline-first and does not publish, tag, push, install globally, or change a user bus. It expects initialized submodules and uses isolated state for interoperability checks.
 
+### What the scripts do
+
+- `scripts/check-submodules.py` verifies the three canonical HTTPS submodules are initialized at their recorded revisions.
+- `scripts/validate-boundary.py` checks the public file allowlist, modes, gitlinks, child lock sources, and artifact/source boundaries.
+- `scripts/run-installed-acceptance.py` creates a temporary recursive checkout, runs the three child package gates offline, builds candidate artifacts, installs them into a clean environment, and runs the isolated Pi/Claude interoperability matrix.
+- `scripts/run-checks.sh` runs all of the checks above as one fail-fast command.
+
+The acceptance runner uses temporary endpoints, state directories, secrets, certificates, and exact process cleanup. It reads already-cached dependencies and fails rather than contacting a registry when an offline dependency is unavailable. Successful temporary state is removed; failed state is retained for diagnosis.
+
 ## Installing components
 
 Use the component that matches your host:
