@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = {
-    "core": "21b9e70da8a01c5345df4ca9680ad7eff0c81072",
+    "core": "561340f29440c7ff03c28541c4eeefe0761eacd7",
     "extensions/pi": "f44c4d825f6e3a0bfacd8a19e7d2664cb4e49cc5",
     "extensions/claude-code": "0847a931468476bd5f7056cb6e3df7257727a4db",
 }
