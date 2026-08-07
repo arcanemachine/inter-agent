@@ -1,66 +1,44 @@
 # inter-agent
 
-`inter-agent` lets local AI coding sessions communicate through one authenticated message bus. A Pi session, a Claude Code session, or another client can discover connected agents, send direct messages, broadcast, and exchange messages through named channels.
+`inter-agent` lets local AI coding sessions communicate through one authenticated message bus. Pi, Claude Code, or another compatible client can discover connected agents, send direct messages, broadcast, and use named channels.
 
-This repository is the **ecosystem source checkout**. It records a compatible combination of the core runtime and host integrations as Git submodules. It is not itself a Python package, npm package, or runtime dependency.
+This repository is the **ecosystem source checkout**. It records a compatible combination of the core runtime and host integrations as Git submodules. It is not a Python package, npm package, or runtime dependency.
 
-## Projects
+## Choose a component
 
-| Project | What it provides |
-| --- | --- |
-| [`inter-agent-core`](https://github.com/arcanemachine/inter-agent-core) | The host-neutral Python runtime: WebSocket server, protocol, authentication, TLS, routing, channels, lifecycle controls, shared configuration, and generic command-line clients. |
-| [`inter-agent-pi`](https://github.com/arcanemachine/inter-agent-pi) | The Pi extension: `/inter-agent` commands, agent-callable tools, inbound notifications, mailbox UI, and a Python helper built on the core runtime. |
-| [`inter-agent-claude-code`](https://github.com/arcanemachine/inter-agent-claude-code) | The Claude Code plugin: skill-driven commands, Monitor-based inbound delivery, bundled wrappers, and a Python helper built on the core runtime. |
+| Component | Use it for | Installation |
+| --- | --- | --- |
+| [inter-agent-core](https://github.com/arcanemachine/inter-agent-core) | The host-neutral Python runtime, server, protocol, TLS, routing, channels, shared state, and generic CLI. | [Core README](https://github.com/arcanemachine/inter-agent-core/blob/main/README.md) |
+| [inter-agent-pi](https://github.com/arcanemachine/inter-agent-pi) | Pi commands, model tools, notifications, mailbox delivery, and the Pi helper. | [Pi README](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md) |
+| [inter-agent-claude-code](https://github.com/arcanemachine/inter-agent-claude-code) | The Claude Code plugin, Monitor listener, wrappers, and Claude helper. | [Claude Code README](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md) |
+| Complete checkout | Coordinated development, review, and cross-adapter acceptance. | Clone this repository recursively. |
 
-Each project is independently versioned and installable. This repository records the exact source revisions tested together as Git submodules.
-
-## What it does
-
-The ecosystem supports:
-
-- named agent sessions;
-- direct agent-to-agent messages;
-- broadcasts to connected agents;
-- named channel subscription and publishing;
-- session, server, and channel inspection;
-- administrative kick and shutdown operations;
-- shared endpoint and state discovery across host integrations; and
-- plaintext loopback or configured TLS transport.
-
-The core protocol is host-neutral. Pi and Claude Code adapt their own command, tool, and notification interfaces to the core's public APIs rather than implementing separate message buses.
+Each child is independently versioned and installable. The submodules record the exact source revisions tested together.
 
 ## How it works
 
+One `inter-agent-core` server owns authentication, routing, channels, and connection state. Pi and Claude Code connect through their own host adapters and surface incoming messages through their native interfaces. They share the same endpoint, state directory, secret discovery, and TLS configuration.
+
+The default endpoint is `127.0.0.1:16837`. Loopback connections default to plaintext WebSockets; non-loopback connections default to TLS unless explicitly disabled. Clients authenticate with an HMAC-SHA-256 challenge using a shared secret.
+
+## First cross-adapter message
+
+Install the [Pi](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md) and [Claude Code](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md) components, then connect them to the same bus:
+
 ```text
-Pi session                                                Claude Code session
-    │                                                               │
-    ▼                                                               ▼
-Pi extension ───────┐                              ┌──── Claude Code plugin
-                    │                              │
-                    ▼                              ▼
-              Pi helper ───► inter-agent core ◄─── Claude helper
-                                  │
-                                  ▼
-                         local WebSocket bus
+# In Pi
+/inter-agent connect pi-agent
+
+# In Claude Code
+/inter-agent connect claude-agent
+/inter-agent send pi-agent hello from Claude Code
 ```
 
-One core server owns authentication, routing, channels, and connection state. Host listeners connect as named agents and surface incoming messages through their native UI. Command clients use the same endpoint, secret, and TLS configuration as those listeners.
+The Pi session receives a notification. For separate machines, configure a shared reachable endpoint, secret, and TLS settings; the default loopback endpoint is local to one machine.
 
-The default endpoint is `127.0.0.1:16837`. Clients authenticate with an HMAC-SHA-256 challenge using a shared secret. Loopback connections default to plaintext WebSockets; non-loopback connections default to TLS unless TLS is explicitly disabled.
+## Complete source checkout
 
-## Install and use
-
-Install the component for the host you use:
-
-- **Pi:** follow [`inter-agent-pi/README.md`](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md).
-- **Claude Code:** follow [`inter-agent-claude-code/README.md`](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md).
-- **Core server or generic CLI:** follow [`inter-agent-core/README.md`](https://github.com/arcanemachine/inter-agent-core/blob/main/README.md).
-
-You do not need this superproject after the required components are installed. It is primarily for developing, reviewing, and testing a coordinated source set.
-
-## Work on the ecosystem
-
-Clone the complete source set:
+Clone the tested child set:
 
 ```bash
 git clone --recurse-submodules https://github.com/arcanemachine/inter-agent.git
@@ -73,36 +51,31 @@ If you already cloned without submodules:
 git submodule update --init --recursive
 ```
 
-Each child owns its development setup and package checks. Follow the README in the component you are changing. Commit child changes in that repository, then update the corresponding Gitlink here.
+Use the child README for the component you are changing. Commit child changes in that repository, then update the corresponding Gitlink here.
 
-## Coordinated validation
-
-After preparing each child's development environment, run:
+Run coordinated validation from the checkout with:
 
 ```bash
 scripts/run-checks.sh
 ```
 
-The script builds and clean-installs the indexed child revisions in temporary state, then exercises Pi and Claude Code interoperability for direct messages, broadcasts, channels, kick behavior, isolated buses, and TLS. It does not publish, install globally, or use the user's bus.
+The script builds and clean-installs the indexed child revisions, then exercises direct messages, broadcasts, channels, kick behavior, isolated buses, and TLS without publishing or using the user's existing bus.
 
-## Source revisions and releases
+## Compatibility and security
 
-The submodule Gitlinks identify the exact coordinated source revisions. [`COMPATIBILITY.md`](COMPATIBILITY.md) records the compatible semantic versions and release status.
+[`COMPATIBILITY.md`](COMPATIBILITY.md) records the released compatible versions and the tested submodule set.
 
-When a child revision changes, update its Gitlink. Update `COMPATIBILITY.md` when the supported version set changes.
+The default trust boundary is one trusted operating-system user on one machine. Shared-secret authentication prevents unauthenticated clients from joining, and TLS protects network transport, but neither protects against hostile code running as the same user with access to local state or secrets. Do not commit or share secrets, private keys, certificates, or state. See the [`inter-agent-core` security model](https://github.com/arcanemachine/inter-agent-core/blob/main/SECURITY.md).
 
-## Security model
-
-The default design assumes one trusted operating-system user on one machine. Shared-secret authentication prevents unauthenticated clients from joining the bus, and TLS can protect network transport, but neither protects against hostile code running as the same user with access to the bus state or secret.
-
-Do not commit or share bus secrets, private keys, certificates, or local state. See [`inter-agent-core/SECURITY.md`](https://github.com/arcanemachine/inter-agent-core/blob/main/SECURITY.md) for the complete security model.
-
-## Documentation
+## Documentation and support
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — repository ownership and component boundaries
-- [`COMPATIBILITY.md`](COMPATIBILITY.md) — coordinated candidate versions
-- [`inter-agent-core/spec/`](https://github.com/arcanemachine/inter-agent-core/tree/main/spec) — AsyncAPI protocol definition, schemas, examples, and error codes
-- Child READMEs — component-specific installation, commands, and development instructions
+- [`COMPATIBILITY.md`](COMPATIBILITY.md) — released versions and compatibility
+- [`inter-agent-core/spec/`](https://github.com/arcanemachine/inter-agent-core/tree/main/spec) — protocol definition, schemas, examples, and error codes
+- [Core issues](https://github.com/arcanemachine/inter-agent-core/issues)
+- [Pi issues](https://github.com/arcanemachine/inter-agent-pi/issues)
+- [Claude Code issues](https://github.com/arcanemachine/inter-agent-claude-code/issues)
+- [Ecosystem issues](https://github.com/arcanemachine/inter-agent/issues)
 
 ## License
 
