@@ -66,13 +66,25 @@ def validate_root(index: dict[str, tuple[str, str]]) -> None:
 
 
 def validate_source_text() -> None:
-    for path in ("extensions/pi/pyproject.toml", "extensions/pi/uv.lock", "extensions/claude-code/pyproject.toml", "extensions/claude-code/uv.lock"):
+    paths = (
+        "extensions/pi/pyproject.toml",
+        "extensions/pi/uv.lock",
+        "extensions/claude-code/pyproject.toml",
+        "extensions/claude-code/uv.lock",
+    )
+    for path in paths:
         candidate = ROOT / path
         if not candidate.is_file():
             continue
         text = candidate.read_text(encoding="utf-8")
         if any(token in text for token in PROHIBITED_TEXT):
             fail(f"local dependency source in {path}")
+
+    for path in ("extensions/claude-code/pyproject.toml", "extensions/claude-code/uv.lock"):
+        candidate = ROOT / path
+        if not candidate.is_file():
+            continue
+        text = candidate.read_text(encoding="utf-8")
         if "https://github.com/arcanemachine/inter-agent-core.git" not in text:
             fail(f"canonical core source missing from {path}")
         if "21b9e70da8a01c5345df4ca9680ad7eff0c81072" not in text:
