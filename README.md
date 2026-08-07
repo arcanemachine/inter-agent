@@ -1,4 +1,4 @@
-# inter-agent
+# [inter-agent](https://github.com/arcanemachine/inter-agent)
 
 `inter-agent` lets local AI coding sessions communicate through one authenticated message bus. A Pi session, a Claude Code session, or another client can discover connected agents, send direct messages, broadcast, and exchange messages through named channels.
 
