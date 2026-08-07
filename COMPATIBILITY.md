@@ -10,4 +10,4 @@ This source checkout coordinates the split-generation candidate set below. It do
 
 The protocol's AsyncAPI document is version `0.1.0`. Git submodules record the exact tested candidate revisions without copying those revisions into this document.
 
-Each component versions independently after this split generation. Update this record when the supported semantic version set changes.
+Each component versions independently after this split generation. Run the child checks and ecosystem acceptance when updating a Gitlink, and update this record when the supported semantic version set changes.

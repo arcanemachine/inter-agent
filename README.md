@@ -75,6 +75,16 @@ git submodule update --init --recursive
 
 Each child owns its development setup and package checks. Follow the README in the component you are changing. Commit child changes in that repository, then update the corresponding Gitlink here.
 
+## Coordinated validation
+
+After preparing each child's development environment, run:
+
+```bash
+scripts/run-checks.sh
+```
+
+The script builds and clean-installs the indexed child revisions in temporary state, then exercises Pi and Claude Code interoperability for direct messages, broadcasts, channels, kick behavior, isolated buses, and TLS. It does not publish, install globally, or use the user's bus.
+
 ## Source revisions and releases
 
 The submodule Gitlinks identify the exact coordinated source revisions. [`COMPATIBILITY.md`](COMPATIBILITY.md) records the compatible semantic versions and release status.
