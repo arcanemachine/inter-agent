@@ -1,4 +1,4 @@
-# [inter-agent](https://github.com/arcanemachine/inter-agent)
+# inter-agent
 
 `inter-agent` lets local AI coding sessions communicate through one authenticated message bus. A Pi session, a Claude Code session, or another client can discover connected agents, send direct messages, broadcast, and exchange messages through named channels.
 
@@ -8,9 +8,9 @@ This repository is the **ecosystem source checkout**. It records a compatible co
 
 | Project | What it provides |
 | --- | --- |
-| [`core/`](core/) | The host-neutral Python runtime: WebSocket server, protocol, authentication, TLS, routing, channels, lifecycle controls, shared configuration, and generic command-line clients. |
-| [`extensions/pi/`](extensions/pi/) | The Pi extension: `/inter-agent` commands, agent-callable tools, inbound notifications, mailbox UI, and a Python helper built on the core runtime. |
-| [`extensions/claude-code/`](extensions/claude-code/) | The Claude Code plugin: skill-driven commands, Monitor-based inbound delivery, bundled wrappers, and a Python helper built on the core runtime. |
+| [`inter-agent-core`](https://github.com/arcanemachine/inter-agent-core) | The host-neutral Python runtime: WebSocket server, protocol, authentication, TLS, routing, channels, lifecycle controls, shared configuration, and generic command-line clients. |
+| [`inter-agent-pi`](https://github.com/arcanemachine/inter-agent-pi) | The Pi extension: `/inter-agent` commands, agent-callable tools, inbound notifications, mailbox UI, and a Python helper built on the core runtime. |
+| [`inter-agent-claude-code`](https://github.com/arcanemachine/inter-agent-claude-code) | The Claude Code plugin: skill-driven commands, Monitor-based inbound delivery, bundled wrappers, and a Python helper built on the core runtime. |
 
 Each project is independently versioned and installable. This repository records the exact source revisions tested together as Git submodules.
 
@@ -52,9 +52,9 @@ The default endpoint is `127.0.0.1:16837`. Clients authenticate with an HMAC-SHA
 
 Install the component for the host you use:
 
-- **Pi:** follow [`extensions/pi/README.md`](extensions/pi/README.md).
-- **Claude Code:** follow [`extensions/claude-code/README.md`](extensions/claude-code/README.md).
-- **Core server or generic CLI:** follow [`core/README.md`](core/README.md).
+- **Pi:** follow [`inter-agent-pi/README.md`](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md).
+- **Claude Code:** follow [`inter-agent-claude-code/README.md`](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md).
+- **Core server or generic CLI:** follow [`inter-agent-core/README.md`](https://github.com/arcanemachine/inter-agent-core/blob/main/README.md).
 
 You do not need this superproject after the required components are installed. It is primarily for developing, reviewing, and testing a coordinated source set.
 
@@ -95,13 +95,13 @@ When a child revision changes, update its Gitlink. Update `COMPATIBILITY.md` whe
 
 The default design assumes one trusted operating-system user on one machine. Shared-secret authentication prevents unauthenticated clients from joining the bus, and TLS can protect network transport, but neither protects against hostile code running as the same user with access to the bus state or secret.
 
-Do not commit or share bus secrets, private keys, certificates, or local state. See [`core/SECURITY.md`](core/SECURITY.md) for the complete security model.
+Do not commit or share bus secrets, private keys, certificates, or local state. See [`inter-agent-core/SECURITY.md`](https://github.com/arcanemachine/inter-agent-core/blob/main/SECURITY.md) for the complete security model.
 
 ## Documentation
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — repository ownership and component boundaries
 - [`COMPATIBILITY.md`](COMPATIBILITY.md) — coordinated candidate versions
-- [`core/spec/`](core/spec/) — AsyncAPI protocol definition, schemas, examples, and error codes
+- [`inter-agent-core/spec/`](https://github.com/arcanemachine/inter-agent-core/tree/main/spec) — AsyncAPI protocol definition, schemas, examples, and error codes
 - Child READMEs — component-specific installation, commands, and development instructions
 
 ## License
