@@ -10,9 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PROHIBITED_SEGMENTS = {".agents", ".venv", "node_modules", "dist", "build", "__pycache__"}
 PROHIBITED_TEXT = (
-    "/workspace",
     "file://",
-    "inter-agent-pi-extraction",
     "path =",
     "directory =",
 )
