@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run isolated installed acceptance for the three pinned child artifacts."""
+"""Run installed acceptance for the three Python child artifacts and OpenCode source submodule."""
 
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ CHILD_SOURCES = {
     "core": ROOT / "core",
     "extensions/pi": ROOT / "extensions/pi",
     "extensions/claude-code": ROOT / "extensions/claude-code",
+}
+SUBMODULE_SOURCES = {
+    **CHILD_SOURCES,
+    "extensions/opencode": ROOT / "extensions/opencode",
 }
 
 
@@ -65,7 +69,7 @@ def local_recursive_clone(destination: Path) -> None:
     run(["git", "clone", "--local", "--no-hardlinks", "--no-checkout", str(ROOT), str(destination)])
     run(["git", "-C", str(destination), "read-tree", tree])
     run(["git", "-C", str(destination), "checkout-index", "-a"])
-    for path, source in CHILD_SOURCES.items():
+    for path, source in SUBMODULE_SOURCES.items():
         run(["git", "-C", str(destination), "config", f"submodule.{path}.url", str(source)])
     run(
         ["git", "-C", str(destination), "-c", "protocol.file.allow=always", "submodule", "update", "--init", "--recursive"]
@@ -315,7 +319,7 @@ def main() -> int:
         child_gates(checkout, environment)
         install_artifacts(checkout, runtime, environment)
         installed_matrix(temp, alias, runtime, environment)
-        for path in ("core", "extensions/pi", "extensions/claude-code"):
+        for path in SUBMODULE_SOURCES:
             if subprocess.check_output(["git", "-C", str(checkout / path), "status", "--porcelain"], text=True):
                 raise RuntimeError(f"child worktree changed: {path}")
         print("installed acceptance passed")

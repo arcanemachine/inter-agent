@@ -7,3 +7,6 @@
 [submodule "extensions/claude-code"]
 	path = extensions/claude-code
 	url = https://github.com/arcanemachine/inter-agent-claude-code.git
+[submodule "extensions/opencode"]
+	path = extensions/opencode
+	url = https://github.com/arcanemachine/inter-agent-opencode.git

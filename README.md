@@ -1,6 +1,6 @@
 # inter-agent
 
-`inter-agent` lets local AI coding sessions communicate through one authenticated message bus. Pi, Claude Code, or another compatible client can discover connected agents, send direct messages, broadcast, and use named channels.
+`inter-agent` lets local AI coding sessions communicate through one authenticated message bus. Pi, Claude Code, and OpenCode can discover connected agents, send direct messages, broadcast, and use named channels.
 
 This repository is the **ecosystem source checkout**. It records a compatible combination of the core runtime and host integrations as Git submodules. It is not a Python package, npm package, or runtime dependency.
 
@@ -11,13 +11,14 @@ This repository is the **ecosystem source checkout**. It records a compatible co
 | [inter-agent-core](https://github.com/arcanemachine/inter-agent-core) | The host-neutral Python runtime, server, protocol, TLS, routing, channels, shared state, and generic CLI. | [Core README](https://github.com/arcanemachine/inter-agent-core/blob/main/README.md) |
 | [inter-agent-pi](https://github.com/arcanemachine/inter-agent-pi) | Pi commands, model tools, notifications, mailbox delivery, and the Pi helper. | [Pi README](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md) |
 | [inter-agent-claude-code](https://github.com/arcanemachine/inter-agent-claude-code) | The Claude Code plugin, Monitor listener, wrappers, and Claude helper. | [Claude Code README](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md) |
+| [inter-agent-opencode](https://github.com/arcanemachine/inter-agent-opencode) | OpenCode TUI commands, server tools, direct protocol access, and automatic inbound delivery. | [OpenCode README](https://github.com/arcanemachine/inter-agent-opencode/blob/main/README.md) |
 | Complete checkout | Coordinated development, review, and cross-adapter acceptance. | Clone this repository recursively. |
 
 Each child is independently versioned and installable. The submodules record the exact source revisions tested together.
 
 ## How it works
 
-One `inter-agent-core` server owns authentication, routing, channels, and connection state. Pi and Claude Code connect through their own host adapters and surface incoming messages through their native interfaces. They share the same endpoint, state directory, secret discovery, and TLS configuration.
+One `inter-agent-core` server owns authentication, routing, channels, and connection state. Pi, Claude Code, and OpenCode connect through their own host adapters and surface incoming messages through their native interfaces. They share the same endpoint, state directory, secret discovery, and TLS configuration.
 
 The default endpoint is `127.0.0.1:16837`. Loopback connections default to plaintext WebSockets; non-loopback connections default to TLS unless explicitly disabled. Clients authenticate with an HMAC-SHA-256 challenge using a shared secret.
 
@@ -75,6 +76,7 @@ The default trust boundary is one trusted operating-system user on one machine. 
 - [Core issues](https://github.com/arcanemachine/inter-agent-core/issues)
 - [Pi issues](https://github.com/arcanemachine/inter-agent-pi/issues)
 - [Claude Code issues](https://github.com/arcanemachine/inter-agent-claude-code/issues)
+- [OpenCode issues](https://github.com/arcanemachine/inter-agent-opencode/issues)
 - [Ecosystem issues](https://github.com/arcanemachine/inter-agent/issues)
 
 ## License

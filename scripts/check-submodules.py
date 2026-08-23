@@ -12,6 +12,7 @@ EXPECTED = {
     "core": "https://github.com/arcanemachine/inter-agent-core.git",
     "extensions/pi": "https://github.com/arcanemachine/inter-agent-pi.git",
     "extensions/claude-code": "https://github.com/arcanemachine/inter-agent-claude-code.git",
+    "extensions/opencode": "https://github.com/arcanemachine/inter-agent-opencode.git",
 }
 
 
