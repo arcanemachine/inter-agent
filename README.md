@@ -24,7 +24,7 @@ The default endpoint is `127.0.0.1:16837`. Loopback connections default to plain
 
 ## First cross-adapter message
 
-Install the [Pi](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md) and [Claude Code](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md) components, then connect them to the same bus:
+Install the [Pi](https://github.com/arcanemachine/inter-agent-pi/blob/main/README.md), [Claude Code](https://github.com/arcanemachine/inter-agent-claude-code/blob/main/README.md), or [OpenCode](https://github.com/arcanemachine/inter-agent-opencode/blob/main/README.md) component, then connect each host to the same bus:
 
 ```text
 # In Pi
@@ -33,9 +33,13 @@ Install the [Pi](https://github.com/arcanemachine/inter-agent-pi/blob/main/READM
 # In Claude Code
 /inter-agent connect claude-agent
 /inter-agent send pi-agent hello from Claude Code
+
+# In OpenCode
+# Select "Inter-agent: Connect OpenCode session" from Ctrl+P.
+# Enter: opencode-agent --auto-connect
 ```
 
-The Pi session receives a notification. For separate machines, configure a shared reachable endpoint, secret, and TLS settings; the default loopback endpoint is local to one machine.
+The receiving host shows its native notification or delivery view. For separate machines, configure a shared reachable endpoint, secret, and TLS settings; the default loopback endpoint is local to one machine.
 
 ## Complete source checkout
 
