@@ -8,7 +8,7 @@ This public source checkout coordinates tested child source versions and records
 | `inter-agent-pi` | npm extension `0.3.2`; Python helper `0.3.1` | Requires `inter-agent-core==0.3.0`; control uses released public Pi lifecycle/submission APIs present in Pi `0.81.1`, with runtime semantics additionally verified against Pi `0.84.2`. |
 | `pi-session-manager` | `0.1.1` (`44461a7`) | Optional hosting composition verified with `inter-agent-pi` commit `01b5bf2`, Pi `0.84.2`, and tmux `3.5a`; it remains independent of routing, readiness, allowlists, and semantic control. |
 | `inter-agent-claude-code` | plugin `0.2.1`; Python helper `0.3.0` | Requires `inter-agent-core==0.3.0`; the plugin metadata remains `0.2.1` while the helper uses the Core `0.3.0` source and the current Pi compatibility set. |
-| `inter-agent-opencode` | standalone OpenCode extension | Provides separate TUI and server plugin targets, direct TypeScript/Bun protocol access, loopback plaintext or WSS, and automatic inbound delivery. |
+| `inter-agent-opencode` | package `0.2.1` | Provides separate TUI and server plugin targets, direct TypeScript/Bun protocol access, loopback plaintext or WSS, Home-screen connection, compact automatic delivery, and durable inbox tools. |
 
 The protocol's AsyncAPI document is version `0.1.0`. Git submodules record the exact tested child revisions without copying those revisions into this document.
 
