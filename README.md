@@ -66,16 +66,13 @@ scripts/run-checks.sh
 
 The script builds and clean-installs the indexed child revisions, then exercises direct messages, broadcasts, channels, kick behavior, isolated buses, and TLS without publishing or using the user's existing bus.
 
-## Compatibility and security
-
-[`COMPATIBILITY.md`](COMPATIBILITY.md) records the released compatible versions and the tested submodule set.
+## Security
 
 The default trust boundary is one trusted operating-system user on one machine. Shared-secret authentication prevents unauthenticated clients from joining, and TLS protects network transport, but neither protects against hostile code running as the same user with access to local state or secrets. Do not commit or share secrets, private keys, certificates, or state. See the [`inter-agent-core` security model](https://github.com/arcanemachine/inter-agent-core/blob/main/SECURITY.md).
 
 ## Documentation and support
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — repository ownership and component boundaries
-- [`COMPATIBILITY.md`](COMPATIBILITY.md) — released versions and compatibility
 - [`inter-agent-core/spec/`](https://github.com/arcanemachine/inter-agent-core/tree/main/spec) — protocol definition, schemas, examples, and error codes
 - [Core issues](https://github.com/arcanemachine/inter-agent-core/issues)
 - [Pi issues](https://github.com/arcanemachine/inter-agent-pi/issues)
