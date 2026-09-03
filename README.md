@@ -22,7 +22,7 @@ One `inter-agent-core` server owns authentication, routing, channels, and connec
 
 Core remains a separately managed process: OpenCode requires an already-running Core server, while Pi and Claude Code may auto-start a local server as part of their connect flow. The ecosystem checkout records compatible source revisions but is not itself a runtime or server manager.
 
-The default endpoint is `127.0.0.1:16837`. Loopback connections default to plaintext WebSockets; non-loopback connections default to TLS unless explicitly disabled. Clients authenticate with an HMAC-SHA-256 challenge-response using a shared secret; the raw secret is not sent over the socket.
+The default endpoint is `127.0.0.1:16837`. Loopback connections default to plaintext WebSockets; Core supports non-loopback connections with TLS unless explicitly disabled. OpenCode intentionally remains loopback-only, while other adapters document their supported remote configurations. Clients authenticate with an HMAC-SHA-256 challenge-response using a shared secret; the raw secret is not sent over the socket.
 
 ## First cross-adapter message
 
@@ -41,7 +41,7 @@ Install the [Pi](https://github.com/arcanemachine/inter-agent-pi/blob/main/READM
 # Enter: opencode-agent --auto-connect
 ```
 
-The receiving host shows its native notification or delivery view. For separate machines, configure a shared reachable endpoint, secret, and TLS settings; the default loopback endpoint is local to one machine. Use each component README for its release-specific installation, helper provisioning, and lifecycle instructions.
+The receiving host shows its native notification or delivery view. For separate machines, configure a shared reachable endpoint, secret, and TLS settings only for adapters that support non-loopback operation; OpenCode must remain on loopback. The default loopback endpoint is local to one machine. Use each component README for its release-specific installation, helper provisioning, and lifecycle instructions.
 
 ## Complete source checkout
 
