@@ -323,12 +323,9 @@ def main() -> int:
             if subprocess.check_output(["git", "-C", str(checkout / path), "status", "--porcelain"], text=True):
                 raise RuntimeError(f"child worktree changed: {path}")
         print("installed acceptance passed")
-    except Exception:
-        print(f"acceptance state retained at {temp}", file=sys.stderr)
-        raise
-    else:
-        alias.unlink()
-        shutil.rmtree(temp)
+    finally:
+        alias.unlink(missing_ok=True)
+        shutil.rmtree(temp, ignore_errors=True)
     return 0
 
 
