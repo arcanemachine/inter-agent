@@ -42,6 +42,16 @@ def indexed_revisions(root: Path) -> dict[str, str]:
 EXPECTED = indexed_revisions(ROOT)
 
 
+def cache_directory(variable: str, command: list[str]) -> str:
+    configured = os.environ.get(variable)
+    if configured:
+        return configured
+    discovered = subprocess.check_output(command, text=True).strip()
+    if not discovered:
+        raise RuntimeError(f"{variable} discovery returned an empty path")
+    return discovered
+
+
 def run(argv: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
     subprocess.run(argv, cwd=cwd, env=env, check=True)
 
@@ -305,6 +315,10 @@ def main() -> int:
         home = temp / "home"
         home.mkdir()
         local_recursive_clone(checkout)
+        cache_environment = {
+            "UV_CACHE_DIR": cache_directory("UV_CACHE_DIR", ["uv", "cache", "dir"]),
+            "NPM_CONFIG_CACHE": cache_directory("NPM_CONFIG_CACHE", ["npm", "config", "get", "cache"]),
+        }
         environment = dict(os.environ)
         environment.update(
             {
@@ -313,6 +327,7 @@ def main() -> int:
                 "UV_OFFLINE": "1",
                 "NPM_CONFIG_OFFLINE": "true",
                 "NPM_CONFIG_USERCONFIG": str(temp / ".npmrc"),
+                **cache_environment,
             }
         )
         (temp / ".npmrc").write_text("fund=false\naudit=false\n", encoding="utf-8")

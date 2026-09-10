@@ -22,8 +22,9 @@ quiet_check() {
   if "$@" >"$log" 2>&1; then
     rm -f "$log"
     return 0
+  else
+    status=$?
   fi
-  status=$?
   printf '[run-checks] %s failed:\n' "$label" >&2
   cat "$log" >&2
   rm -f "$log"
